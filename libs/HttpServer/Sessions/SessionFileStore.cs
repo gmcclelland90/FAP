@@ -1,23 +1,20 @@
 ﻿using System;
 using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading;
 using HttpServer.Logging;
 
 namespace HttpServer.Sessions
 {
-    ///<summary>
+    /// <summary>
     /// Stores sessions in files.
-    ///</summary>
-    /// <remarks>
-    /// All session parameters must be serializable.
-    /// </remarks>
+    /// </summary>
     public class SessionFileStore : ISessionStore
     {
         private readonly string _serverName;
         private string _path;
-        private BinaryFormatter _formatter = new BinaryFormatter();
-        private Timer _cleanSessionTimer;
+        // TODO: Replace BinaryFormatter with supported serializer (e.g., System.Text.Json)
+        // private BinaryFormatter _formatter = new BinaryFormatter();
+        private System.Threading.Timer _cleanSessionTimer;
         private int _sessionLifetime = 60*20; // 20 minutes
         private ILogger _logger = Logging.LogFactory.CreateLogger(typeof (ISessionStore));
         private static object _synclock = new object();
@@ -26,8 +23,7 @@ namespace HttpServer.Sessions
         {
             _serverName = serverName;
             CreateTempDirectory();
-            _cleanSessionTimer = new Timer(OnCleanSessions, null, 30000, 30000);
-
+            _cleanSessionTimer = new System.Threading.Timer(OnCleanSessions, null, 30000, 30000);
         }
 
         private void OnCleanSessions(object state)
@@ -75,10 +71,14 @@ namespace HttpServer.Sessions
             lock (_synclock)
             {
                 _logger.Info("Saving it");
+                // TODO: Replace BinaryFormatter with supported serializer
+                throw new NotSupportedException("BinaryFormatter is obsolete. TODO: Replace with supported serializer (e.g., System.Text.Json).");
+                /*
                 using (var stream = new FileStream(GetSessionFileName(session.SessionId), FileMode.Create, FileAccess.Write, FileShare.Read))
                 {
                     _formatter.Serialize(stream, session);
                 }
+                */
             }
         }
 
@@ -113,18 +113,29 @@ namespace HttpServer.Sessions
         /// <returns>Session if found; otherwise <c>null</c>.</returns>
         public Session Load(string id)
         {
+            // TODO: Replace BinaryFormatter with supported serializer
+            throw new NotSupportedException("BinaryFormatter is obsolete. TODO: Replace with supported serializer (e.g., System.Text.Json).");
+            /*
             var filename = GetSessionFileName(id);
             if (!File.Exists(filename))
                 return null;
 
-            lock (_synclock)
+            try
             {
-                _logger.Info("Loading..");
-                using (var stream = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                lock (_synclock)
                 {
-                    return (Session)_formatter.Deserialize(stream);
+                    using (var stream = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read))
+                    {
+                        return (Session)_formatter.Deserialize(stream);
+                    }
                 }
             }
+            catch(Exception err)
+            {
+                _logger.Warning("Failed to load session: " + filename, err);
+                return null;
+            }
+            */
         }
 
         public void Delete(string id)

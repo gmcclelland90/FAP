@@ -15,32 +15,36 @@
  * */
 #endregion
 using System;
-using System.Collections.Generic;
-using System.Configuration;
-using System.Data;
-using System.Linq;
-using System.Windows;
-using System.Reflection;
 using System.Collections;
-using System.Threading;
-using System.Windows.Markup;
+using System.Collections.Generic;
 using System.Globalization;
-using Autofac;
-using Fap.Presentation.Panels;
-using NLog;
-using NLog.Config;
-using System.Waf.Applications.Services;
-using System.Waf.Presentation.Services;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Threading;
+using System.Windows;
+using System.Windows.Markup;
+using System.Windows.Media;
+using System.Windows.Threading;
+using FAP.Application;
+using FAP.Application.ViewModels;
+using FAP.Application.ViewModel;
+using FAP.Application.Controllers;
 using FAP.Application.Views;
 using FAP.Domain;
-using FAP.Application;
-using FAP.Network;
-using Fap.Foundation;
-using BlogsPrajeesh.BlogSpot.WPFControls;
-using System.Text;
-using FAP.Domain.Net;
 using FAP.Domain.Entities;
+using FAP.Domain.Net;
+using FAP.Domain.Services;
 using FAP.Domain.Verbs;
+using FAP.Domain.Handlers;
+using FAP.Network;
+using FAP.Network.Services;
+using Fap.Foundation;
+using Fap.Presentation.Panels;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using NLog;
+using System.Waf.Presentation.Services;
 
 namespace Fap.Presentation
 {
@@ -49,7 +53,8 @@ namespace Fap.Presentation
     /// </summary>
     public partial class App : System.Windows.Application
     {
-        private IContainer container;
+        private IServiceProvider serviceProvider;
+        private SplashScreen appSplash;
 
         private string GetImage()
         {
@@ -75,9 +80,6 @@ namespace Fap.Presentation
             if(e.Args.Contains("WAIT"))
                 Thread.Sleep(5000);
 
-            SplashScreen appSplash = null;
-            Fap.Foundation.SafeObservableStatic.Dispatcher = System.Windows.Application.Current.Dispatcher;
-            SafeObservingCollectionManager.Start();
             this.DispatcherUnhandledException += new System.Windows.Threading.DispatcherUnhandledExceptionEventHandler(App_DispatcherUnhandledException);
             FrameworkElement.LanguageProperty.OverrideMetadata(typeof(FrameworkElement), new FrameworkPropertyMetadata(XmlLanguage.GetLanguage(CultureInfo.CurrentCulture.IetfLanguageTag)));
 
@@ -90,7 +92,7 @@ namespace Fap.Presentation
                     Thread.Sleep(3000);
                 }
 
-                ApplicationCore core = container.Resolve<ApplicationCore>();
+                ApplicationCore core = serviceProvider.GetRequiredService<ApplicationCore>();
 
                 if (!core.CheckSingleInstance())
                 {
@@ -114,7 +116,7 @@ namespace Fap.Presentation
                         else
                         {
                             //Unsuccessful - Notify user
-                            WPFMessageBox.Show("FAP", "Failed to add download via RPC!");
+                            System.Windows.MessageBox.Show("Failed to add download via RPC!", "FAP", MessageBoxButton.OK, MessageBoxImage.Warning);
                             Shutdown(1);
                             return;
                         }
@@ -122,7 +124,7 @@ namespace Fap.Presentation
                     else
                     {
                         //Inform the user they cannot run multiple instances
-                        WPFMessageBox.Show("FAP", "An instance of FAP is already running");
+                        System.Windows.MessageBox.Show("An instance of FAP is already running", "FAP", MessageBoxButton.OK, MessageBoxImage.Information);
                         Shutdown(1);
                         return;
                     }
@@ -168,7 +170,7 @@ namespace Fap.Presentation
             else
             {
                 Console.WriteLine(e.Exception.Message);
-                if (null != container)
+                if (null != serviceProvider)
                     LogManager.GetLogger("faplog").Fatal("Unhandled dispatcher exception", e.Exception);
                 e.Handled = true;
             }
@@ -186,7 +188,7 @@ namespace Fap.Presentation
             else
             {
                 Console.WriteLine(e.Exception.Message);
-                if (null != container)
+                if (null != serviceProvider)
                     LogManager.GetLogger("faplog").Fatal("Unhandled exception", e.Exception);
                 e.Handled = true;
             }
@@ -194,23 +196,17 @@ namespace Fap.Presentation
 
          private bool Compose()
         {
-             var builder = new ContainerBuilder();
              try
              {
-                 builder.RegisterAssemblyTypes((typeof(DomainModule).Assembly));
-                 builder.RegisterAssemblyTypes((typeof(NetworkModule).Assembly));
-                 builder.RegisterAssemblyTypes((typeof(ApplicationModule).Assembly));
-                 builder.RegisterAssemblyTypes((typeof(GUIModule).Assembly));
+                 var services = new ServiceCollection();
+                 
+                 // Register services from all modules
+                 RegisterDomainServices(services);
+                 RegisterNetworkServices(services);
+                 RegisterApplicationServices(services);
+                 RegisterGUIServices(services);
 
-                 builder.RegisterModule<DomainModule>();
-                 builder.RegisterModule<NetworkModule>();
-                 builder.RegisterModule<ApplicationModule>();
-                 builder.RegisterModule<GUIModule>();
-
-                 container = builder.Build();
-                 builder = new ContainerBuilder();
-                 builder.RegisterInstance<IContainer>(container).SingleInstance();
-                 builder.Update(container);
+                 serviceProvider = services.BuildServiceProvider();
                  return true;
              }
              catch
@@ -219,10 +215,102 @@ namespace Fap.Presentation
              }
         }
 
+        private void RegisterDomainServices(IServiceCollection services)
+        {
+            services.AddSingleton<ShareInfoService>();
+            services.AddSingleton<ListenerService>();
+            services.AddSingleton<Model>();
+            services.AddSingleton<HTTPHandler>();
+            services.AddSingleton<LANPeerFinderService>();
+            services.AddSingleton<BufferService>();
+            services.AddSingleton<ServerUploadLimiterService>();
+            services.AddSingleton<LogService>();
+            services.AddSingleton<OverlordManagerService>();
+            services.AddSingleton<UpdateCheckerService>();
+        }
+
+        private void RegisterNetworkServices(IServiceCollection services)
+        {
+            services.AddSingleton<MulticastClientService>();
+            services.AddSingleton<MulticastServerService>();
+            services.AddSingleton<HTTPHandler>();
+        }
+
+        private void RegisterApplicationServices(IServiceCollection services)
+        {
+            services.AddSingleton<IConversationController, ConversationController>();
+            services.AddSingleton<PopupWindowController>();
+            services.AddSingleton<ConnectionController>();
+            services.AddSingleton<WatchdogController>();
+            services.AddTransient<InterfaceController>();
+            services.AddSingleton<ApplicationCore>();
+            services.AddSingleton<DownloadQueueController>();
+            services.AddSingleton<BrowserController>();
+            services.AddSingleton<SharesController>();
+        }
+
+        private void RegisterGUIServices(IServiceCollection services)
+        {
+            // Register Views
+            services.AddTransient<MainWindow, MainWindow>();
+            services.AddTransient<MessageBox, MessageBox>();
+            services.AddTransient<Fap.Presentation.Panels.DownloadQueue, Fap.Presentation.Panels.DownloadQueue>();
+            services.AddTransient<SettingsPanel, SettingsPanel>();
+            services.AddTransient<TabWindow, TabWindow>();
+            services.AddTransient<Query, Query>();
+            services.AddTransient<BrowsePanel, BrowsePanel>();
+            services.AddTransient<LogPanel, LogPanel>();
+            services.AddTransient<SharesPanel, SharesPanel>();
+            services.AddTransient<TrayIcon, TrayIcon>();
+            services.AddTransient<ComparePanel, ComparePanel>();
+            services.AddTransient<Fap.Presentation.Panels.Conversation, Fap.Presentation.Panels.Conversation>();
+            services.AddTransient<UserInfoPanel, UserInfoPanel>();
+            services.AddTransient<InterfaceSelection, InterfaceSelection>();
+            services.AddTransient<MessageService, MessageService>();
+            services.AddTransient<SearchPanel, SearchPanel>();
+            services.AddTransient<WebPanel, WebPanel>();
+            services.AddTransient<IInterfaceSelectionView, InterfaceSelection>();
+            services.AddTransient<System.Waf.Applications.Services.IMessageService, System.Waf.Presentation.Services.MessageService>();
+            services.AddTransient<ISharesView, SharesPanel>();
+            services.AddTransient<IQuery, Query>();
+            services.AddTransient<IWebPanel, WebPanel>();
+            services.AddTransient<ITrayIconView, TrayIcon>();
+            services.AddTransient<IMainWindow, MainWindow>();
+            services.AddTransient<ISearchView, SearchPanel>();
+            services.AddTransient<IDownloadQueue, Fap.Presentation.Panels.DownloadQueue>();
+            services.AddTransient<ICompareView, ComparePanel>();
+            services.AddTransient<ISettingsView, SettingsPanel>();
+
+            // Register ViewModels
+            services.AddSingleton<MainWindowViewModel>();
+            services.AddSingleton<TrayIconViewModel>();
+            services.AddSingleton<WebViewModel>();
+            services.AddSingleton<UserInfoViewModel>();
+            services.AddSingleton<DownloadQueueViewModel>();
+            services.AddSingleton<BrowserViewModel>();
+            services.AddSingleton<SharesViewModel>();
+            services.AddSingleton<CompareViewModel>();
+            services.AddSingleton<SettingsViewModel>();
+            services.AddSingleton<SearchViewModel>();
+            services.AddSingleton<MessageBoxViewModel>();
+            services.AddSingleton<QueryViewModel>();
+            services.AddSingleton<SearchController>();
+            services.AddSingleton<CompareController>();
+            services.AddSingleton<DownloadQueueController>();
+            services.AddSingleton<SettingsController>();
+            services.AddSingleton<BrowserController>();
+            services.AddSingleton<ShareInfoService>();
+            services.AddSingleton<ConversationViewModel>();
+            services.AddSingleton<PopupWindowViewModel>();
+            services.AddSingleton<InterfaceSelectionViewModel>();
+		}
+
         protected override void OnExit(ExitEventArgs e)
         {
-            
-            container.Dispose();
+            if (serviceProvider is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
             base.OnExit(e);
         }
     }

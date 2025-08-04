@@ -2,17 +2,24 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using Autofac;
 using FAP.Domain;
 using FAP.Domain.Services;
+using FAP.Domain.Handlers;
 using FAP.Application;
+using FAP.Application.Controllers;
+using FAP.Application.Views;
 using FAP.Network;
+using FAP.Network.Services;
+using FAP.Domain.Verbs;
 using System.Net;
 using System.Waf.Applications.Services;
 using FAP.Application.Views;
 using NLog.Filters;
 using NLog;
-using FAP.Domain.Entities;
+using Microsoft.Extensions.DependencyInjection;
+using System.Waf.Presentation.Services; // For MessageService
+using FAP.Domain.Entities; // For Model
+using FAP.Domain.Net; // For LANPeerFinderService
 
 namespace Server.Console
 {
@@ -26,7 +33,7 @@ namespace Server.Console
             p.Run();
         }
 
-        private IContainer container;
+        private IServiceProvider serviceProvider;
         private LogService logService;
         private Model model;
 
@@ -35,12 +42,12 @@ namespace Server.Console
 
             if(Compose())
             {
-                logService = container.Resolve<LogService>();
+                logService = serviceProvider.GetRequiredService<LogService>();
                 logService.Filter = LogLevel.Trace;
-                model = container.Resolve<Model>();
+                model = serviceProvider.GetRequiredService<Model>();
                 model.Messages.CollectionChanged += new System.Collections.Specialized.NotifyCollectionChangedEventHandler(Messages_CollectionChanged);
 
-                ApplicationCore core = new ApplicationCore(container);
+                ApplicationCore core = serviceProvider.GetRequiredService<ApplicationCore>();
                 core.Load(true);
                 core.StartOverlordServer();
                
@@ -65,26 +72,40 @@ namespace Server.Console
 
         private bool Compose()
         {
-             var builder = new ContainerBuilder();
              try
              {
-                 builder.RegisterAssemblyTypes((typeof(DomainModule).Assembly));
-                 builder.RegisterAssemblyTypes((typeof(NetworkModule).Assembly));
-                 builder.RegisterAssemblyTypes((typeof(ApplicationModule).Assembly));
+                 var services = new ServiceCollection();
+                 
+                 // Register domain services
+                 services.AddSingleton<ShareInfoService>();
+                 services.AddSingleton<ListenerService>();
+                 services.AddSingleton<Model>();
+                 services.AddSingleton<HTTPHandler>();
+                 services.AddSingleton<LANPeerFinderService>();
+                 services.AddSingleton<BufferService>();
+                 services.AddSingleton<ServerUploadLimiterService>();
+                 services.AddSingleton<LogService>();
+                 services.AddSingleton<OverlordManagerService>();
 
-                 builder.RegisterModule<DomainModule>();
-                 builder.RegisterModule<NetworkModule>();
-                 builder.RegisterModule<ApplicationModule>();
+                 // Register network services
+                 services.AddSingleton<MulticastClientService>();
+                 services.AddSingleton<MulticastServerService>();
 
-                 builder.RegisterType<MessageService>().As<IMessageService>();
-                 builder.RegisterType<InterfaceSelectionView>().As<IInterfaceSelectionView>();
-                 builder.RegisterType<SharesView>().As<ISharesView>();
-                 builder.RegisterType<Query>().As<IQuery>();
+                 // Register application services
+                 services.AddSingleton<IConversationController, ConversationController>();
+                 services.AddSingleton<PopupWindowController>();
+                 services.AddSingleton<ConnectionController>();
+                 services.AddSingleton<WatchdogController>();
+                 services.AddTransient<InterfaceController>();
+                 services.AddSingleton<ApplicationCore>();
 
-                 container = builder.Build();
-                 builder = new ContainerBuilder();
-                 builder.RegisterInstance<IContainer>(container).SingleInstance();
-                 builder.Update(container);
+                 // Register additional services for server
+                 services.AddTransient<IMessageService, MessageService>();
+                 services.AddTransient<IInterfaceSelectionView, InterfaceSelectionView>();
+                 services.AddTransient<ISharesView, SharesView>();
+                 services.AddTransient<IQuery, Query>();
+
+                 serviceProvider = services.BuildServiceProvider();
                  return true;
              }
              catch

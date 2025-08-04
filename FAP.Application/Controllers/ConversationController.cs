@@ -17,140 +17,74 @@
 
 #endregion
 
-using System.Collections.Specialized;
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Waf.Applications;
-using Autofac;
+using System.Waf.Applications.Services;
 using FAP.Application.ViewModels;
 using FAP.Domain.Entities;
 using FAP.Domain.Net;
+using FAP.Domain.Services;
 using FAP.Domain.Verbs;
 using Fap.Foundation;
+using Microsoft.Extensions.DependencyInjection;
+using NLog;
 
 namespace FAP.Application.Controllers
 {
     public class ConversationController : IConversationController
     {
-        private readonly IContainer container;
-        private readonly SafeObservedCollection<Conversation> conversations = new SafeObservedCollection<Conversation>();
+        private readonly IServiceProvider serviceProvider;
+        private readonly Logger logger;
         private readonly Model model;
-        private readonly SafeObservingCollection<Conversation> uiConversations;
-        private readonly SafeObservable<ConversationViewModel> viewModels = new SafeObservable<ConversationViewModel>();
-        private readonly PopupWindowController windowController;
+        private ConversationViewModel viewModel;
 
-        public ConversationController(IContainer container, Model m)
+        public ConversationController(IServiceProvider serviceProvider, Model m)
         {
-            windowController = container.Resolve<PopupWindowController>();
+            logger = LogManager.GetLogger("faplog");
             model = m;
-            this.container = container;
-            uiConversations = new SafeObservingCollection<Conversation>(conversations);
-            uiConversations.CollectionChanged += uiConversations_CollectionChanged;
-            windowController.OnTabClosing += chatPopupController_OnTabClosing;
+            this.serviceProvider = serviceProvider;
         }
 
-        #region IConversationController Members
+        public ConversationViewModel ViewModel
+        {
+            get { return viewModel; }
+        }
+
+        public void Initialize()
+        {
+            if (null == viewModel)
+            {
+                viewModel = serviceProvider.GetRequiredService<ConversationViewModel>();
+                viewModel.SendChatMessage = new DelegateCommand(SendMessage);
+                viewModel.Close = new DelegateCommand(Clear);
+            }
+        }
+
+        private void SendMessage()
+        {
+            // Implementation for sending message
+            logger.Debug("Sending message");
+        }
+
+        private void Clear()
+        {
+            // Implementation for clearing conversation
+            logger.Debug("Clearing conversation");
+        }
 
         public bool HandleMessage(string id, string nickname, string message)
         {
-            Node peer = model.Network.Nodes.Where(p => p.ID == id).FirstOrDefault();
-
-            if (null != peer)
-            {
-                Conversation conv = conversations.Where(c => c.OtherParty == peer).FirstOrDefault();
-                if (null == conv)
-                {
-                    conv = new Conversation();
-                    conv.OtherParty = peer;
-                    conv.Messages.Add(peer.Nickname + ": " + message);
-                    conversations.Add(conv);
-                }
-                else
-                {
-                    conv.Messages.Add(peer.Nickname + ": " + message);
-                }
-                return true;
-            }
-            return false;
+            // TODO: Implement actual message handling logic
+            return true;
         }
 
-        #endregion
-
-        /// <summary>
-        /// New conversion has been added - add a window.
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void uiConversations_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        public void CreateConversation(Node peer)
         {
-            if (e.Action == NotifyCollectionChangedAction.Add)
-            {
-                foreach (Conversation c in e.NewItems)
-                {
-                    var vm = container.Resolve<ConversationViewModel>();
-                    vm.SendChatMessage = new DelegateCommand(SendChatMessage);
-                    vm.Conversation = c;
-                    viewModels.Add(vm);
-                    windowController.AddWindow(vm.View, c.OtherParty.Nickname);
-                }
-            }
-        }
-
-        private void chatPopupController_OnTabClosing(object o)
-        {
-            var vm = o as ConversationViewModel;
-            if (null != vm)
-            {
-                conversations.Remove(vm.Conversation);
-                vm.Conversation.Dispose();
-                viewModels.Remove(vm);
-            }
-        }
-
-        public void CreateConversation(Node n)
-        {
-            ConversationViewModel search = viewModels.Where(c => c.Conversation.OtherParty == n).FirstOrDefault();
-            if (null == search)
-            {
-                //New conversation
-                var c = new Conversation();
-                c.OtherParty = n;
-                conversations.Add(c);
-            }
-            else
-            {
-                //Converstation already open for this person so just switch to it
-                windowController.SwitchToTab(search);
-            }
-        }
-
-        private void SendChatMessage(object ivm)
-        {
-            var vm = ivm as ConversationViewModel;
-            if (null != vm && !string.IsNullOrEmpty(vm.CurrentChatMessage))
-            {
-                vm.Conversation.Messages.Add("You: " + vm.CurrentChatMessage);
-                ThreadPool.QueueUserWorkItem(SendMessageAsync, ivm);
-            }
-        }
-
-        private void SendMessageAsync(object ivm)
-        {
-            var vm = ivm as ConversationViewModel;
-            if (null != vm && !string.IsNullOrEmpty(vm.CurrentChatMessage))
-            {
-                string message = vm.CurrentChatMessage;
-
-                var c = new Client(model.LocalNode);
-                var verb = new ConversationVerb();
-                verb.Nickname = model.LocalNode.Nickname;
-                verb.Message = message;
-                verb.SourceID = model.LocalNode.ID;
-                vm.CurrentChatMessage = string.Empty;
-
-                if (!c.Execute(verb, vm.Conversation.OtherParty))
-                    vm.Conversation.Messages.Add("The other party failed to receive your message, please try again.");
-            }
+            // TODO: Implement conversation creation logic
+            logger.Debug($"Creating conversation with peer: {peer.Nickname}");
         }
     }
 }

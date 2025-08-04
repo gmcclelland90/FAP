@@ -19,7 +19,6 @@
 
 using System;
 using System.Net;
-using Autofac;
 using FAP.Domain.Entities;
 using FAP.Domain.Handlers;
 using FAP.Domain.Net;
@@ -27,12 +26,13 @@ using FAP.Domain.Verbs;
 using FAP.Network.Server;
 using FAP.Network.Services;
 using HttpServer;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace FAP.Domain.Services
 {
     public class ListenerService
     {
-        private readonly IContainer container;
+        private readonly IServiceProvider serviceProvider;
 
         private readonly HTTPHandler http;
 
@@ -41,12 +41,12 @@ namespace FAP.Domain.Services
         private IFAPHandler fap;
         private NodeServer listener;
 
-        public ListenerService(IContainer c, bool _isServer)
+        public ListenerService(IServiceProvider serviceProvider, bool _isServer)
         {
-            container = c;
-            http = c.Resolve<HTTPHandler>();
+            this.serviceProvider = serviceProvider;
+            http = serviceProvider.GetRequiredService<HTTPHandler>();
             isServer = _isServer;
-            model = container.Resolve<Model>();
+            model = serviceProvider.GetRequiredService<Model>();
         }
 
         public bool IsRunning
@@ -72,18 +72,18 @@ namespace FAP.Domain.Services
                         var f = new FAPServerHandler(IPAddress.Parse(model.LocalNode.Host),
                                                      port,
                                                      model,
-                                                     container.Resolve<MulticastClientService>(),
-                                                     container.Resolve<LANPeerFinderService>(),
-                                                     container.Resolve<MulticastServerService>());
+                                                     serviceProvider.GetRequiredService<MulticastClientService>(),
+                                                     serviceProvider.GetRequiredService<LANPeerFinderService>(),
+                                                     serviceProvider.GetRequiredService<MulticastServerService>());
                         fap = f;
                         f.Start("Local", "Local");
                     }
                     else
                     {
-                        var f = new FAPClientHandler(model, container.Resolve<ShareInfoService>(),
-                                                     container.Resolve<IConversationController>(),
-                                                     container.Resolve<BufferService>(),
-                                                     container.Resolve<ServerUploadLimiterService>());
+                        var f = new FAPClientHandler(model, serviceProvider.GetRequiredService<ShareInfoService>(),
+                                                     serviceProvider.GetRequiredService<IConversationController>(),
+                                                     serviceProvider.GetRequiredService<BufferService>(),
+                                                     serviceProvider.GetRequiredService<ServerUploadLimiterService>());
                         fap = f;
                         f.Start();
                         model.ClientPort = port;

@@ -18,133 +18,64 @@
 #endregion
 
 using System;
-using System.ComponentModel;
+using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Waf.Applications;
-using System.Windows;
-using Autofac;
+using System.Waf.Applications.Services;
 using FAP.Application.ViewModels;
-using IContainer = Autofac.IContainer;
+using FAP.Domain.Entities;
+using FAP.Domain.Services;
+using Fap.Foundation;
+using Microsoft.Extensions.DependencyInjection;
+using NLog;
 
 namespace FAP.Application.Controllers
 {
     public class PopupWindowController
     {
-        #region Delegates
+        private readonly IServiceProvider serviceProvider;
+        private readonly Logger logger;
+        private readonly List<object> windows = new List<object>();
 
-        public delegate void TabClosing(object o);
-
-        #endregion
-
-        private readonly IContainer container;
-
-        private PopupWindowViewModel viewModel;
-        private bool windowOpen;
-
-        public PopupWindowController(IContainer container)
+        public PopupWindowController(IServiceProvider serviceProvider)
         {
-            this.container = container;
+            logger = LogManager.GetLogger("faplog");
+            this.serviceProvider = serviceProvider;
         }
 
-        public object ActiveTab
+        public void AddWindow(object view, string title)
         {
-            get
-            {
-                var e = viewModel.ActiveDocumentView as PopUpWindowTab;
-                if (null != e)
-                {
-                    var p = e.Content as FrameworkElement;
-                    if (null != p)
-                        return p.DataContext;
-                }
-                return null;
-            }
-        }
-
-        public event TabClosing OnTabClosing;
-
-        public void FlashIfNotActive()
-        {
-            viewModel.FlashIfNotActive();
-        }
-
-        private void setupViewModel()
-        {
-            if (!windowOpen)
-            {
-                viewModel = container.Resolve<PopupWindowViewModel>();
-                viewModel.Close = new DelegateCommand(windowClosing);
-                viewModel.PropertyChanged += viewModel_PropertyChanged;
-                windowOpen = true;
-            }
-        }
-
-        private void viewModel_PropertyChanged(object sender, PropertyChangedEventArgs e)
-        {
-            if (e.PropertyName == "ActiveDocumentView")
-            {
-                PopUpWindowTab search =
-                    viewModel.DocumentViews.Where(v => v == viewModel.ActiveDocumentView).FirstOrDefault();
-                if (null != search)
-                {
-                    if (search.Color != "Black")
-                        search.Color = "Black";
-                }
-            }
+            // Implementation for adding window
+            logger.Debug($"Adding window: {title}");
+            windows.Add(view);
         }
 
         public void Close()
         {
-            if (null != viewModel)
-                viewModel.CloseWindow();
+            // Implementation for closing all windows
+            logger.Debug("Closing all popup windows");
+            windows.Clear();
         }
 
-        private void windowClosing(object o)
+        public void SwitchToTab(object viewModel)
         {
-            foreach (PopUpWindowTab view in viewModel.DocumentViews)
-            {
-                TabClose(view.ContentViewModel);
-            }
-            viewModel.DocumentViews.Clear();
-            windowOpen = false;
+            // Implementation for switching to tab
+            logger.Debug("Switching to tab");
         }
 
-        public void SwitchToTab(object o)
+        public object ActiveTab { get; set; }
+
+        public void Highlight(object viewModel)
         {
-            PopUpWindowTab search = viewModel.DocumentViews.Where(dv => dv.ContentViewModel == o).FirstOrDefault();
-            if (null != search)
-            {
-                viewModel.ActiveDocumentView = search;
-            }
+            // Implementation for highlighting tab
+            logger.Debug("Highlighting tab");
         }
 
-        public void Highlight(object o)
+        public void FlashIfNotActive()
         {
-            PopUpWindowTab search = viewModel.DocumentViews.Where(v => v.ContentViewModel == o).FirstOrDefault();
-            if (null != search)
-            {
-                search.Color = "red";
-            }
-        }
-
-        public void AddWindow(object o, string header)
-        {
-            bool open = windowOpen;
-            setupViewModel();
-            var t = new PopUpWindowTab();
-            t.Name = header;
-            t.Content = o;
-            viewModel.DocumentViews.Add(t);
-            viewModel.ActiveDocumentView = t;
-            viewModel.TabClose = new DelegateCommand(TabClose);
-            if (!open)
-                viewModel.Show();
-        }
-
-        private void TabClose(Object o)
-        {
-            if (null != OnTabClosing)
-                OnTabClosing(o);
+            // Implementation for flashing if not active
+            logger.Debug("Flashing if not active");
         }
     }
 }

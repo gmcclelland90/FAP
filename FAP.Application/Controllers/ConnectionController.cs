@@ -22,18 +22,23 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading;
-using Autofac;
-using FAP.Domain;
+using System.Waf.Applications;
+using System.Waf.Applications.Services;
+using FAP.Application.ViewModels;
 using FAP.Domain.Entities;
+using FAP.Domain.Services;
 using FAP.Domain.Net;
-using FAP.Domain.Verbs;
-using FAP.Domain.Verbs.Multicast;
-using Fap.Foundation;
-using Fap.Foundation.Services;
-using FAP.Network.Entities;
+using FAP.Network;
 using FAP.Network.Services;
+using Fap.Foundation;
+using Microsoft.Extensions.DependencyInjection;
 using NLog;
-using IContainer = Autofac.IContainer;
+using FAP.Domain; // For ConnectionState and ClientType
+using FAP.Domain.Verbs.Multicast; // For WhoVerb
+using FAP.Domain.Verbs; // For ChatVerb, ConnectVerb, UpdateVerb
+using FAP.Network.Entities; // For NetworkRequest
+using FAP.Domain.Services; // For IDService
+using Fap.Foundation.Services; // For IDService
 
 namespace FAP.Application.Controllers
 {
@@ -43,19 +48,23 @@ namespace FAP.Application.Controllers
     public class ConnectionController
     {
         private static readonly object sync = new object();
-        private readonly BackgroundSafeObservable<LanPeer> attemptedPeers = new BackgroundSafeObservable<LanPeer>();
+        private readonly IServiceProvider serviceProvider;
+        private readonly Logger logger;
         private readonly Model model;
         private readonly MulticastServerService mserver;
         private readonly LANPeerFinderService peerFinder;
         private readonly Node transmitted = new Node();
         private readonly AutoResetEvent workerEvent = new AutoResetEvent(true);
         private bool run = true;
+        private readonly List<LanPeer> attemptedPeers = new List<LanPeer>();
 
-        public ConnectionController(IContainer c)
+        public ConnectionController(IServiceProvider serviceProvider, Model m)
         {
-            model = c.Resolve<Model>();
-            mserver = c.Resolve<MulticastServerService>();
-            peerFinder = c.Resolve<LANPeerFinderService>();
+            logger = LogManager.GetLogger("faplog");
+            model = m;
+            this.serviceProvider = serviceProvider;
+            mserver = serviceProvider.GetRequiredService<MulticastServerService>();
+            peerFinder = serviceProvider.GetRequiredService<LANPeerFinderService>();
             setupLocalNetwork();
         }
 
@@ -105,12 +114,12 @@ namespace FAP.Application.Controllers
                 }
                 else
                 {
-                    LogManager.GetLogger("faplog").Warn("Could not send message as you are not conencted");
+                    logger.Warn("Could not send message as you are not conencted");
                 }
             }
             catch (Exception e)
             {
-                LogManager.GetLogger("faplog").Error("Failed to send chat message", e);
+                logger.Error("Failed to send chat message", e);
             }
         }
 
@@ -284,7 +293,7 @@ namespace FAP.Application.Controllers
         {
             try
             {
-                LogManager.GetLogger("faplog").Info("Client connecting to {0}", n.Address);
+                logger.Info("Client connecting to {0}", n.Address);
                 net.State = ConnectionState.Connecting;
 
                 var verb = new ConnectVerb();
@@ -300,12 +309,12 @@ namespace FAP.Application.Controllers
                 net.Overlord = new Node();
                 net.Overlord.Location = n.Address;
                 net.Overlord.Secret = verb.Secret;
-                LogManager.GetLogger("faplog").Debug("Client using secret {0}", verb.Secret);
+                logger.Debug("Client using secret {0}", verb.Secret);
                 if (client.Execute(verb, n.Address))
                 {
                     net.State = ConnectionState.Connected;
                     net.Overlord.ID = verb.OverlordID;
-                    LogManager.GetLogger("faplog").Info("Client connected");
+                    logger.Info("Client connected");
                     return true;
                 }
                 else

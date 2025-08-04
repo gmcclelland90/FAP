@@ -3,19 +3,19 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Threading;
 using System.Waf.Applications;
-using Autofac;
 using FAP.Application.ViewModel;
 using FAP.Domain;
 using FAP.Domain.Entities;
 using FAP.Domain.Net;
 using FAP.Domain.Verbs;
 using Fap.Foundation;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace FAP.Application.Controllers
 {
     public class SearchController
     {
-        private readonly IContainer container;
+        private readonly IServiceProvider serviceProvider;
         private readonly Model model;
         private readonly object sync = new object();
         private SafeObservedCollection<SearchResult> currentResults = new SafeObservedCollection<SearchResult>();
@@ -23,9 +23,9 @@ namespace FAP.Application.Controllers
         private long startTime;
         private SearchViewModel viewModel;
 
-        public SearchController(IContainer c, Model m)
+        public SearchController(IServiceProvider serviceProvider, Model m)
         {
-            container = c;
+            this.serviceProvider = serviceProvider;
             model = m;
         }
 
@@ -39,7 +39,7 @@ namespace FAP.Application.Controllers
         {
             if (null == viewModel)
             {
-                viewModel = container.Resolve<SearchViewModel>();
+                viewModel = serviceProvider.GetRequiredService<SearchViewModel>();
                 viewModel.Search = new DelegateCommand(Search);
                 viewModel.Download = new DelegateCommand(Download);
                 viewModel.ViewShare = new DelegateCommand(ViewShare);

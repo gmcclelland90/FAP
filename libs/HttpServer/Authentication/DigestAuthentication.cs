@@ -20,7 +20,7 @@ namespace HttpServer.Authentication
     {
         private readonly IUserProvider _userProvider;
         static readonly Dictionary<string, DateTime> _nonces = new Dictionary<string, DateTime>();
-        private static Timer _timer;
+        private static System.Threading.Timer _timer;
         private readonly ILogger _logger = LogFactory.CreateLogger(typeof (DigestAuthentication));
 
         /// <summary>
@@ -65,7 +65,7 @@ namespace HttpServer.Authentication
             lock (_nonces)
             {
                 if (_timer == null)
-                    _timer = new Timer(ManageNonces, null, 15000, 15000);
+                    _timer = new System.Threading.Timer(ManageNonces, null, 15000, 15000);
             }
 
             if (!header.Scheme.Equals("digest", StringComparison.OrdinalIgnoreCase))

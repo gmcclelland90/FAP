@@ -17,17 +17,15 @@
 
 #endregion
 
-using Autofac;
 using FAP.Network.Services;
 
 namespace FAP.Network
 {
-    public class NetworkModule : Module
+    // This module is no longer needed as we're using Microsoft.Extensions.DependencyInjection
+    // Services are now registered directly in App.xaml.cs
+    public class NetworkModule
     {
-        protected override void Load(ContainerBuilder builder)
-        {
-            builder.RegisterType<MulticastServerService>().SingleInstance();
-            builder.RegisterType<MulticastClientService>().SingleInstance();
-        }
+        // Migration note: This class is kept for reference but is no longer used
+        // All service registration is now done in App.xaml.cs using IServiceCollection
     }
 }

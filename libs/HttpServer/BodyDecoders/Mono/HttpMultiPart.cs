@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using System.Text;
-using System.Web.Util;
+// using System.Web.Util; // REMOVED: Not available in .NET Core/.NET 9
+// TODO: Port or replace any logic that depended on System.Web.Util
 
 namespace HttpServer.BodyDecoders.Mono
 {

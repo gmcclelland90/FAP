@@ -18,6 +18,7 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -28,7 +29,6 @@ using System.Text;
 using System.Threading;
 using System.Waf.Applications;
 using System.Windows.Threading;
-using Autofac;
 using FAP.Application.Controllers;
 using FAP.Application.ViewModel;
 using FAP.Application.ViewModels;
@@ -39,23 +39,23 @@ using FAP.Domain.Verbs;
 using Fap.Foundation;
 using Fap.Foundation.RegistryServices;
 using Fap.Foundation.Services;
+using Microsoft.Extensions.DependencyInjection;
 using NLog;
-using IContainer = Autofac.IContainer;
+using FAP.Network.Entities; // For RemoteClient
 
 namespace FAP.Application
 {
     public class ApplicationCore
     {
         private readonly ConnectionController connectionController;
-        private readonly IContainer container;
         private readonly InterfaceController interfaceController;
         private readonly LogService logService;
-
         private readonly Model model;
         private readonly OverlordManagerService overlordManagerService;
         private readonly RegisterProtocolService registerProtocolService;
         private readonly SingleInstanceService singleInstanceService;
         private readonly UpdateCheckerService updateChecker;
+        private readonly IServiceProvider serviceProvider; // For resolving services that can't be injected directly
         private ListenerService client;
         private CompareController compareController;
         private ConversationController conversationController;
@@ -69,21 +69,28 @@ namespace FAP.Application
         private TrayIconViewModel trayIcon;
         private WatchdogController watchdogController;
 
-        public ApplicationCore(IContainer c)
+        public ApplicationCore(
+            Model model,
+            LogService logService,
+            ConnectionController connectionController,
+            UpdateCheckerService updateChecker,
+            InterfaceController interfaceController,
+            OverlordManagerService overlordManagerService,
+            IServiceProvider serviceProvider)
         {
-            container = c;
-            model = container.Resolve<Model>();
-            logService = container.Resolve<LogService>();
-
-            connectionController = c.Resolve<ConnectionController>();
+            this.model = model;
+            this.logService = logService;
+            this.connectionController = connectionController;
+            this.updateChecker = updateChecker;
+            this.interfaceController = interfaceController;
+            this.overlordManagerService = overlordManagerService;
+            this.serviceProvider = serviceProvider;
+            
             //Don't send two request went doing a post..
             ServicePointManager.Expect100Continue = false;
             //Don't limit connections to a single node - 100 I think is the upper limit.
             ServicePointManager.DefaultConnectionLimit = 100;
             //System.Net.ServicePointManager.MaxServicePointIdleTime = 20000000;
-            updateChecker = container.Resolve<UpdateCheckerService>();
-            interfaceController = container.Resolve<InterfaceController>();
-            overlordManagerService = container.Resolve<OverlordManagerService>();
             singleInstanceService = new SingleInstanceService("FAP");
             registerProtocolService = new RegisterProtocolService();
         }
@@ -130,7 +137,7 @@ namespace FAP.Application
 
         public void StartGUI(bool showWindow)
         {
-            trayIcon = container.Resolve<TrayIconViewModel>();
+            trayIcon = serviceProvider.GetRequiredService<TrayIconViewModel>();
             //Tray icon
             trayIcon.Exit = new DelegateCommand(Exit);
             trayIcon.Model = model;
@@ -174,14 +181,15 @@ namespace FAP.Application
 
                 model.DownloadQueue.Load();
 
-                shareInfo = container.Resolve<ShareInfoService>();
+                shareInfo = serviceProvider.GetRequiredService<ShareInfoService>();
                 shareInfo.Load();
 
-                shareController = new SharesController(container, model);
+                // Create SharesController with IServiceProvider instead of IContainer
+                shareController = new SharesController(serviceProvider, model);
                 shareController.Initalise();
-                popupController = container.Resolve<PopupWindowController>();
-                conversationController = (ConversationController) container.Resolve<IConversationController>();
-                watchdogController = container.Resolve<WatchdogController>();
+                popupController = serviceProvider.GetRequiredService<PopupWindowController>();
+                conversationController = (ConversationController) serviceProvider.GetRequiredService<IConversationController>();
+                watchdogController = serviceProvider.GetRequiredService<WatchdogController>();
                 watchdogController.Start();
 
                 if (!model.DisplayedHelp)
@@ -205,7 +213,7 @@ namespace FAP.Application
         public void ShowQuickStart()
         {
             model.DisplayedHelp = true;
-            var helpWindow = container.Resolve<WebViewModel>();
+            var helpWindow = serviceProvider.GetRequiredService<WebViewModel>();
 
             if (null != helpWindow)
             {
@@ -230,7 +238,8 @@ namespace FAP.Application
 
         public void StartClient()
         {
-            client = new ListenerService(container, false);
+            // Create ListenerService with IServiceProvider instead of IContainer
+            client = new ListenerService(serviceProvider, false);
             client.Start(model.LocalNode.Port);
             connectionController.Start();
         }
@@ -245,7 +254,7 @@ namespace FAP.Application
         {
             if (null == mainWindowModel)
             {
-                mainWindowModel = container.Resolve<MainWindowViewModel>();
+                mainWindowModel = serviceProvider.GetRequiredService<MainWindowViewModel>();
 
                 mainWindowModel.WindowTitle = Model.AppVersion;
                 mainWindowModel.SendChatMessage = new DelegateCommand(sendChatMessage);
@@ -317,7 +326,7 @@ namespace FAP.Application
         {
             if (null == searchController)
             {
-                searchController = container.Resolve<SearchController>();
+                searchController = serviceProvider.GetRequiredService<SearchController>();
                 searchController.Initalize();
             }
             popupController.AddWindow(searchController.ViewModel.View, "Search");
@@ -328,7 +337,7 @@ namespace FAP.Application
             var n = obj as Node;
             if (null != n)
             {
-                var o = container.Resolve<UserInfoViewModel>();
+                var o = serviceProvider.GetRequiredService<UserInfoViewModel>();
                 o.Node = n;
                 // popupController.AddWindow(o.View, "User info (" + n.Nickname + ")");
             }
@@ -345,7 +354,7 @@ namespace FAP.Application
         {
             if (null == compareController)
             {
-                compareController = container.Resolve<CompareController>();
+                compareController = serviceProvider.GetRequiredService<CompareController>();
                 CompareViewModel vm = compareController.Initalise();
             }
             popupController.AddWindow(compareController.ViewModel.View, "Compare");
@@ -367,10 +376,10 @@ namespace FAP.Application
         {
             if (null == downloadQueueController)
             {
-                downloadQueueController = container.Resolve<DownloadQueueController>();
+                downloadQueueController = serviceProvider.GetRequiredService<DownloadQueueController>();
                 downloadQueueController.Initalise();
             }
-            popupController.AddWindow(downloadQueueController.ViewModel.View, "Transfer Info");
+            popupController.AddWindow(downloadQueueController.ViewModel.View, "Download Queue");
         }
 
         private void sendChatMessage()
@@ -422,7 +431,7 @@ namespace FAP.Application
             var rc = o as Node;
             if (null != rc)
             {
-                var bc = container.Resolve<BrowserController>(new NamedParameter("client", rc));
+                var bc = serviceProvider.GetRequiredService<BrowserController>();
                 bc.Initalise();
                 popupController.AddWindow(bc.ViewModel.View, "View share of " + rc.Nickname);
             }
@@ -437,7 +446,7 @@ namespace FAP.Application
         {
             if (null == settingsController)
             {
-                settingsController = container.Resolve<SettingsController>();
+                settingsController = serviceProvider.GetRequiredService<SettingsController>();
                 settingsController.Initaize();
             }
             popupController.AddWindow(settingsController.ViewModel.View, "Settings");

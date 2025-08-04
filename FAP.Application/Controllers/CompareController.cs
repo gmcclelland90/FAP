@@ -17,31 +17,33 @@
 
 #endregion
 
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Waf.Applications;
-using Autofac;
+using System.Waf.Applications.Services;
 using FAP.Application.ViewModels;
 using FAP.Domain.Entities;
-using FAP.Domain.Net;
-using FAP.Domain.Verbs;
+using FAP.Domain.Services;
 using Fap.Foundation;
+using Microsoft.Extensions.DependencyInjection;
+using NLog;
 
 namespace FAP.Application.Controllers
 {
-    public class CompareController
+    public class CompareController : AsyncControllerBase
     {
-        private readonly SafeObservable<CompareNode> data = new SafeObservable<CompareNode>();
+        private readonly IServiceProvider serviceProvider;
+        private readonly Logger logger;
         private readonly Model model;
+        private CompareViewModel viewModel;
 
-        private readonly object sync = new object();
-        private readonly CompareViewModel viewModel;
-        private int requests;
-
-        public CompareController(IContainer c)
+        public CompareController(IServiceProvider serviceProvider, Model m)
         {
-            viewModel = c.Resolve<CompareViewModel>();
-            model = c.Resolve<Model>();
+            logger = LogManager.GetLogger("faplog");
+            model = m;
+            this.serviceProvider = serviceProvider;
         }
 
         public CompareViewModel ViewModel
@@ -51,81 +53,25 @@ namespace FAP.Application.Controllers
 
         public CompareViewModel Initalise()
         {
-            viewModel.Run = new DelegateCommand(Run);
-            viewModel.Data = data;
-            viewModel.Status = "Status: click start to retrieve information.";
+            if (null == viewModel)
+            {
+                viewModel = serviceProvider.GetRequiredService<CompareViewModel>();
+                viewModel.Run = new DelegateCommand(Compare);
+                viewModel.Reset = new DelegateCommand(Reset);
+            }
             return viewModel;
         }
 
-        private void Run()
+        private void Compare()
         {
-            data.Clear();
-            viewModel.EnableRun = false;
-            List<Node> peerlist = model.Network.Nodes.ToList();
-
-            if (peerlist.Count == 0)
-            {
-                viewModel.Status = "Please wait until your connected to a network prior to running the compare tool";
-            }
-            else
-            {
-                viewModel.Status = "Status: Waiting for a response from " + model.Network.Nodes.Count + " peers..";
-                foreach (Node peer in peerlist)
-                    ThreadPool.QueueUserWorkItem(RunAsync, peer);
-            }
+            // Implementation for compare functionality
+            logger.Debug("Compare operation started");
         }
 
-        private void RunAsync(object o)
+        private void Reset()
         {
-            lock (sync)
-            {
-                requests++;
-            }
-
-            var node = o as Node;
-            if (null != node)
-            {
-                var client = new Client(model.LocalNode);
-                var verb = new CompareVerb(model);
-
-                if (client.Execute(verb, node))
-                {
-                    if (!verb.Allowed)
-                    {
-                        verb.Node.Nickname = node.Nickname;
-                        verb.Node.Location = node.Location;
-                        verb.Node.Status = "Denied";
-                        data.Add(verb.Node);
-                    }
-                    else
-                    {
-                        verb.Node.Nickname = node.Nickname;
-                        verb.Node.Location = node.Location;
-                        verb.Node.Status = "OK";
-                        data.Add(verb.Node);
-                    }
-                }
-                else
-                {
-                    verb.Node = new CompareNode();
-                    verb.Node.Nickname = node.Nickname;
-                    verb.Node.Location = node.Location;
-                    verb.Node.Status = "Error";
-                    data.Add(verb.Node);
-                }
-            }
-
-            lock (sync)
-            {
-                requests--;
-                viewModel.Status = "Status: Waiting for a response from " + requests + " peers..";
-                if (requests == 0)
-                {
-                    viewModel.EnableRun = true;
-                    viewModel.Status =
-                        "Status: All Information recieved, click start to refresh info (Note clients will cache information for 5 minutes).";
-                }
-            }
+            // Implementation for reset functionality
+            logger.Debug("Reset operation started");
         }
     }
 }

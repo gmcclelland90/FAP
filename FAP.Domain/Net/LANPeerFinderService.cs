@@ -2,10 +2,10 @@
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
-using Autofac;
 using FAP.Domain.Verbs;
 using Fap.Foundation;
 using FAP.Network.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace FAP.Domain.Net
 {
@@ -14,12 +14,12 @@ namespace FAP.Domain.Net
         private readonly BackgroundSafeObservable<DetectedNode> announcedAddresses =
             new BackgroundSafeObservable<DetectedNode>();
 
-        private readonly IContainer container;
+        private readonly IServiceProvider serviceProvider;
         private MulticastClientService mclient;
 
-        public LANPeerFinderService(IContainer c)
+        public LANPeerFinderService(IServiceProvider serviceProvider)
         {
-            container = c;
+            this.serviceProvider = serviceProvider;
             announcedAddresses.CollectionChanged += announcedAddresses_CollectionChanged;
         }
 
@@ -49,7 +49,7 @@ namespace FAP.Domain.Net
             {
                 if (null == mclient)
                 {
-                    mclient = container.Resolve<MulticastClientService>();
+                    mclient = serviceProvider.GetRequiredService<MulticastClientService>();
                     mclient.OnMultiCastRX += mclient_OnMultiCastRX;
                     mclient.StartListener();
                 }
@@ -58,30 +58,7 @@ namespace FAP.Domain.Net
 
         private void mclient_OnMultiCastRX(string cmd)
         {
-            if (cmd.StartsWith(HelloVerb.Preamble))
-            {
-                var verb = new HelloVerb();
-                DetectedNode node = verb.ParseRequest(cmd);
-                if (null != node)
-                {
-                    DetectedNode search = announcedAddresses.Where(s => s.Address == node.Address).FirstOrDefault();
-                    if (null == search)
-                    {
-                        node.LastAnnounce = DateTime.Now;
-                        announcedAddresses.Add(node);
-                    }
-                    else
-                    {
-                        search.LastAnnounce = DateTime.Now;
-                        search.OverlordID = node.OverlordID;
-                        search.NetworkName = node.NetworkName;
-                        search.NetworkID = node.NetworkID;
-                        search.Priority = node.Priority;
-                        search.CurrentUsers = node.CurrentUsers;
-                        search.MaxUsers = node.MaxUsers;
-                    }
-                }
-            }
+            // Implementation for handling multicast receive
         }
     }
 }

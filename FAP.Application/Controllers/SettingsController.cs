@@ -18,32 +18,33 @@
 #endregion
 
 using System;
-using System.Diagnostics;
-using System.Drawing;
-using System.Drawing.Imaging;
-using System.IO;
-using System.Reflection;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using System.Waf.Applications;
 using System.Waf.Applications.Services;
-using Autofac;
+using System.Windows;
 using FAP.Application.ViewModels;
 using FAP.Domain.Entities;
+using FAP.Domain.Services;
+using Fap.Foundation;
+using Microsoft.Extensions.DependencyInjection;
+using NLog;
 
 namespace FAP.Application.Controllers
 {
-    internal class SettingsController
+    public class SettingsController : AsyncControllerBase
     {
-        private readonly IContainer container;
-        private readonly ApplicationCore core;
+        private readonly IServiceProvider serviceProvider;
+        private readonly Logger logger;
         private readonly Model model;
-        private QueryViewModel browser;
         private SettingsViewModel viewModel;
 
-        public SettingsController(IContainer c, Model m, ApplicationCore ac)
+        public SettingsController(IServiceProvider serviceProvider, Model m)
         {
-            container = c;
+            logger = LogManager.GetLogger("faplog");
             model = m;
-            core = ac;
+            this.serviceProvider = serviceProvider;
         }
 
         public SettingsViewModel ViewModel
@@ -53,95 +54,23 @@ namespace FAP.Application.Controllers
 
         public void Initaize()
         {
-            if (null == viewModel)
-            {
-                browser = container.Resolve<QueryViewModel>();
-                viewModel = container.Resolve<SettingsViewModel>();
-                viewModel.Model = model;
-                viewModel.EditDownloadDir = new DelegateCommand(SettingsEditDownloadDir);
-                viewModel.ChangeAvatar = new DelegateCommand(ChangeAvatar);
-                viewModel.ResetInterface = new DelegateCommand(ResetInterface);
-                viewModel.DisplayQuickStart = new DelegateCommand(DisplayQuickStart);
-            }
+            viewModel = serviceProvider.GetRequiredService<SettingsViewModel>();
+            viewModel.Model = model;
+            viewModel.SaveCommand = new DelegateCommand(SaveCommand);
+            viewModel.CancelCommand = new DelegateCommand(CancelCommand);
         }
 
-        private void DisplayQuickStart()
+        private void SaveCommand()
         {
-            core.ShowQuickStart();
-        }
-
-        private void SettingsEditDownloadDir()
-        {
-            string folder = string.Empty;
-            if (browser.SelectFolder(out folder))
-            {
-                model.DownloadFolder = folder;
-                model.IncompleteFolder = folder + "\\Incomplete";
-            }
-        }
-
-        private void ChangeAvatar()
-        {
-            string path = string.Empty;
-
-            if (browser.SelectFile(out path))
-            {
-                try
-                {
-                    var ms = new MemoryStream();
-                    var stream = new FileStream(path, FileMode.Open, FileAccess.Read);
-                    ms.SetLength(stream.Length);
-                    stream.Read(ms.GetBuffer(), 0, (int) stream.Length);
-                    ms.Flush();
-                    stream.Close();
-                    //Resize
-                    var bitmap = new Bitmap(ms);
-                    Image thumbnail = ResizeImage(bitmap, 100, 100);
-                    ms = new MemoryStream();
-                    thumbnail.Save(ms, ImageFormat.Png);
-                    model.Avatar = Convert.ToBase64String(ms.ToArray());
-                }
-                catch
-                {
-                }
-            }
-        }
-
-        private Image ResizeImage(Bitmap FullsizeImage, int NewWidth, int MaxHeight)
-        {
-            // Prevent using images internal thumbnail
-            FullsizeImage.RotateFlip(RotateFlipType.Rotate180FlipNone);
-            FullsizeImage.RotateFlip(RotateFlipType.Rotate180FlipNone);
-
-            if (FullsizeImage.Width <= NewWidth)
-                NewWidth = FullsizeImage.Width;
-
-            int NewHeight = FullsizeImage.Height*NewWidth/FullsizeImage.Width;
-            if (NewHeight > MaxHeight)
-            {
-                // Resize with height instead
-                NewWidth = FullsizeImage.Width*MaxHeight/FullsizeImage.Height;
-                NewHeight = MaxHeight;
-            }
-
-            Image NewImage = FullsizeImage.GetThumbnailImage(NewWidth, NewHeight, null, IntPtr.Zero);
-            // Clear handle to original file so that we can overwrite it if necessary
-            FullsizeImage.Dispose();
-            // Save resized picture
-            return NewImage;
-        }
-
-        private void ResetInterface()
-        {
-            model.LocalNode.Host = null;
             model.Save();
-            container.Resolve<IMessageService>().ShowWarning("Interface selection reset.  FAP will now restart.");
-            var notePad = new Process();
+            if (viewModel.View is System.Windows.Window window)
+                window.Close();
+        }
 
-            notePad.StartInfo.FileName = Assembly.GetEntryAssembly().CodeBase;
-            notePad.StartInfo.Arguments = "WAIT";
-            notePad.Start();
-            core.Exit();
+        private void CancelCommand()
+        {
+            if (viewModel.View is System.Windows.Window window)
+                window.Close();
         }
     }
 }

@@ -36,6 +36,8 @@ namespace FAP.Application.ViewModels
         private ICommand editDownloadDir;
         private Model model;
         private ICommand resetInterface;
+        private ICommand saveCommand;
+        private ICommand cancelCommand;
 
         public SettingsViewModel(ISettingsView view)
             : base(view)
@@ -79,6 +81,26 @@ namespace FAP.Application.ViewModels
             {
                 changeAvatar = value;
                 RaisePropertyChanged("ChangeAvatar");
+            }
+        }
+
+        public ICommand SaveCommand
+        {
+            get { return saveCommand; }
+            set
+            {
+                saveCommand = value;
+                RaisePropertyChanged("SaveCommand");
+            }
+        }
+
+        public ICommand CancelCommand
+        {
+            get { return cancelCommand; }
+            set
+            {
+                cancelCommand = value;
+                RaisePropertyChanged("CancelCommand");
             }
         }
 

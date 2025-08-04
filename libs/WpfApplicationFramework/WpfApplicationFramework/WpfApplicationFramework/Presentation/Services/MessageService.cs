@@ -14,24 +14,13 @@ namespace System.Waf.Presentation.Services
   //  [Export(typeof(IMessageService))]
     public class MessageService : IMessageService
     {
-        private static MessageBoxResult MessageBoxResult { get { return MessageBoxResult.None; } }
-
-        private static MessageBoxOptions MessageBoxOptions
-        {
-            get
-            {
-                return (CultureInfo.CurrentUICulture.TextInfo.IsRightToLeft) ? MessageBoxOptions.RtlReading : MessageBoxOptions.None;
-            }
-        }
-
         /// <summary>
         /// Shows the message.
         /// </summary>
         /// <param name="message">The message.</param>
         public void ShowMessage(string message)
         {
-            MessageBox.Show(message, ApplicationInfo.ProductName, MessageBoxButton.OK, MessageBoxImage.None,
-                MessageBoxResult, MessageBoxOptions);
+            MessageBox.Show(message, ApplicationInfo.ProductName, MessageBoxButton.OK, MessageBoxImage.None);
         }
 
         /// <summary>
@@ -40,8 +29,7 @@ namespace System.Waf.Presentation.Services
         /// <param name="message">The message.</param>
         public void ShowWarning(string message)
         {
-            MessageBox.Show(message, ApplicationInfo.ProductName, MessageBoxButton.OK, MessageBoxImage.Warning,
-                MessageBoxResult, MessageBoxOptions);
+            MessageBox.Show(message, ApplicationInfo.ProductName, MessageBoxButton.OK, MessageBoxImage.Warning);
         }
 
         /// <summary>
@@ -50,8 +38,7 @@ namespace System.Waf.Presentation.Services
         /// <param name="message">The message.</param>
         public void ShowError(string message)
         {
-            MessageBox.Show(message, ApplicationInfo.ProductName, MessageBoxButton.OK, MessageBoxImage.Error,
-                MessageBoxResult, MessageBoxOptions);
+            MessageBox.Show(message, ApplicationInfo.ProductName, MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 }

@@ -17,7 +17,6 @@
 
 #endregion
 
-using Autofac;
 using FAP.Domain.Entities;
 using FAP.Domain.Handlers;
 using FAP.Domain.Net;
@@ -25,19 +24,11 @@ using FAP.Domain.Services;
 
 namespace FAP.Domain
 {
-    public class DomainModule : Module
+    // This module is no longer needed as we're using Microsoft.Extensions.DependencyInjection
+    // Services are now registered directly in App.xaml.cs
+    public class DomainModule
     {
-        protected override void Load(ContainerBuilder builder)
-        {
-            builder.RegisterType<ShareInfoService>().SingleInstance();
-            builder.RegisterType<ListenerService>();
-            builder.RegisterType<Model>().SingleInstance();
-            builder.RegisterType<HTTPHandler>();
-            builder.RegisterType<LANPeerFinderService>().SingleInstance();
-            builder.RegisterType<BufferService>().SingleInstance();
-            builder.RegisterType<ServerUploadLimiterService>().SingleInstance();
-            builder.RegisterType<LogService>().SingleInstance();
-            builder.RegisterType<OverlordManagerService>().SingleInstance();
-        }
+        // Migration note: This class is kept for reference but is no longer used
+        // All service registration is now done in App.xaml.cs using IServiceCollection
     }
 }

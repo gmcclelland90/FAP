@@ -24,30 +24,30 @@ using System.Threading;
 using System.Waf.Applications;
 using System.Waf.Applications.Services;
 using System.Windows;
-using Autofac;
 using FAP.Application.ViewModels;
 using FAP.Domain.Entities;
 using FAP.Domain.Services;
 using Fap.Foundation;
+using Microsoft.Extensions.DependencyInjection;
 using NLog;
 
 namespace FAP.Application.Controllers
 {
     public class SharesController : AsyncControllerBase
     {
-        private readonly IContainer container;
+        private readonly IServiceProvider serviceProvider;
         private readonly Logger logger;
         private readonly Model model;
         private readonly ShareInfoService scanner;
         private QueryViewModel browser;
         private SharesViewModel viewModel;
 
-        public SharesController(IContainer c, Model m)
+        public SharesController(IServiceProvider serviceProvider, Model m)
         {
             logger = LogManager.GetLogger("faplog");
             model = m;
-            container = c;
-            scanner = c.Resolve<ShareInfoService>();
+            this.serviceProvider = serviceProvider;
+            scanner = serviceProvider.GetRequiredService<ShareInfoService>();
         }
 
         public SharesViewModel ViewModel
@@ -57,8 +57,8 @@ namespace FAP.Application.Controllers
 
         public void Initalise()
         {
-            viewModel = container.Resolve<SharesViewModel>();
-            browser = container.Resolve<QueryViewModel>();
+            viewModel = serviceProvider.GetRequiredService<SharesViewModel>();
+            browser = serviceProvider.GetRequiredService<QueryViewModel>();
             viewModel.AddCommand = new DelegateCommand(AddCommand);
             viewModel.RefreshCommand = new DelegateCommand(RefreshCommand);
             viewModel.RemoveCommand = new DelegateCommand(RemoveCommand);
@@ -102,7 +102,7 @@ namespace FAP.Application.Controllers
                                               (name.Length - name.LastIndexOf(Path.DirectorySeparatorChar)) - 1);
                     }
                     //Check name is valid and ok
-                    var messagebox = container.Resolve<MessageBoxViewModel>();
+                    var messagebox = serviceProvider.GetRequiredService<MessageBoxViewModel>();
                     messagebox.Response = name;
                     messagebox.Message = "What do you want to name the share?";
                     if (messagebox.ShowDialog())
@@ -121,7 +121,7 @@ namespace FAP.Application.Controllers
                 catch (Exception e)
                 {
                     logger.Error("Add share error", e);
-                    container.Resolve<IMessageService>().ShowError("Failed to add share: " + e.Message);
+                    serviceProvider.GetRequiredService<IMessageService>().ShowError("Failed to add share: " + e.Message);
                 }
             }
         }
@@ -143,63 +143,38 @@ namespace FAP.Application.Controllers
 
         public void RefreshShareInfo()
         {
-            QueueWork(new DelegateCommand(AsyncRefreshShareInfo));
-        }
-
-        private void AsyncRefreshShareInfo()
-        {
-            foreach (
-                Share share in
-                    model.Shares.ToList().Where(s => (DateTime.Now - s.LastRefresh).TotalMinutes > 30).ToList())
-                AsyncRefresh(share);
-            model.Save();
-            RefreshClientStats();
+            foreach (var s in model.Shares)
+            {
+                ThreadPool.QueueUserWorkItem(AsyncRefresh, s);
+            }
         }
 
         private void RefreshCommand()
         {
-            QueueWork(new DelegateCommand(AsyncRefreshCommand));
-        }
-
-        private void AsyncRefreshCommand()
-        {
-            foreach (Share share in model.Shares.ToList())
-                AsyncRefresh(share);
-            RefreshClientStats();
+            RefreshShareInfo();
         }
 
         private void RemoveCommand()
         {
-            if (null != viewModel.SelectedShare)
+            if (viewModel.SelectedShare != null)
             {
-                scanner.RemoveShareByID(viewModel.SelectedShare.ID);
                 model.Shares.Remove(viewModel.SelectedShare);
+                RefreshClientStats();
             }
         }
 
         private void RenameCommand()
         {
-            if (null != viewModel.SelectedShare)
+            if (viewModel.SelectedShare != null)
             {
-                var messagebox = container.Resolve<MessageBoxViewModel>();
+                var messagebox = serviceProvider.GetRequiredService<MessageBoxViewModel>();
                 messagebox.Response = viewModel.SelectedShare.Name;
-                messagebox.Message = "What do you want to rename it to?";
-                if (messagebox.ShowDialog(ViewModel.View))
+                messagebox.Message = "What do you want to rename the share to?";
+                if (messagebox.ShowDialog())
                 {
-                    scanner.RenameShareByID(viewModel.SelectedShare.ID, messagebox.Response);
                     viewModel.SelectedShare.Name = messagebox.Response;
                 }
             }
         }
-
-        #region Nested type: ScanInfo
-
-        protected class ScanInfo
-        {
-            public long Size { set; get; }
-            public long FileCount { set; get; }
-        }
-
-        #endregion
     }
 }
