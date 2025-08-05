@@ -721,10 +721,8 @@ namespace FAP.Domain.Handlers
                     selfNode.OverlordID = serverNode.ID;
                     selfNode.Secret = iv.Secret;
                     
-                    // Create a dummy client stream for self-connection
-                    var selfClientStream = new ClientStream();
-                    selfClientStream.OnDisconnect += c_OnDisconnect;
-                    
+                    // For self-connections, we don't use ClientStream as it tries to use the old Client class
+                    // Instead, we just add the node to the connected list and send the update
                     lock (sync)
                     {
                         //Notify other clients
@@ -737,8 +735,9 @@ namespace FAP.Domain.Handlers
                             connectedClientNodes.Remove(search);
                             search.Kill();
                         }
-                        selfClientStream.Start(selfNode, serverNode);
-                        connectedClientNodes.Add(selfClientStream);
+                        
+                        // For self-connections, we don't add a ClientStream since it would try to use the old Client class
+                        // The node is already "connected" since it's the same application
                         update.Nodes.Add(selfNode);
                         NetworkRequest req = update.CreateRequest();
                         req.SourceID = serverNode.ID;
