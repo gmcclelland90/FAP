@@ -93,7 +93,6 @@ namespace Server.Console
 
                  // Register application services
                  services.AddSingleton<IConversationController, ConversationController>();
-                 services.AddSingleton<PopupWindowController>();
                  services.AddSingleton<ConnectionController>();
                  services.AddSingleton<WatchdogController>();
                  services.AddTransient<InterfaceController>();

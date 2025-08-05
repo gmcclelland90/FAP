@@ -3,15 +3,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Height="600" Width="1100"
         xmlns:local="clr-namespace:Fap.Presentation"
          xmlns:r="clr-namespace:Wpf.Controls"
-        MinWidth="{Binding ElementName=CContent, Path=ActualWidth}"
-        MinHeight="{Binding ElementName=CContent, Path=ActualHeight}"
         Icon="/Fap.Presentation;component/Images/folder-yellow.ico" 
          WindowStartupLocation="Manual" WindowStyle="ToolWindow" >
     <Window.Resources>
         <Image x:Key="CloseSmallImage" x:Shared="False" Source="Images/Default_Avatar.png" Height="10" Width="11"/>
     </Window.Resources>
     <DockPanel>
-        <r:TabControl  x:Name="tabControl" TabStripPlacement="{Binding ElementName=listBox, Path=SelectedItem}"
+        <r:TabControl  x:Name="tabControl" TabStripPlacement="Top"
 				TabItemMaxWidth="300" TabItemMinHeight="30" TabItemMaxHeight="50" VerticalContentAlignment="Center"
 				DockPanel.Dock="Top"
                        AllowDelete="True"
@@ -60,7 +58,7 @@
             <!-- A DataTemplate for the TabObject type, the content of the TabItems-->
             <r:TabControl.ContentTemplate>
                 <DataTemplate>
-                    <ContentControl  Name="CContent" Content="{Binding Content}" />
+                    <ContentControl Name="CContent" Content="{Binding Content}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
                 </DataTemplate>
             </r:TabControl.ContentTemplate>
         </r:TabControl>

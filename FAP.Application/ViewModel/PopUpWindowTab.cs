@@ -27,6 +27,7 @@ namespace FAP.Application.ViewModels
         private string color = "Black";
         private object content;
         private string name = string.Empty;
+        private string title = string.Empty;
 
         #region INotifyPropertyChanged Implementation
 
@@ -66,6 +67,16 @@ namespace FAP.Application.ViewModels
             {
                 name = value;
                 RaisePropertyChanged("Name");
+            }
+        }
+
+        public string Title
+        {
+            get { return title; }
+            set
+            {
+                title = value;
+                RaisePropertyChanged("Title");
             }
         }
 

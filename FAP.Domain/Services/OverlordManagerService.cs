@@ -40,7 +40,8 @@ namespace FAP.Domain.Services
         private readonly IServiceProvider serviceProvider;
         private readonly Logger logger;
         private readonly Model model;
-        private Process overlordProcess;
+        private ListenerService overlordListener;
+        private bool isRunning;
 
         public OverlordManagerService(IServiceProvider serviceProvider, Model m)
         {
@@ -51,31 +52,58 @@ namespace FAP.Domain.Services
 
         public void Start()
         {
-            // Implementation for starting overlord manager
-            logger.Debug("Overlord manager started");
+            try
+            {
+                logger.Debug("Starting overlord manager");
+                
+                // Start the overlord server on port 40
+                overlordListener = new ListenerService(serviceProvider, true);
+                overlordListener.Start(40);
+                
+                isRunning = true;
+                logger.Debug("Overlord manager started successfully");
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, "Failed to start overlord manager");
+                throw;
+            }
         }
 
         public void Stop()
         {
-            // Implementation for stopping overlord manager
-            logger.Debug("Overlord manager stopped");
-            if (overlordProcess != null && !overlordProcess.HasExited)
+            try
             {
-                overlordProcess.Kill();
-                overlordProcess.Dispose();
-                overlordProcess = null;
+                logger.Debug("Stopping overlord manager");
+                
+                if (overlordListener != null)
+                {
+                    overlordListener.Stop();
+                    overlordListener = null;
+                }
+                
+                isRunning = false;
+                logger.Debug("Overlord manager stopped");
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, "Error stopping overlord manager");
             }
         }
 
         public bool IsOverlordActive
         {
-            get { return overlordProcess != null && !overlordProcess.HasExited; }
+            get { return isRunning && overlordListener != null && overlordListener.IsRunning; }
         }
 
         public void StartAndStopIfNeeded()
         {
-            // Implementation for starting and stopping if needed
             logger.Debug("Starting and stopping overlord if needed");
+            
+            if (!IsOverlordActive)
+            {
+                Start();
+            }
         }
     }
 }

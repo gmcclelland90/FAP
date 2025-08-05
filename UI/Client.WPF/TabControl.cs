@@ -509,16 +509,27 @@ namespace Wpf.Controls
         {
             base.OnItemsChanged(e);
 
-            if (e.Action == NotifyCollectionChangedAction.Add && SelectNewTabOnCreate)
+            if (e.Action == NotifyCollectionChangedAction.Add && SelectNewTabOnCreate && e.NewItems != null && e.NewItems.Count > 0)
             {
-                TabItem tabItem = (TabItem)this.ItemContainerGenerator.ContainerFromItem(e.NewItems[e.NewItems.Count - 1]);
-                SelectedItem = tabItem;
+                var newItem = e.NewItems[e.NewItems.Count - 1];
+                if (newItem != null)
+                {
+                    // Use Dispatcher.BeginInvoke to ensure the container is created
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        TabItem tabItem = (TabItem)this.ItemContainerGenerator.ContainerFromItem(newItem);
+                        if (tabItem != null)
+                        {
+                            SelectedItem = tabItem;
 
-                TabPanel itemsHost = Helper.FindVirtualizingTabPanel(this);
-                if (itemsHost != null)
-                    itemsHost.MakeVisible(tabItem, Rect.Empty);
+                            TabPanel itemsHost = Helper.FindVirtualizingTabPanel(this);
+                            if (itemsHost != null)
+                                itemsHost.MakeVisible(tabItem, Rect.Empty);
 
-                tabItem.Focus();
+                            tabItem.Focus();
+                        }
+                    }), System.Windows.Threading.DispatcherPriority.Loaded);
+                }
             }
         }
 

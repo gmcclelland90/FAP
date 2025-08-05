@@ -61,7 +61,7 @@ namespace FAP.Application
         private ConversationController conversationController;
         private DownloadQueueController downloadQueueController;
         private MainWindowViewModel mainWindowModel;
-        private PopupWindowController popupController;
+        private IPopupWindowController popupController;
         private SearchController searchController;
         private SettingsController settingsController;
         private SharesController shareController;
@@ -184,10 +184,10 @@ namespace FAP.Application
                 shareInfo = serviceProvider.GetRequiredService<ShareInfoService>();
                 shareInfo.Load();
 
-                // Create SharesController with IServiceProvider instead of IContainer
-                shareController = new SharesController(serviceProvider, model);
+                            // Get SharesController from DI container
+            shareController = serviceProvider.GetRequiredService<SharesController>();
                 shareController.Initalise();
-                popupController = serviceProvider.GetRequiredService<PopupWindowController>();
+                popupController = serviceProvider.GetRequiredService<IPopupWindowController>();
                 conversationController = (ConversationController) serviceProvider.GetRequiredService<IConversationController>();
                 watchdogController = serviceProvider.GetRequiredService<WatchdogController>();
                 watchdogController.Start();
@@ -217,8 +217,8 @@ namespace FAP.Application
 
             if (null != helpWindow)
             {
-                string path = Path.GetDirectoryName(Assembly.GetCallingAssembly().CodeBase);
-                helpWindow.Location = path + "\\Web.Help\\help.html";
+                string path = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                helpWindow.Location = Path.Combine(path, "Web.Help", "help.html");
                 popupController.AddWindow(helpWindow.View, "Quick Start");
             }
         }

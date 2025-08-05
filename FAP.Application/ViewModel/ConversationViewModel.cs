@@ -28,13 +28,13 @@ namespace FAP.Application.ViewModels
 {
     public class ConversationViewModel : ViewModel<IConverstationView>
     {
-        private readonly PopupWindowController popupWindowController;
+        private readonly IPopupWindowController popupWindowController;
         private ICommand close;
         private Conversation conversation;
         private string currentChatMessage;
         private ICommand sendChatMessage;
 
-        public ConversationViewModel(IConverstationView view, PopupWindowController p)
+        public ConversationViewModel(IConverstationView view, IPopupWindowController p)
             : base(view)
         {
             popupWindowController = p;

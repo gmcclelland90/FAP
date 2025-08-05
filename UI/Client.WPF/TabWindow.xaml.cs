@@ -60,7 +60,7 @@ namespace Fap.Presentation
 
         void TabWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            if (null != Model)
+            if (Model?.Close != null)
             {
                 Model.Close.Execute(null);
             }

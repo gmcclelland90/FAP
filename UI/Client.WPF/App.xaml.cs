@@ -239,7 +239,6 @@ namespace Fap.Presentation
         private void RegisterApplicationServices(IServiceCollection services)
         {
             services.AddSingleton<IConversationController, ConversationController>();
-            services.AddSingleton<PopupWindowController>();
             services.AddSingleton<ConnectionController>();
             services.AddSingleton<WatchdogController>();
             services.AddTransient<InterfaceController>();
@@ -251,6 +250,10 @@ namespace Fap.Presentation
 
         private void RegisterGUIServices(IServiceCollection services)
         {
+            // Register UI Controllers
+            services.AddSingleton<IPopupWindowController, ModernPopupWindowController>();
+            services.AddTransient<IPopupWindow, TabWindow>();
+            
             // Register Views
             services.AddTransient<MainWindow, MainWindow>();
             services.AddTransient<MessageBox, MessageBox>();
