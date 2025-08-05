@@ -45,6 +45,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NLog;
 using System.Waf.Presentation.Services;
+using Fap.Presentation.Services;
 
 namespace Fap.Presentation
 {
@@ -253,6 +254,7 @@ namespace Fap.Presentation
             // Register UI Controllers
             services.AddSingleton<IPopupWindowController, ModernPopupWindowController>();
             services.AddTransient<IPopupWindow, TabWindow>();
+            services.AddSingleton<ModernSystemTrayService>();
             
             // Register Views
             services.AddTransient<MainWindow, MainWindow>();

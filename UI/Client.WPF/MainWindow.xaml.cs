@@ -31,6 +31,7 @@ using FAP.Application.Views;
 using FAP.Domain;
 using FAP.Application.ViewModels;
 using FAP.Domain.Entities;
+using Fap.Presentation.Services;
 
 namespace Fap.Presentation
 {
@@ -39,6 +40,8 @@ namespace Fap.Presentation
 	/// </summary>
     public partial class MainWindow : Window, IMainWindow
 	{
+        private ModernSystemTrayService _systemTrayService;
+
 		public MainWindow()
 		{
 			this.InitializeComponent();
@@ -59,8 +62,40 @@ namespace Fap.Presentation
 			// Insert code required on object creation below this point.
             this.DataContextChanged += new DependencyPropertyChangedEventHandler(MainWindow2_DataContextChanged);
             this.Closing += new System.ComponentModel.CancelEventHandler(MainWindow2_Closing);
+            
+            // Initialize system tray service
+            InitializeSystemTray();
            
 		}
+
+        private void InitializeSystemTray()
+        {
+            try
+            {
+                _systemTrayService = new ModernSystemTrayService();
+                _systemTrayService.OpenRequested += (s, e) => 
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        Show();
+                        WindowState = WindowState.Normal;
+                        Activate();
+                    });
+                };
+                _systemTrayService.ExitRequested += (s, e) => 
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        Application.Current.Shutdown();
+                    });
+                };
+            }
+            catch (Exception ex)
+            {
+                // Log error but don't crash the app
+                System.Diagnostics.Debug.WriteLine($"Failed to initialize system tray: {ex.Message}");
+            }
+        }
 
         public new void Show()
         {
@@ -77,6 +112,7 @@ namespace Fap.Presentation
             {
                 e.Cancel = true;
                 c.Visible = false;
+                Hide(); // Hide instead of closing
             }
         }
 
@@ -132,6 +168,12 @@ namespace Fap.Presentation
             ti.Content = cp;
            // tabControl1.Items.Add(ti);
 
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            _systemTrayService?.Dispose();
+            base.OnClosed(e);
         }
 
         private void listBox1_MouseDoubleClick(object sender, MouseButtonEventArgs e)
