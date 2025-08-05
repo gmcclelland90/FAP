@@ -45,7 +45,7 @@ namespace Fap.Presentation.Services
                     }
                 }
 
-                _notifyIcon.Text = "FAP - File Access Protocol";
+                _notifyIcon.Text = "FAP - File Acceleration Protocol";
                 _notifyIcon.Visible = true;
 
                 // Create context menu
