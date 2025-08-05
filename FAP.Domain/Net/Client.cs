@@ -24,7 +24,8 @@ using System.Text;
 using FAP.Domain.Entities;
 using FAP.Domain.Verbs;
 using FAP.Network;
-using FAP.Network.Entities;
+using FAP.Shared.Entities;
+using FAP.Shared.Interfaces;
 
 namespace FAP.Domain.Net
 {
@@ -38,17 +39,17 @@ namespace FAP.Domain.Net
             callingNode = _callingNode;
         }
 
-        public bool Execute(IVerb verb, Node destinationNode)
+        public bool Execute(FAP.Shared.Interfaces.IVerb verb, Node destinationNode)
         {
             return Execute(verb, destinationNode, DEFAULT_TIMEOUT);
         }
 
-        public bool Execute(IVerb verb, string destination)
+        public bool Execute(FAP.Shared.Interfaces.IVerb verb, string destination)
         {
             return Execute(verb, destination, string.Empty, DEFAULT_TIMEOUT);
         }
 
-        public bool Execute(IVerb verb, string destination, int timeout)
+        public bool Execute(FAP.Shared.Interfaces.IVerb verb, string destination, int timeout)
         {
             return Execute(verb, destination, string.Empty, timeout);
         }
@@ -67,12 +68,12 @@ namespace FAP.Domain.Net
             return DoRequest(destination.Location, req, out output, timeout);
         }
 
-        public bool Execute(IVerb verb, string destination, string authKey, int timeout)
+        public bool Execute(FAP.Shared.Interfaces.IVerb verb, string destination, string authKey, int timeout)
         {
             return Execute(verb, new Node {Location = destination, Secret = authKey}, timeout);
         }
 
-        public bool Execute(IVerb verb, Node destination, int timeout)
+        public bool Execute(FAP.Shared.Interfaces.IVerb verb, Node destination, int timeout)
         {
             try
             {

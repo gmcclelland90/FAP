@@ -21,7 +21,7 @@ using System;
 using System.Threading;
 using FAP.Domain.Entities;
 using Fap.Foundation;
-using FAP.Network.Entities;
+using FAP.Shared.Entities;
 
 namespace FAP.Domain.Net
 {

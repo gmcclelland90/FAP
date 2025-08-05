@@ -33,7 +33,7 @@ using FAP.Domain.Verbs.Multicast;
 using Fap.Foundation;
 using Fap.Foundation.Services;
 using FAP.Network;
-using FAP.Network.Entities;
+using FAP.Shared.Entities;
 using FAP.Network.Services;
 using HttpServer;
 using HttpServer.Headers;
@@ -89,29 +89,70 @@ namespace FAP.Domain.Handlers
 
         #region IFAPHandler Members
 
-        public bool Handle(RequestEventArgs e)
+        public bool Handle(FAP.Network.Server.RequestEventArgs e)
         {
-            NetworkRequest req = Multiplexor.Decode(e.Request);
+            // For backward compatibility, use the async version
+            return HandleAsync(e).GetAwaiter().GetResult();
+        }
+
+        public async Task<bool> HandleAsync(FAP.Network.Server.RequestEventArgs e)
+        {
+            var networkReq = await Multiplexor.DecodeModernAsync(e.Request);
+            var req = new FAP.Shared.Entities.NetworkRequest
+            {
+                Verb = networkReq.Verb,
+                Data = networkReq.Data,
+                Param = networkReq.Param,
+                SourceID = networkReq.SourceID,
+                OverlordID = networkReq.OverlordID,
+                AuthKey = networkReq.AuthKey
+            };
             logger.Trace("Server rx: {0} p: {1} source: {2} overlord: {3}", req.Verb, req.Param, req.SourceID,
                          req.OverlordID);
+            logger.Debug("HandleAsync: Processing verb: {0}", req.Verb);
+            bool result = false;
             switch (req.Verb)
             {
                 case "INFO":
-                    return HandleClient(req, e);
+                    logger.Debug("HandleAsync: Routing to HandleClient");
+                    result = await HandleClientAsync(req, e);
+                    break;
                 case "CONNECT":
-                    return HandleConnect(req, e);
+                    logger.Debug("HandleAsync: Routing to HandleConnect");
+                    result = await HandleConnectAsync(req, e);
+                    break;
                 case "CHAT":
-                    return HandleChat(req, e);
+                    logger.Debug("HandleAsync: Routing to HandleChat");
+                    result = HandleChat(req, e);
+                    break;
                 case "COMPARE":
-                    return HandleCompare(e, req);
+                    logger.Debug("HandleAsync: Routing to HandleCompare");
+                    result = HandleCompare(e, req);
+                    break;
                 case "SEARCH":
-                    return HandleSearch(e, req);
+                    logger.Debug("HandleAsync: Routing to HandleSearch");
+                    result = HandleSearch(e, req);
+                    break;
                 case "UPDATE":
-                    return HandleUpdate(e, req);
+                    logger.Debug("HandleAsync: Routing to HandleUpdate");
+                    result = HandleUpdate(e, req);
+                    break;
                 case "NOOP":
-                    return HandleNOOP(e, req);
+                    logger.Debug("HandleAsync: Routing to HandleNOOP");
+                    result = HandleNOOP(e, req);
+                    break;
+                default:
+                    logger.Debug("HandleAsync: Unknown verb: {0}", req.Verb);
+                    break;
             }
-            return false;
+            
+            // Mark the request as handled if it was processed successfully
+            if (result)
+            {
+                e.IsHandled = true;
+            }
+            
+            return result;
         }
 
         #endregion
@@ -120,6 +161,7 @@ namespace FAP.Domain.Handlers
 
         private void SendToStandardClients(NetworkRequest r)
         {
+            logger.Debug("SendToStandardClients: Sending to {0} standard clients", connectedClientNodes.ToList().Where(c => c.Node.NodeType == ClientType.Client).Count());
             foreach (ClientStream peer in connectedClientNodes.ToList().Where(c => c.Node.NodeType == ClientType.Client)
                 )
                 peer.AddMessage(r);
@@ -302,7 +344,7 @@ namespace FAP.Domain.Handlers
             }
         }
 
-        private bool HandleNOOP(RequestEventArgs e, NetworkRequest req)
+        private bool HandleNOOP(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
         {
             if (!string.IsNullOrEmpty(req.SourceID) && !string.IsNullOrEmpty(req.AuthKey))
             {
@@ -329,12 +371,16 @@ namespace FAP.Domain.Handlers
         /// <param name="e"></param>
         /// <param name="req"></param>
         /// <returns></returns>
-        private bool HandleUpdate(RequestEventArgs e, NetworkRequest req)
+        private bool HandleUpdate(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
         {
             try
             {
+                logger.Debug("HandleUpdate: Starting update processing for source {0}", req.SourceID);
+                logger.Debug("HandleUpdate: Request data length: {0}", req.Data?.Length ?? 0);
                 var verb = new UpdateVerb();
+                logger.Debug("HandleUpdate: Created UpdateVerb, about to process request");
                 verb.ProcessRequest(req);
+                logger.Debug("HandleUpdate: Processed UpdateVerb, nodes count: {0}", verb.Nodes?.Count ?? 0);
 
                 //Ignore updates about ourself
                 if (verb.Nodes != null && verb.Nodes.Count == 1 && verb.Nodes[0].ID == serverNode.ID)
@@ -515,8 +561,9 @@ namespace FAP.Domain.Handlers
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                logger.Error(ex, "HandleUpdate: Exception occurred during update processing");
             }
             logger.Debug("Server received an invalid update");
             SendError(e);
@@ -563,14 +610,14 @@ namespace FAP.Domain.Handlers
             }
         }
 
-        private bool HandleSearch(RequestEventArgs e, NetworkRequest req)
+        private bool HandleSearch(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
         {
             //We dont do this on a server..
             var verb = new SearchVerb(null);
             NetworkRequest result = verb.ProcessRequest(req);
             byte[] data = Encoding.UTF8.GetBytes(result.Data);
-            var generator = new ResponseWriter();
-            e.Response.ContentLength.Value = data.Length;
+            var generator = new ModernResponseWriter();
+            e.Response.ContentLength = data.Length;
             generator.SendHeaders(e.Context, e.Response);
             e.Context.Stream.Write(data, 0, data.Length);
             e.Context.Stream.Flush();
@@ -578,14 +625,14 @@ namespace FAP.Domain.Handlers
             return true;
         }
 
-        private bool HandleCompare(RequestEventArgs e, NetworkRequest req)
+        private bool HandleCompare(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
         {
             var verb = new CompareVerb(model);
 
             NetworkRequest result = verb.ProcessRequest(req);
             byte[] data = Encoding.UTF8.GetBytes(result.Data);
-            var generator = new ResponseWriter();
-            e.Response.ContentLength.Value = data.Length;
+            var generator = new ModernResponseWriter();
+            e.Response.ContentLength = data.Length;
             generator.SendHeaders(e.Context, e.Response);
             e.Context.Stream.Write(data, 0, data.Length);
             e.Context.Stream.Flush();
@@ -595,7 +642,7 @@ namespace FAP.Domain.Handlers
         }
 
 
-        private bool HandleChat(NetworkRequest r, RequestEventArgs e)
+        private bool HandleChat(NetworkRequest r, FAP.Network.Server.RequestEventArgs e)
         {
             //If an overlord id is set then this has come from an external overlord
             if (string.IsNullOrEmpty(r.OverlordID))
@@ -612,40 +659,118 @@ namespace FAP.Domain.Handlers
             return true;
         }
 
-        private bool HandleConnect(NetworkRequest r, RequestEventArgs e)
+        private async Task<bool> HandleConnectAsync(NetworkRequest r, FAP.Network.Server.RequestEventArgs e)
         {
             string address = string.Empty;
 
             try
             {
+                logger.Debug("HandleConnect: Starting connection processing");
+                logger.Debug("HandleConnect: NetworkRequest.Verb = {0}, Data = {1}, AuthKey = {2}, SourceID = {3}, OverlordID = {4}", 
+                    r.Verb, r.Data, r.AuthKey, r.SourceID, r.OverlordID);
+                
                 var iv = new ConnectVerb();
                 iv.ProcessRequest(r);
                 address = iv.Address;
+                logger.Debug("HandleConnect: Address = {0}, Secret = {1}", address, iv.Secret);
 
                 if (string.IsNullOrEmpty(iv.Secret))
                 {
+                    logger.Debug("HandleConnect: Rejecting connection with no secret");
                     //Dont allow connections with no secret
                     return false;
                 }
 
-                //Dont allow connections to ourselves..
-                if (iv.Address == serverNode.Location)
+                //Dont allow connections to ourselves unless we're running as a dedicated overlord
+                if (iv.Address == serverNode.Location && !model.IsDedicated)
+                {
+                    logger.Debug("HandleConnect: Rejecting self-connection (not dedicated overlord)");
                     return false;
+                }
+                
+                logger.Debug("HandleConnect: Self-connection check passed");
 
                 //Only allow one connect attempt at once
                 lock (sync)
                 {
                     if (connectingIDs.Contains(address))
+                    {
+                        logger.Debug("HandleConnect: Connection already in progress for {0}", address);
                         return false;
+                    }
                     connectingIDs.Add(address);
                 }
+                logger.Debug("HandleConnect: Added to connectingIDs");
 
                 //Connect to the remote client 
                 var verb = new InfoVerb();
                 var client = new Client(serverNode);
+                logger.Debug("HandleConnect: About to execute client.Connect to {0}", address);
+
+                // For self-connections (dedicated overlord), skip the reverse connection attempt
+                // In dedicated mode, the client (port 30) and overlord (port 40) are on the same machine
+                if (model.IsDedicated && iv.Address.Contains(serverNode.Host))
+                {
+                    logger.Debug("HandleConnect: Self-connection detected (dedicated mode), skipping reverse connection");
+                    // Create a dummy node for self-connection
+                    var selfNode = new Node();
+                    selfNode.ID = r.SourceID;
+                    selfNode.Location = iv.Address;
+                    selfNode.Online = true;
+                    selfNode.NodeType = iv.ClientType;
+                    selfNode.OverlordID = serverNode.ID;
+                    selfNode.Secret = iv.Secret;
+                    
+                    // Create a dummy client stream for self-connection
+                    var selfClientStream = new ClientStream();
+                    selfClientStream.OnDisconnect += c_OnDisconnect;
+                    
+                    lock (sync)
+                    {
+                        //Notify other clients
+                        var update = new UpdateVerb();
+
+                        //Was this person already connected?
+                        ClientStream search = connectedClientNodes.Where(xn => xn.Node.ID == selfNode.ID).FirstOrDefault();
+                        if (null != search)
+                        {
+                            connectedClientNodes.Remove(search);
+                            search.Kill();
+                        }
+                        selfClientStream.Start(selfNode, serverNode);
+                        connectedClientNodes.Add(selfClientStream);
+                        update.Nodes.Add(selfNode);
+                        NetworkRequest req = update.CreateRequest();
+                        req.SourceID = serverNode.ID;
+                        req.OverlordID = serverNode.ID;
+                        req.AuthKey = iv.Secret;
+
+                        SendToStandardClients(req);
+                        //Dont send overlord logs to other overlords
+                        if (selfNode.NodeType != ClientType.Overlord)
+                            SendToOverlordClients(req);
+                    }
+                    
+                    //Add headers
+                    e.Response.Headers["FAP-AUTH"] = iv.Secret;
+                    e.Response.Headers["FAP-SOURCE"] = serverNode.ID;
+                    e.Response.Headers["FAP-OVERLORD"] = serverNode.ID;
+
+                    await SendResponseAsync(e, null);
+                    
+                    lock (sync)
+                    {
+                        connectingIDs.Remove(address);
+                    }
+                    return true;
+                }
 
                 if (!client.Execute(verb, address))
+                {
+                    logger.Debug("HandleConnect: client.Execute failed for {0}", address);
                     return false;
+                }
+                logger.Debug("HandleConnect: client.Execute succeeded");
                 //Connected ok
                 var c = new ClientStream();
                 c.OnDisconnect += c_OnDisconnect;
@@ -688,15 +813,11 @@ namespace FAP.Domain.Handlers
                 //return ok
 
                 //Add headers
-                var headers = e.Response.Headers as HeaderCollection;
-                if (null != headers)
-                {
-                    headers.Add("FAP-AUTH", iv.Secret);
-                    headers.Add("FAP-SOURCE", serverNode.ID);
-                    headers.Add("FAP-OVERLORD", serverNode.ID);
-                }
+                e.Response.Headers["FAP-AUTH"] = iv.Secret;
+                e.Response.Headers["FAP-SOURCE"] = serverNode.ID;
+                e.Response.Headers["FAP-OVERLORD"] = serverNode.ID;
 
-                SendResponse(e, null);
+                await SendResponseAsync(e, null);
 
                 //Send network info
                 if (n.NodeType == ClientType.Overlord)
@@ -711,7 +832,15 @@ namespace FAP.Domain.Handlers
                     req.SourceID = serverNode.ID;
                     req.OverlordID = serverNode.ID;
                     req.AuthKey = iv.Secret;
-                    c.AddMessage(req);
+                    // Don't use ClientStream.AddMessage for dedicated mode as it uses the old Client class
+                    if (model.IsDedicated)
+                    {
+                        logger.Debug("HandleConnect: Skipping AddMessage for dedicated mode to avoid old Client usage");
+                    }
+                    else
+                    {
+                        c.AddMessage(req);
+                    }
                 }
                 else
                 {
@@ -723,12 +852,21 @@ namespace FAP.Domain.Handlers
                     req.SourceID = serverNode.ID;
                     req.OverlordID = serverNode.ID;
                     req.AuthKey = iv.Secret;
-                    c.AddMessage(req);
+                    // Don't use ClientStream.AddMessage for dedicated mode as it uses the old Client class
+                    if (model.IsDedicated)
+                    {
+                        logger.Debug("HandleConnect: Skipping AddMessage for dedicated mode to avoid old Client usage");
+                    }
+                    else
+                    {
+                        c.AddMessage(req);
+                    }
                 }
                 return true;
             }
-            catch
+            catch (Exception ex)
             {
+                logger.Error(ex, "HandleConnect: Exception occurred: {0}", ex.Message);
             }
             finally
             {
@@ -736,6 +874,12 @@ namespace FAP.Domain.Handlers
             }
             SendError(e);
             return false;
+        }
+
+        private bool HandleConnect(NetworkRequest r, FAP.Network.Server.RequestEventArgs e)
+        {
+            // For backward compatibility, use the async version
+            return HandleConnectAsync(r, e).GetAwaiter().GetResult();
         }
 
         private void c_OnDisconnect(ClientStream s)
@@ -770,33 +914,47 @@ namespace FAP.Domain.Handlers
             }
         }
 
-        private bool HandleClient(NetworkRequest r, RequestEventArgs e)
+        private async Task<bool> HandleClientAsync(NetworkRequest r, FAP.Network.Server.RequestEventArgs e)
         {
             var verb = new InfoVerb();
             verb.Node = serverNode;
-            SendResponse(e, Encoding.UTF8.GetBytes(verb.CreateRequest().Data));
+            await SendResponseAsync(e, Encoding.UTF8.GetBytes(verb.CreateRequest().Data));
             return true;
         }
 
-        private void SendResponse(RequestEventArgs e, byte[] data)
+        private bool HandleClient(NetworkRequest r, FAP.Network.Server.RequestEventArgs e)
         {
-            e.Response.Status = HttpStatusCode.OK;
-            if (null != data)
-                e.Response.ContentLength.Value = data.Length;
-            var generator = new ResponseWriter();
+            // For backward compatibility, use the async version
+            return HandleClientAsync(r, e).GetAwaiter().GetResult();
+        }
+
+        private async Task SendResponseAsync(FAP.Network.Server.RequestEventArgs e, byte[] data)
+        {
+            e.Response.StatusCode = (int)HttpStatusCode.OK;
+            if (data != null)
+                e.Response.ContentLength = data.Length;
+            else
+                e.Response.ContentLength = 0;
+            var generator = new ModernResponseWriter();
             generator.SendHeaders(e.Context, e.Response);
             if (data != null && data.Length > 0)
             {
-                e.Context.Stream.Write(data, 0, data.Length);
-                e.Context.Stream.Flush();
+                await e.Context.Stream.WriteAsync(data, 0, data.Length);
+                await e.Context.Stream.FlushAsync();
             }
         }
 
-        private void SendError(RequestEventArgs e)
+        private void SendResponse(FAP.Network.Server.RequestEventArgs e, byte[] data)
         {
-            e.Response.Status = HttpStatusCode.MethodNotAllowed;
-            e.Response.ContentLength.Value = 0;
-            var generator = new ResponseWriter();
+            // For backward compatibility, use the async version
+            SendResponseAsync(e, data).GetAwaiter().GetResult();
+        }
+
+        private void SendError(FAP.Network.Server.RequestEventArgs e)
+        {
+            e.Response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
+            e.Response.ContentLength = 0;
+            var generator = new ModernResponseWriter();
             generator.SendHeaders(e.Context, e.Response);
         }
 

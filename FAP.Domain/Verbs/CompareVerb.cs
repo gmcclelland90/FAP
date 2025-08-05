@@ -20,11 +20,12 @@
 using System;
 using FAP.Domain.Entities;
 using Fap.Foundation;
-using FAP.Network.Entities;
+using FAP.Shared.Entities;
+using FAP.Shared.Interfaces;
 
 namespace FAP.Domain.Verbs
 {
-    public class CompareVerb : BaseVerb, IVerb
+    public class CompareVerb : BaseVerb, FAP.Shared.Interfaces.IVerb
     {
         private static readonly object sync = new object();
         private static NetworkRequest cachedResponse;

@@ -2,11 +2,12 @@
 using System.Collections.Generic;
 using FAP.Domain.Entities;
 using FAP.Domain.Services;
-using FAP.Network.Entities;
+using FAP.Shared.Entities;
+using FAP.Shared.Interfaces;
 
 namespace FAP.Domain.Verbs
 {
-    public class SearchVerb : BaseVerb, IVerb
+    public class SearchVerb : BaseVerb, FAP.Shared.Interfaces.IVerb
     {
         private readonly ShareInfoService shareInfoService;
         private List<SearchResult> results = new List<SearchResult>();

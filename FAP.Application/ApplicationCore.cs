@@ -248,6 +248,10 @@ namespace FAP.Application
         {
             model.IsDedicated = true;
             overlordManagerService.Start();
+            // Give the overlord server a moment to start up before connecting
+            Thread.Sleep(1000);
+            // Also start the client to connect to the overlord
+            StartClient();
         }
 
         private void ShowMainWindow()

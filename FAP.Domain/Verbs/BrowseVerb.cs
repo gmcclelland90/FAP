@@ -1,11 +1,12 @@
 ﻿using System.Collections.Generic;
 using FAP.Domain.Entities.FileSystem;
 using FAP.Domain.Services;
-using FAP.Network.Entities;
+using FAP.Shared.Entities;
+using FAP.Shared.Interfaces;
 
 namespace FAP.Domain.Verbs
 {
-    public class BrowseVerb : BaseVerb, IVerb
+    public class BrowseVerb : BaseVerb, FAP.Shared.Interfaces.IVerb
     {
         private readonly ShareInfoService _infoService;
 

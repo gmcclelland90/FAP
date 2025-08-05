@@ -80,7 +80,7 @@ namespace Server.Console
                  services.AddSingleton<ShareInfoService>();
                  services.AddSingleton<ListenerService>();
                  services.AddSingleton<Model>();
-                 services.AddSingleton<HTTPHandler>();
+                 services.AddSingleton<ModernHTTPHandler>();
                  services.AddSingleton<LANPeerFinderService>();
                  services.AddSingleton<BufferService>();
                  services.AddSingleton<ServerUploadLimiterService>();

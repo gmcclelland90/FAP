@@ -22,14 +22,17 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Waf.Applications;
 using System.Waf.Applications.Services;
 using FAP.Application.ViewModels;
 using FAP.Domain.Entities;
 using FAP.Domain.Services;
 using FAP.Domain.Net;
+using FAP.Shared.Interfaces;
 using FAP.Network;
 using FAP.Network.Services;
+using FAP.Network.Server;
 using Fap.Foundation;
 using Microsoft.Extensions.DependencyInjection;
 using NLog;
@@ -96,7 +99,7 @@ namespace FAP.Application.Controllers
             verb.Message = message;
             verb.Nickname = model.LocalNode.Nickname;
             verb.SourceID = model.LocalNode.ID;
-            ThreadPool.QueueUserWorkItem(SendMessageAsync, verb.CreateRequest());
+            ThreadPool.QueueUserWorkItem(SendMessageAsync, verb);
         }
 
         private void SendMessageAsync(object o)
@@ -105,8 +108,8 @@ namespace FAP.Application.Controllers
             {
                 if (model.Network.State == ConnectionState.Connected)
                 {
-                    var client = new Client(model.LocalNode);
-                    if (!client.Execute((NetworkRequest) o, model.Network.Overlord))
+                    var client = new ModernHttpClient((INode)model.LocalNode);
+                    if (!client.ExecuteAsync((IVerb) o, model.Network.Overlord).Result)
                     {
                         if (model.Network.State == ConnectionState.Connected)
                             model.Network.State = ConnectionState.Disconnected;
@@ -137,15 +140,15 @@ namespace FAP.Application.Controllers
             Disconnect();
         }
 
-        public void Disconnect()
+        public async Task DisconnectAsync()
         {
             //Notify log off
             if (model.Network.State == ConnectionState.Connected)
             {
-                var c = new Client(model.LocalNode);
+                var c = new ModernHttpClient(model.LocalNode);
                 var verb = new UpdateVerb();
                 verb.Nodes.Add(new Node {ID = model.LocalNode.ID, Online = false});
-                c.Execute(verb, model.Network.Overlord, 3000);
+                await c.ExecuteAsync(verb, model.Network.Overlord, 3000);
 
                 //Remove peer so we dont reconnect straight away most likely
                 DetectedNode peer =
@@ -156,8 +159,14 @@ namespace FAP.Application.Controllers
             }
         }
 
+        public void Disconnect()
+        {
+            DisconnectAsync().Wait();
+        }
+
         private void ProcessLanConnection(object o)
         {
+            logger.Info("ProcessLanConnection started");
             mserver.SendMessage(WhoVerb.CreateRequest());
             Domain.Entities.Network network = model.Network;
             network.PropertyChanged += network_PropertyChanged;
@@ -165,6 +174,7 @@ namespace FAP.Application.Controllers
             {
                 if (network.State != ConnectionState.Connected)
                 {
+                    logger.Debug("Not connected, attempting to connect...");
                     //Not connected so connect automatically..
 
                     //Regenerate local secret to stop any updates if we reconnecting..
@@ -177,6 +187,7 @@ namespace FAP.Application.Controllers
                     var availibleNodes = new List<DetectedNode>();
 
                     List<DetectedNode> detectedPeers = peerFinder.Peers.ToList();
+                    logger.Debug("Found {0} detected peers", detectedPeers.Count);
 
                     //Prioritise a server we havent connected to already
                     foreach (DetectedNode peer in detectedPeers)
@@ -189,10 +200,27 @@ namespace FAP.Application.Controllers
                         availibleNodes.Add(peer.Node);
                     }
 
+                    // If running as dedicated overlord and no peers found, connect to local overlord
+                    logger.Debug("model.IsDedicated = {0}", model.IsDedicated);
+                    if (availibleNodes.Count == 0 && model.IsDedicated)
+                    {
+                        logger.Info("No peers found, connecting to local overlord as dedicated server");
+                        var localOverlordNode = new DetectedNode();
+                        localOverlordNode.Address = model.LocalNode.Host + ":40"; // Overlord runs on port 40
+                        availibleNodes.Add(localOverlordNode);
+                        logger.Info("Added local overlord node: {0}", localOverlordNode.Address);
+                    }
+                    else if (availibleNodes.Count == 0)
+                    {
+                        logger.Debug("No peers found but not running as dedicated overlord (IsDedicated = {0})", model.IsDedicated);
+                    }
+
+                    logger.Debug("Available nodes to connect to: {0}", availibleNodes.Count);
                     while (network.State != ConnectionState.Connected && availibleNodes.Count > 0)
                     {
                         DetectedNode node = availibleNodes[0];
                         availibleNodes.RemoveAt(0);
+                        logger.Info("Attempting to connect to: {0}", node.Address);
                         if (!Connect(network, node))
                             peerFinder.RemovePeer(node);
                     }
@@ -205,14 +233,11 @@ namespace FAP.Application.Controllers
                     if ((Environment.TickCount - model.Network.Overlord.LastUpdate) > Model.UPLINK_TIMEOUT)
                     {
                         //We havent recently sent/recieved so went a noop so check we are still connected.
-                        var req = new NetworkRequest
-                                      {
-                                          Verb = "NOOP",
-                                          SourceID = model.LocalNode.ID,
-                                          AuthKey = model.Network.Overlord.Secret
-                                      };
-                        var client = new Client(model.LocalNode);
-                        if (!client.Execute(req, model.Network.Overlord, 4000))
+                        var noopVerb = new NoopVerb();
+                        noopVerb.SourceID = model.LocalNode.ID;
+                        noopVerb.AuthKey = model.Network.Overlord.Secret;
+                        var client = new ModernHttpClient((INode)model.LocalNode);
+                        if (!client.ExecuteAsync(noopVerb, model.Network.Overlord, 4000).Result)
                         {
                             if (network.State == ConnectionState.Connected)
                             {
@@ -275,8 +300,8 @@ namespace FAP.Application.Controllers
                 }
                 if (null != verb)
                 {
-                    var c = new Client(model.LocalNode);
-                    if (!c.Execute(verb, model.Network.Overlord))
+                    var c = new ModernHttpClient((INode)model.LocalNode);
+                    if (!c.ExecuteAsync(verb, model.Network.Overlord).Result)
                         model.Network.State = ConnectionState.Disconnected;
                 }
             }
@@ -298,9 +323,9 @@ namespace FAP.Application.Controllers
 
                 var verb = new ConnectVerb();
                 verb.ClientType = ClientType.Client;
-                verb.Address = model.LocalNode.Location;
+                verb.Address = model.LocalNode.Location; // This should be the client's address (port 30)
                 verb.Secret = IDService.CreateID();
-                var client = new Client(model.LocalNode);
+                var client = new ModernHttpClient((INode)model.LocalNode);
 
                 transmitted.Data.Clear();
                 foreach (var info in model.LocalNode.Data.ToList())
@@ -310,20 +335,33 @@ namespace FAP.Application.Controllers
                 net.Overlord.Location = n.Address;
                 net.Overlord.Secret = verb.Secret;
                 logger.Debug("Client using secret {0}", verb.Secret);
-                if (client.Execute(verb, n.Address))
+                logger.Debug("Attempting to execute ConnectVerb to {0}", n.Address);
+                var result = client.ExecuteAsync(verb, n.Address).Result;
+                logger.Debug("ConnectVerb result: {0}", result);
+                if (result)
                 {
                     net.State = ConnectionState.Connected;
                     net.Overlord.ID = verb.OverlordID;
-                    logger.Info("Client connected");
+                    
+                    // Update the overlord secret with the one returned by the server
+                    if (!string.IsNullOrEmpty(verb.Secret))
+                    {
+                        net.Overlord.Secret = verb.Secret;
+                        logger.Debug("Updated overlord secret to: {0}", verb.Secret);
+                    }
+                    
+                    logger.Info("Client connected successfully");
                     return true;
                 }
                 else
                 {
+                    logger.Warn("ConnectVerb failed");
                     net.Overlord = new Node();
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                logger.Error(ex, "Exception during connection attempt");
                 net.State = ConnectionState.Disconnected;
             }
             return false;

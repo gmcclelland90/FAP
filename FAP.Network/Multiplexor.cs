@@ -22,14 +22,17 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using FAP.Network.Entities;
+using FAP.Network.Server;
 using HttpServer;
 using HttpServer.Headers;
+using NLog;
 
 namespace FAP.Network
 {
     public class Multiplexor
     {
         private static readonly string preample = "/Fap.app/";
+        private static readonly Logger logger = LogManager.GetLogger("faplog");
 
         public static string Encode(string url, string verb, string param)
         {
@@ -102,6 +105,107 @@ namespace FAP.Network
             using (var reader = new StreamReader(e.Body, Encoding.UTF8))
             {
                 return reader.ReadToEnd();
+            }
+        }
+
+        public static async Task<NetworkRequest> DecodeModernAsync(ModernHttpRequest r)
+        {
+            var req = new NetworkRequest();
+            if (!r.Path.StartsWith(preample))
+                throw new Exception("Malformed url");
+            req.Verb = r.Path.Substring(preample.Length);
+
+            // Extract parameter from query string
+            if (r.Query.ContainsKey("p"))
+            {
+                req.Param = Encoding.UTF8.GetString(Convert.FromBase64String(r.Query["p"].ToString().Replace('_', '+')));
+            }
+            if (r.Method == "POST")
+            {
+                logger.Debug($"DecodeModern: Processing POST request for verb: {req.Verb}");
+                req.Data = await GetPostStringModernAsync(r);
+                logger.Debug($"DecodeModern: Request data length: {req.Data?.Length ?? 0}");
+            }
+            else
+            {
+                logger.Debug($"DecodeModern: Processing {r.Method} request for verb: {req.Verb}");
+            }
+
+            // Extract headers
+            if (r.Headers.ContainsKey("FAP-AUTH"))
+            {
+                req.AuthKey = r.Headers["FAP-AUTH"].ToString();
+            }
+            if (r.Headers.ContainsKey("FAP-SOURCE"))
+            {
+                req.SourceID = r.Headers["FAP-SOURCE"].ToString();
+            }
+            if (r.Headers.ContainsKey("FAP-OVERLORD"))
+            {
+                req.OverlordID = r.Headers["FAP-OVERLORD"].ToString();
+            }
+
+            return req;
+        }
+
+        public static NetworkRequest DecodeModern(ModernHttpRequest r)
+        {
+            // For backward compatibility, we'll use a synchronous wrapper
+            // but this should be avoided in new code
+            try
+            {
+                return DecodeModernAsync(r).GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                logger.Debug($"Error in synchronous wrapper: {ex.Message}");
+                return new NetworkRequest();
+            }
+        }
+
+        public static async Task<string> GetPostStringModernAsync(ModernHttpRequest e)
+        {
+            try
+            {
+                if (e.Body == null)
+                {
+                    logger.Debug("GetPostStringModern: Request body is null");
+                    return string.Empty;
+                }
+
+                // Check if the body is seekable and reset position if needed
+                if (e.Body.CanSeek)
+                {
+                    e.Body.Position = 0;
+                }
+
+                using (var reader = new StreamReader(e.Body, Encoding.UTF8, leaveOpen: true))
+                {
+                    string content = await reader.ReadToEndAsync();
+                    logger.Debug($"GetPostStringModern: Read {content.Length} characters from request body");
+                    return content;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log the error but return empty string to avoid breaking the flow
+                logger.Debug($"Error reading request body: {ex.Message}");
+                return string.Empty;
+            }
+        }
+
+        public static string GetPostStringModern(ModernHttpRequest e)
+        {
+            // For backward compatibility, we'll use a synchronous wrapper
+            // but this should be avoided in new code
+            try
+            {
+                return GetPostStringModernAsync(e).GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                logger.Debug($"Error in synchronous wrapper: {ex.Message}");
+                return string.Empty;
             }
         }
     }

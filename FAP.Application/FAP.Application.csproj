@@ -13,6 +13,8 @@
   <ItemGroup>
     <ProjectReference Include="..\FAP.Domain\FAP.Domain.csproj" />
     <ProjectReference Include="..\FAP.Foundation\FAP.Foundation.csproj" />
+    <ProjectReference Include="..\FAP.Network\FAP.Network.csproj" />
+    <ProjectReference Include="..\FAP.Shared\FAP.Shared.csproj" />
     <ProjectReference Include="..\libs\HttpServer\HttpServer.csproj" />
   </ItemGroup>
 

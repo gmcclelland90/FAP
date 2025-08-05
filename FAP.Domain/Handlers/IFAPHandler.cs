@@ -17,12 +17,14 @@
 
 #endregion
 
-using HttpServer;
+using FAP.Network.Server;
+using System.Threading.Tasks;
 
 namespace FAP.Domain.Handlers
 {
     public interface IFAPHandler
     {
         bool Handle(RequestEventArgs e);
+        Task<bool> HandleAsync(RequestEventArgs e);
     }
 }

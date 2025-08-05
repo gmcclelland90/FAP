@@ -138,7 +138,8 @@ namespace Fap.Presentation
                 if (core.Load(false))
                 {
 
-                    core.StartClient();
+                    // Run as dedicated overlord server instead of client
+                    core.StartOverlordServer();
                     core.StartGUI(!(e.Args.Contains("STARTUP")));
                     //Was a url passed on startup?
                     if (e.Args.Length == 2 && e.Args[0] == "-url")
@@ -221,7 +222,7 @@ namespace Fap.Presentation
             services.AddSingleton<ShareInfoService>();
             services.AddSingleton<ListenerService>();
             services.AddSingleton<Model>();
-            services.AddSingleton<HTTPHandler>();
+            services.AddSingleton<ModernHTTPHandler>();
             services.AddSingleton<LANPeerFinderService>();
             services.AddSingleton<BufferService>();
             services.AddSingleton<ServerUploadLimiterService>();
@@ -234,7 +235,7 @@ namespace Fap.Presentation
         {
             services.AddSingleton<MulticastClientService>();
             services.AddSingleton<MulticastServerService>();
-            services.AddSingleton<HTTPHandler>();
+            services.AddSingleton<ModernHTTPHandler>();
         }
 
         private void RegisterApplicationServices(IServiceCollection services)

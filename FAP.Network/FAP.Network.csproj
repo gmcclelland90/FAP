@@ -13,10 +13,12 @@
     <PackageReference Include="protobuf-net" Version="3.2.25" />
     <PackageReference Include="NLog" Version="5.2.8" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\FAP.Foundation\FAP.Foundation.csproj" />
+    <ProjectReference Include="..\FAP.Shared\FAP.Shared.csproj" />
     <ProjectReference Include="..\libs\HttpServer\HttpServer.csproj" />
   </ItemGroup>
 

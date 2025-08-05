@@ -25,8 +25,8 @@ using FAP.Domain.Net;
 using FAP.Domain.Verbs;
 using FAP.Network.Server;
 using FAP.Network.Services;
-using HttpServer;
 using Microsoft.Extensions.DependencyInjection;
+using NLog;
 
 namespace FAP.Domain.Services
 {
@@ -34,19 +34,21 @@ namespace FAP.Domain.Services
     {
         private readonly IServiceProvider serviceProvider;
 
-        private readonly HTTPHandler http;
+        private readonly ModernHTTPHandler http;
+        private readonly Logger logger;
 
         private readonly bool isServer;
         private readonly Model model;
         private IFAPHandler fap;
-        private NodeServer listener;
+        private ModernNodeServer listener;
 
         public ListenerService(IServiceProvider serviceProvider, bool _isServer)
         {
             this.serviceProvider = serviceProvider;
-            http = serviceProvider.GetRequiredService<HTTPHandler>();
+            http = serviceProvider.GetRequiredService<ModernHTTPHandler>();
             isServer = _isServer;
             model = serviceProvider.GetRequiredService<Model>();
+            logger = LogManager.GetLogger("faplog");
         }
 
         public bool IsRunning
@@ -56,8 +58,8 @@ namespace FAP.Domain.Services
 
         public void Start(int inport)
         {
-            listener = new NodeServer();
-            listener.OnRequest += listener_OnRequest;
+            listener = new ModernNodeServer(serviceProvider);
+            listener.OnRequestAsync += listener_OnRequestAsync;
 
             bool trybind = true;
             int port = inport;
@@ -89,13 +91,14 @@ namespace FAP.Domain.Services
                         model.ClientPort = port;
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    logger.Warn(ex, $"Failed to bind to port {port}, trying next port");
                     //Try again
                     port++;
                     if (inport + 100 < port)
                     {
-                        throw new Exception("Could to bind listener");
+                        throw new Exception("Could not bind listener");
                     }
                 }
             } while (trybind);
@@ -104,7 +107,7 @@ namespace FAP.Domain.Services
         public void Stop()
         {
             listener.Stop();
-            listener.OnRequest -= listener_OnRequest;
+            listener.OnRequestAsync -= listener_OnRequestAsync;
             listener = null;
             var server = fap as FAPServerHandler;
             if (null != server)
@@ -120,18 +123,29 @@ namespace FAP.Domain.Services
             }
         }
 
-        private bool listener_OnRequest(RequestType type, RequestEventArgs arg)
+        private async Task listener_OnRequestAsync(object sender, FAP.Network.Server.RequestEventArgs arg)
         {
-            if (type == RequestType.HTTP)
+            // Check User-Agent to determine if this is a FAP request
+            string userAgent = arg.Request.Headers["User-Agent"].FirstOrDefault() ?? string.Empty;
+            bool isFapRequest = userAgent.StartsWith("FAP");
+            
+            if (!isFapRequest)
             {
+                // HTTP request
                 if (arg.Request.Method == "GET")
-                    return http.Handle(arg.Request.Uri.LocalPath, arg);
+                    http.Handle(arg.Request.Path, arg);
             }
             else
             {
-                return fap.Handle(arg);
+                // FAP request
+                await fap.HandleAsync(arg);
             }
-            return false;
+        }
+
+        private void listener_OnRequest(object sender, FAP.Network.Server.RequestEventArgs arg)
+        {
+            // For backward compatibility, use the async version
+            listener_OnRequestAsync(sender, arg).GetAwaiter().GetResult();
         }
     }
 }

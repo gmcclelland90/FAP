@@ -1,8 +1,9 @@
-﻿using FAP.Network.Entities;
+﻿using FAP.Shared.Entities;
+using FAP.Shared.Interfaces;
 
 namespace FAP.Domain.Verbs
 {
-    public class AddDownload : BaseVerb, IVerb
+    public class AddDownload : BaseVerb, FAP.Shared.Interfaces.IVerb
     {
         public string URL { set; get; }
 

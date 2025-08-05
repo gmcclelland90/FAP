@@ -19,11 +19,12 @@
 
 using System.Runtime.Serialization;
 using FAP.Domain.Entities;
-using FAP.Network.Entities;
+using FAP.Shared.Entities;
+using FAP.Shared.Interfaces;
 
 namespace FAP.Domain.Verbs
 {
-    public class InfoVerb : BaseVerb, IVerb
+    public class InfoVerb : BaseVerb, FAP.Shared.Interfaces.IVerb
     {
         private Node node = new Node();
 

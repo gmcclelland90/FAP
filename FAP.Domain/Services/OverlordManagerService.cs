@@ -54,6 +54,13 @@ namespace FAP.Domain.Services
         {
             try
             {
+                // Check if already running
+                if (IsOverlordActive)
+                {
+                    logger.Debug("Overlord manager is already running, skipping start");
+                    return;
+                }
+
                 logger.Debug("Starting overlord manager");
                 
                 // Start the overlord server on port 40

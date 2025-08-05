@@ -21,14 +21,15 @@ using System;
 using System.Runtime.Serialization;
 using Fap.Foundation;
 using Newtonsoft.Json;
+using FAP.Shared.Interfaces;
 
 namespace FAP.Domain.Entities
 {
-    public class Node : BaseEntity
+    public class Node : BaseEntity, INode
     {
         private readonly object sync;
         protected SafeDictionary<string, string> data = new SafeDictionary<string, string>();
-        private long lastUpdate = Environment.TickCount;
+        private int lastUpdate = Environment.TickCount;
 
 
         private string secret;
@@ -82,7 +83,7 @@ namespace FAP.Domain.Entities
         }
 
         [JsonIgnoreAttribute]
-        public long LastUpdate
+        public int LastUpdate
         {
             set
             {
