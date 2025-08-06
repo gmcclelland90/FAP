@@ -25,8 +25,6 @@ namespace Fap.Presentation
         {
             try
             {
-                logger.Debug($"Adding window: {title}");
-                
                 // Create a new TabWindow if we don't have one or if the current one is closed
                 if (currentWindow == null || !currentWindow.IsLoaded)
                 {
@@ -41,16 +39,12 @@ namespace Fap.Presentation
                 var viewModel = currentWindow.DataContext as ModernTabWindowViewModel;
                 if (viewModel != null)
                 {
-                    logger.Debug($"Adding tab: {title}");
                     viewModel.AddTab(title, view);
-                    logger.Debug($"Successfully added tab: {title}");
                 }
                 else
                 {
                     logger.Error("ModernTabWindowViewModel is null!");
                 }
-
-                logger.Debug($"Successfully added window: {title}");
             }
             catch (Exception ex)
             {

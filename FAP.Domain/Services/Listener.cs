@@ -93,12 +93,22 @@ namespace FAP.Domain.Services
                 }
                 catch (Exception ex)
                 {
-                    logger.Warn(ex, $"Failed to bind to port {port}, trying next port");
-                    //Try again
-                    port++;
-                    if (inport + 100 < port)
+                    // For overlords (isServer=true), don't retry - they should only use port 40
+                    // For clients (isServer=false), retry with next port
+                    if (isServer)
                     {
-                        throw new Exception("Could not bind listener");
+                        logger.Error(ex, $"Failed to bind overlord to port {port}. Overlords must use port 40.");
+                        throw new Exception($"Could not bind overlord to port {port}. Overlords must use port 40.");
+                    }
+                    else
+                    {
+                        logger.Warn(ex, $"Failed to bind to port {port}, trying next port");
+                        //Try again
+                        port++;
+                        if (inport + 100 < port)
+                        {
+                            throw new Exception("Could not bind listener");
+                        }
                     }
                 }
             } while (trybind);

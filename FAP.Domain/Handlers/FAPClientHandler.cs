@@ -206,7 +206,7 @@ namespace FAP.Domain.Handlers
             return false;
         }
 
-        private bool HandleBrowse(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
+        private async Task<bool> HandleBrowseAsync(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
         {
             var verb = new BrowseVerb(shareInfoService);
             NetworkRequest result = verb.ProcessRequest(req);
@@ -214,10 +214,16 @@ namespace FAP.Domain.Handlers
             var generator = new ModernResponseWriter();
             e.Response.ContentLength = data.Length;
             generator.SendHeaders(e.Context, e.Response);
-            e.Context.Stream.Write(data, 0, data.Length);
-            e.Context.Stream.Flush();
+            await e.Context.Stream.WriteAsync(data, 0, data.Length);
+            await e.Context.Stream.FlushAsync();
             data = null;
             return true;
+        }
+
+        private bool HandleBrowse(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
+        {
+            // For backward compatibility, use the async version
+            return HandleBrowseAsync(e, req).GetAwaiter().GetResult();
         }
 
         private bool HandleConversation(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
@@ -238,7 +244,7 @@ namespace FAP.Domain.Handlers
             return false;
         }
 
-        private bool HandleSearch(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
+        private async Task<bool> HandleSearchAsync(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
         {
             //We dont do this on a server..
             var verb = new SearchVerb(shareInfoService);
@@ -247,10 +253,16 @@ namespace FAP.Domain.Handlers
             var generator = new ModernResponseWriter();
             e.Response.ContentLength = data.Length;
             generator.SendHeaders(e.Context, e.Response);
-            e.Context.Stream.Write(data, 0, data.Length);
-            e.Context.Stream.Flush();
+            await e.Context.Stream.WriteAsync(data, 0, data.Length);
+            await e.Context.Stream.FlushAsync();
             data = null;
             return true;
+        }
+
+        private bool HandleSearch(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
+        {
+            // For backward compatibility, use the async version
+            return HandleSearchAsync(e, req).GetAwaiter().GetResult();
         }
 
         private async Task<bool> HandleCompareAsync(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)

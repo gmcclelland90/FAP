@@ -101,7 +101,6 @@ namespace FAP.Domain.Net
             try
             {
                 var requestUrl = Multiplexor.Encode(url, input.Verb, input.Param);
-                _logger.Debug($"Making request to: {requestUrl}");
 
                 using var request = new HttpRequestMessage();
                 request.RequestUri = new Uri(requestUrl);

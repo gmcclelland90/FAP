@@ -74,6 +74,10 @@ namespace FAP.Domain.Entities.FileSystem
                  textWriter.Close();
              }*/
 
+            // Ensure the directory exists before saving
+            if (!System.IO.Directory.Exists(ShareInfoService.SaveLocation))
+                System.IO.Directory.CreateDirectory(ShareInfoService.SaveLocation);
+
             using (
                 Stream file =
                     System.IO.File.Open(

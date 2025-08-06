@@ -33,6 +33,7 @@ using FAP.Domain.Net;
 using FAP.Domain.Services;
 using FAP.Domain.Verbs;
 using Fap.Foundation;
+using NLog;
 
 namespace FAP.Application.Controllers
 {
@@ -45,11 +46,16 @@ namespace FAP.Application.Controllers
 
         public BrowserController(BrowserViewModel bvm, Model model, Node client, ShareInfoService i)
         {
-            this.client = client;
-            this.model = model;
-            this.bvm = bvm;
-            shareInfo = i;
+            var logger = LogManager.GetLogger("faplog");
+            logger.Debug($"BrowserController constructor: client={client?.Nickname ?? "null"}, model={model?.Nickname ?? "null"}");
+            
+            this.client = client ?? throw new ArgumentNullException(nameof(client), "Client node cannot be null");
+            this.model = model ?? throw new ArgumentNullException(nameof(model), "Model cannot be null");
+            this.bvm = bvm ?? throw new ArgumentNullException(nameof(bvm), "BrowserViewModel cannot be null");
+            shareInfo = i ?? throw new ArgumentNullException(nameof(i), "ShareInfoService cannot be null");
             bvm.NoCache = model.AlwaysNoCacheBrowsing;
+            
+            logger.Debug($"BrowserController constructor: Successfully created with client={this.client.Nickname}");
         }
 
         public BrowserViewModel ViewModel
@@ -77,45 +83,75 @@ namespace FAP.Application.Controllers
 
         private void Populate(string ent)
         {
+            var logger = LogManager.GetLogger("faplog");
+            logger.Debug($"Populate: Starting with path='{ent}'");
+            
             ent = ent.Replace('/', '\\');
             bvm.IsBusy = true;
             if (string.IsNullOrEmpty(ent))
             {
+                logger.Debug("Populate: Empty path, clearing root and starting root browse");
                 bvm.Root.Clear();
                 ThreadPool.QueueUserWorkItem(PopulateAsync, null);
                 return;
             }
             string[] items = ent.Split('\\');
+            logger.Debug($"Populate: Split path into {items.Length} items: [{string.Join(", ", items)}]");
             BrowsingFile parent = bvm.Root.Where(n => n.Name == items[0]).FirstOrDefault();
+            logger.Debug($"Populate: Found parent in Root: {parent?.Name ?? "null"}");
 
-            if (string.IsNullOrEmpty(ent))
+            if (parent == null)
             {
-                //Just the root
-                bvm.CurrentItem = parent;
+                // If we can't find the parent in Root, this might be a direct share name
+                // Create a temporary BrowsingFile to represent this share
+                logger.Debug($"Populate: Parent not found in Root, creating temporary share for '{items[0]}'");
+                var tempShare = new BrowsingFile();
+                tempShare.Name = items[0];
+                tempShare.FullPath = ent;
+                tempShare.IsFolder = true;
+                ThreadPool.QueueUserWorkItem(PopulateAsync, tempShare);
+                return;
             }
-            else
+
+            if (items.Length == 1)
             {
-                for (int i = 1; i < items.Length; i++)
+                // This is a root share being expanded
+                logger.Debug($"Populate: Single item path, expanding root share '{parent.Name}'");
+                if (!parent.IsPopulated || bvm.NoCache)
                 {
-                    BrowsingFile search = parent.Items.Where(n => n.Name == items[i]).FirstOrDefault();
-                    if (null == search)
-                    {
-                        var fse = new BrowsingFile();
-                        fse.FullPath = ent;
-                        parent.Items.Add(fse);
-                        parent = fse;
-                    }
-                    else
-                    {
-                        parent = search;
-                    }
+                    logger.Debug($"Populate: Share not populated or no cache, starting populate for '{parent.Name}'");
+                    parent.ClearItems();
+                    ThreadPool.QueueUserWorkItem(PopulateAsync, parent);
+                }
+                else
+                {
+                    logger.Debug($"Populate: Share already populated, setting as current item");
+                    bvm.CurrentItem = parent;
+                    bvm.IsBusy = false;
+                }
+                return;
+            }
+
+            // Navigate through subdirectories
+            for (int i = 1; i < items.Length; i++)
+            {
+                BrowsingFile search = parent.Items.Where(n => n.Name == items[i]).FirstOrDefault();
+                if (null == search)
+                {
+                    var fse = new BrowsingFile();
+                    fse.FullPath = ent;
+                    parent.Items.Add(fse);
+                    parent = fse;
+                }
+                else
+                {
+                    parent = search;
                 }
             }
 
             if (!parent.IsPopulated || bvm.NoCache)
             {
                 parent.ClearItems();
-
                 ThreadPool.QueueUserWorkItem(PopulateAsync, parent);
             }
             else
@@ -128,60 +164,304 @@ namespace FAP.Application.Controllers
 
         private void PopulateAsync(object o)
         {
-            var fse = o as BrowsingFile;
-            if (null != fse)
+            try
             {
-                var c = new Client(model.LocalNode);
-                var cmd = new BrowseVerb(shareInfo);
-                cmd.Path = fse.FullPath;
-                cmd.NoCache = bvm.NoCache;
-                if (c.Execute(cmd, client))
+                // Add verbose logging to understand what's happening
+                var logger = LogManager.GetLogger("faplog");
+                logger.Debug($"PopulateAsync: Starting with client={client?.Nickname ?? "null"}, model={model?.Nickname ?? "null"}");
+                
+                // Check if required objects are available
+                if (client == null)
+                {
+                    logger.Warn("PopulateAsync: Client is null");
+                    SafeObservableStatic.Dispatcher.Invoke(DispatcherPriority.Normal,
+                                                           new Action(
+                                                               delegate
+                                                                   {
+                                                                       bvm.Status = "Error: No client available for browsing.";
+                                                                       bvm.IsBusy = false;
+                                                                   }
+                                                           ));
+                    return;
+                }
+
+                if (model?.LocalNode == null)
+                {
+                    logger.Warn("PopulateAsync: Model or LocalNode is null");
+                    SafeObservableStatic.Dispatcher.Invoke(DispatcherPriority.Normal,
+                                                           new Action(
+                                                               delegate
+                                                                   {
+                                                                       bvm.Status = "Error: Local node not available.";
+                                                                       bvm.IsBusy = false;
+                                                                   }
+                                                           ));
+                    return;
+                }
+
+                logger.Debug($"PopulateAsync: Client={client.Nickname}, Host={client.Host}, ID={client.ID}");
+                logger.Debug($"PopulateAsync: Model={model.Nickname}, LocalNode={model.LocalNode.Nickname}");
+
+                var fse = o as BrowsingFile;
+                if (null != fse)
+                {
+                    try
+                    {
+                        logger.Debug($"PopulateAsync: Creating ModernHttpClient for path={fse.FullPath}");
+                        var c = new ModernHttpClient(model.LocalNode);
+                        var cmd = new BrowseVerb(shareInfo);
+                        cmd.Path = fse.FullPath;
+                        cmd.NoCache = bvm.NoCache;
+                        
+                                                 logger.Debug($"PopulateAsync: About to execute command with client={client.Nickname}");
+                         var result = c.ExecuteAsync(cmd, client).Result;
+                                                  logger.Debug($"PopulateAsync: Execute result = {result}");
+                         if (result)
+                         {
+                             logger.Debug($"PopulateAsync: Command executed successfully, Results count = {cmd.Results?.Count ?? 0}");
+                             try
+                             {
+                                 SafeObservableStatic.Dispatcher.Invoke(DispatcherPriority.Normal,
+                                                                        new Action(
+                                                                            delegate
+                                                                                {
+                                                                                    try
+                                                                                    {
+                                                                                        if (cmd.Results != null)
+                                                                                        {
+                                                                                            logger.Debug($"PopulateAsync: Processing {cmd.Results.Count} results");
+                                                                                            bvm.Status = "Download complete (" +
+                                                                                                         cmd.Results.Count + ").";
+                                                                                            fse.IsPopulated = true;
+                                                                                            fse.ClearItems();
+
+                                                                                            foreach (BrowsingFile browseResult in cmd.Results)
+                                                                                            {
+                                                                                                browseResult.Path = fse.FullPath;
+                                                                                                fse.AddItem(browseResult);
+                                                                                            }
+                                                                                            bvm.CurrentItem = fse;
+                                                                                        }
+                                                                                        else
+                                                                                        {
+                                                                                            logger.Debug("PopulateAsync: No results returned from browse operation");
+                                                                                            bvm.Status = "No results returned from browse operation.";
+                                                                                        }
+                                                                                        bvm.IsBusy = false;
+                                                                                    }
+                                                                                    catch (Exception ex)
+                                                                                    {
+                                                                                        logger.Error(ex, "PopulateAsync: Error updating UI after successful browse");
+                                                                                        bvm.Status = $"Error updating UI: {ex.Message}";
+                                                                                        bvm.IsBusy = false;
+                                                                                    }
+                                                                                }
+                                                                            ));
+                             }
+                             catch (Exception ex)
+                             {
+                                 logger.Error(ex, "PopulateAsync: Error invoking dispatcher for UI update");
+                                 bvm.Status = $"Error updating UI: {ex.Message}";
+                                 bvm.IsBusy = false;
+                             }
+                         }
+                        else
+                        {
+                            if (SafeObservableStatic.Dispatcher != null)
+                            {
+                                SafeObservableStatic.Dispatcher.Invoke(DispatcherPriority.Normal,
+                                                                       new Action(
+                                                                           delegate
+                                                                               {
+                                                                                   if (bvm != null)
+                                                                                   {
+                                                                                       bvm.Status = "Failed to execute browse command.";
+                                                                                       bvm.IsBusy = false;
+                                                                                   }
+                                                                               }
+                                                                           ));
+                            }
+                            else
+                            {
+                                logger.Warn("PopulateAsync: SafeObservableStatic.Dispatcher is null, cannot update UI for failed browse command");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        if (SafeObservableStatic.Dispatcher != null)
+                        {
+                            SafeObservableStatic.Dispatcher.Invoke(DispatcherPriority.Normal,
+                                                                   new Action(
+                                                                       delegate
+                                                                           {
+                                                                               if (bvm != null)
+                                                                               {
+                                                                                   bvm.Status = $"Error executing browse command: {ex.Message}";
+                                                                                   bvm.IsBusy = false;
+                                                                               }
+                                                                           }
+                                                                       ));
+                        }
+                        else
+                        {
+                            logger.Warn("PopulateAsync: SafeObservableStatic.Dispatcher is null, cannot update UI for browse command error");
+                        }
+                    }
+                }
+                else
+                {
+                    try
+                    {
+                        logger.Debug($"PopulateAsync: Creating ModernHttpClient for root browse");
+                        var c = new ModernHttpClient(model.LocalNode);
+                        var cmd = new BrowseVerb(shareInfo);
+                        cmd.Path = ""; // Root path for initial browse
+                        cmd.NoCache = bvm.NoCache;
+
+                                                 logger.Debug($"PopulateAsync: About to execute root command with client={client.Nickname}");
+                         var result = c.ExecuteAsync(cmd, client).Result;
+                                                  logger.Debug($"PopulateAsync: Execute result = {result}");
+                         if (result)
+                         {
+                             logger.Debug($"PopulateAsync: Root command executed successfully, Results count = {cmd.Results?.Count ?? 0}");
+                             try
+                             {
+                                 if (SafeObservableStatic.Dispatcher == null)
+                                 {
+                                     logger.Warn("PopulateAsync: SafeObservableStatic.Dispatcher is null, cannot update UI");
+                                     return;
+                                 }
+                                 
+                                 SafeObservableStatic.Dispatcher.Invoke(DispatcherPriority.Normal,
+                                                                        new Action(
+                                                                            delegate
+                                                                                {
+                                                                                    try
+                                                                                    {
+                                                                                        if (bvm == null)
+                                                                                        {
+                                                                                            logger.Warn("PopulateAsync: BrowserViewModel is null, skipping UI update");
+                                                                                            return;
+                                                                                        }
+                                                                                        
+                                                                                        if (cmd.Results != null)
+                                                                                        {
+                                                                                            logger.Debug($"PopulateAsync: Processing {cmd.Results.Count} root results");
+                                                                                            bvm.Status = "Download complete (" +
+                                                                                                         cmd.Results.Count + ").";
+                                                                                            var ent = new BrowsingFile();
+                                                                                            foreach (BrowsingFile browseResult in cmd.Results)
+                                                                                            {
+                                                                                                // Ensure FullPath is set correctly for root shares
+                                                                                                if (string.IsNullOrEmpty(browseResult.Path))
+                                                                                                {
+                                                                                                    browseResult.FullPath = browseResult.Name;
+                                                                                                }
+                                                                                                logger.Debug($"PopulateAsync: Adding root share '{browseResult.Name}' with FullPath='{browseResult.FullPath}'");
+                                                                                                bvm.Root.Add(browseResult);
+                                                                                                ent.AddItem(browseResult);
+                                                                                            }
+                                                                                            ent.IsPopulated = true;
+                                                                                            bvm.CurrentItem = ent;
+                                                                                        }
+                                                                                        else
+                                                                                        {
+                                                                                            logger.Debug("PopulateAsync: No results returned from root browse operation");
+                                                                                            bvm.Status = "No results returned from browse operation.";
+                                                                                        }
+                                                                                        bvm.IsBusy = false;
+                                                                                    }
+                                                                                    catch (Exception ex)
+                                                                                    {
+                                                                                        logger.Error(ex, "PopulateAsync: Error updating UI after successful root browse");
+                                                                                        if (bvm != null)
+                                                                                        {
+                                                                                            bvm.Status = $"Error updating UI: {ex.Message}";
+                                                                                            bvm.IsBusy = false;
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                            ));
+                             }
+                             catch (Exception ex)
+                             {
+                                 logger.Error(ex, "PopulateAsync: Error invoking dispatcher for root browse UI update");
+                                 if (bvm != null && SafeObservableStatic.Dispatcher != null)
+                                 {
+                                     try
+                                     {
+                                         SafeObservableStatic.Dispatcher.Invoke(DispatcherPriority.Normal,
+                                                                                new Action(
+                                                                                    delegate
+                                                                                        {
+                                                                                            bvm.Status = $"Error updating UI: {ex.Message}";
+                                                                                            bvm.IsBusy = false;
+                                                                                        }
+                                                                                    ));
+                                     }
+                                     catch (Exception dispatcherEx)
+                                     {
+                                         logger.Error(dispatcherEx, "PopulateAsync: Error updating status after dispatcher error");
+                                     }
+                                 }
+                             }
+                         }
+                        else
+                        {
+                            SafeObservableStatic.Dispatcher.Invoke(DispatcherPriority.Normal,
+                                                                   new Action(
+                                                                       delegate
+                                                                           {
+                                                                               bvm.Status = "Failed to execute browse command.";
+                                                                               bvm.IsBusy = false;
+                                                                           }
+                                                                       ));
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        if (SafeObservableStatic.Dispatcher != null)
+                        {
+                            SafeObservableStatic.Dispatcher.Invoke(DispatcherPriority.Normal,
+                                                                   new Action(
+                                                                       delegate
+                                                                           {
+                                                                               if (bvm != null)
+                                                                               {
+                                                                                   bvm.Status = $"Error executing browse command: {ex.Message}";
+                                                                                   bvm.IsBusy = false;
+                                                                               }
+                                                                           }
+                                                                       ));
+                        }
+                        else
+                        {
+                            logger.Warn("PopulateAsync: SafeObservableStatic.Dispatcher is null, cannot update UI for browse command error");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                if (SafeObservableStatic.Dispatcher != null)
                 {
                     SafeObservableStatic.Dispatcher.Invoke(DispatcherPriority.Normal,
                                                            new Action(
                                                                delegate
                                                                    {
-                                                                       bvm.Status = "Download complete (" +
-                                                                                    cmd.Results.Count + ").";
-                                                                       fse.IsPopulated = true;
-                                                                       fse.ClearItems();
-
-                                                                       foreach (BrowsingFile result in cmd.Results)
+                                                                       if (bvm != null)
                                                                        {
-                                                                           result.Path = fse.FullPath;
-                                                                           fse.AddItem(result);
+                                                                           bvm.Status = $"Error during browse operation: {ex.Message}";
+                                                                           bvm.IsBusy = false;
                                                                        }
-                                                                       bvm.CurrentItem = fse;
-                                                                       bvm.IsBusy = false;
                                                                    }
                                                                ));
                 }
-            }
-            else
-            {
-                var c = new Client(model.LocalNode);
-                var cmd = new BrowseVerb(shareInfo);
-                cmd.NoCache = bvm.NoCache;
-
-                if (c.Execute(cmd, client))
+                else
                 {
-                    SafeObservableStatic.Dispatcher.Invoke(DispatcherPriority.Normal,
-                                                           new Action(
-                                                               delegate
-                                                                   {
-                                                                       bvm.Status = "Download complete (" +
-                                                                                    cmd.Results.Count + ").";
-                                                                       var ent = new BrowsingFile();
-                                                                       foreach (BrowsingFile result in cmd.Results)
-                                                                       {
-                                                                           bvm.Root.Add(result);
-                                                                           ent.AddItem(result);
-                                                                       }
-                                                                       ent.IsPopulated = true;
-                                                                       bvm.CurrentItem = ent;
-                                                                       bvm.IsBusy = false;
-                                                                   }
-                                                               ));
+                    var logger = LogManager.GetLogger("faplog");
+                    logger.Warn("PopulateAsync: SafeObservableStatic.Dispatcher is null, cannot update UI for browse operation error");
                 }
             }
         }

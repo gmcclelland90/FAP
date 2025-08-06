@@ -184,12 +184,15 @@ namespace FAP.Application
                 shareInfo = serviceProvider.GetRequiredService<ShareInfoService>();
                 shareInfo.Load();
 
-                            // Get SharesController from DI container
-            shareController = serviceProvider.GetRequiredService<SharesController>();
+                // Get SharesController from DI container
+                shareController = serviceProvider.GetRequiredService<SharesController>();
                 shareController.Initalise();
                 popupController = serviceProvider.GetRequiredService<IPopupWindowController>();
                 conversationController = (ConversationController) serviceProvider.GetRequiredService<IConversationController>();
                 watchdogController = serviceProvider.GetRequiredService<WatchdogController>();
+                
+                // Set dedicated mode before starting watchdog to prevent it from starting overlords
+                model.IsDedicated = true;
                 watchdogController.Start();
 
                 if (!model.DisplayedHelp)
@@ -238,18 +241,29 @@ namespace FAP.Application
 
         public void StartClient()
         {
+            var logger = LogManager.GetLogger("faplog");
+            logger.Debug($"ApplicationCore.StartClient: Starting client on port {model.LocalNode.Port}");
+            
             // Create ListenerService with IServiceProvider instead of IContainer
             client = new ListenerService(serviceProvider, false);
             client.Start(model.LocalNode.Port);
             connectionController.Start();
+            
+            logger.Debug("ApplicationCore.StartClient: Client started successfully");
         }
 
         public void StartOverlordServer()
         {
+            var logger = LogManager.GetLogger("faplog");
+            logger.Debug("ApplicationCore.StartOverlordServer: Starting dedicated overlord server");
+            
             model.IsDedicated = true;
             overlordManagerService.Start();
+            
             // Give the overlord server a moment to start up before connecting
             Thread.Sleep(1000);
+            
+            logger.Debug("ApplicationCore.StartOverlordServer: Starting client to connect to overlord");
             // Also start the client to connect to the overlord
             StartClient();
         }
@@ -447,15 +461,50 @@ namespace FAP.Application
 
         private void viewShare(object o)
         {
+            var logger = LogManager.GetLogger("faplog");
+            logger.Debug($"viewShare: Called with object={o?.GetType().Name ?? "null"}");
+            
             var rc = o as Node;
+            logger.Debug($"viewShare: Cast to Node result={rc?.Nickname ?? "null"}");
+            
             if (null != rc)
             {
-                // Create BrowserController with the specific node
-                var browserViewModel = serviceProvider.GetRequiredService<BrowserViewModel>();
-                var shareInfoService = serviceProvider.GetRequiredService<ShareInfoService>();
-                var bc = new BrowserController(browserViewModel, model, rc, shareInfoService);
-                bc.Initalise();
-                popupController.AddWindow(bc.ViewModel.View, "View share of " + rc.Nickname);
+                try
+                {
+                    logger.Debug($"viewShare: Original node - Nickname={rc.Nickname}, Host={rc.Host}, ID={rc.ID}");
+                    
+                    // Create BrowserController with the specific node
+                    var browserViewModel = serviceProvider.GetRequiredService<BrowserViewModel>();
+                    var shareInfoService = serviceProvider.GetRequiredService<ShareInfoService>();
+                    
+                    // Create a proper node with all required properties
+                    var properNode = new Node();
+                    properNode.Host = !string.IsNullOrEmpty(rc.Host) ? rc.Host : model.LocalNode.Host;
+                    properNode.ID = !string.IsNullOrEmpty(rc.ID) ? rc.ID : model.LocalNode.ID;
+                    properNode.Nickname = !string.IsNullOrEmpty(rc.Nickname) ? rc.Nickname : model.Nickname;
+                    properNode.NodeType = rc.NodeType;
+                    properNode.Online = rc.Online;
+                    
+                    // Copy any additional data from the original node
+                    foreach (var kvp in rc.Data)
+                    {
+                        properNode.SetData(kvp.Key, kvp.Value);
+                    }
+                    
+                    logger.Debug($"viewShare: Created proper node - Nickname={properNode.Nickname}, Host={properNode.Host}, ID={properNode.ID}");
+                    
+                    var bc = new BrowserController(browserViewModel, model, properNode, shareInfoService);
+                    bc.Initalise();
+                    popupController.AddWindow(bc.ViewModel.View, "View share of " + properNode.Nickname);
+                }
+                catch (Exception ex)
+                {
+                    LogManager.GetLogger("faplog").Error(ex, "Error creating browser controller for node: {0}", rc?.Nickname ?? "unknown");
+                }
+            }
+            else
+            {
+                LogManager.GetLogger("faplog").Warn("viewShare called with null node");
             }
         }
 

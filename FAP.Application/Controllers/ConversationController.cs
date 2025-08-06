@@ -65,8 +65,47 @@ namespace FAP.Application.Controllers
 
         private void SendMessage()
         {
-            // Implementation for sending message
-            logger.Debug("Sending message");
+            if (viewModel?.Conversation?.OtherParty == null)
+            {
+                logger.Warn("No conversation or other party available");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(viewModel.CurrentChatMessage))
+            {
+                logger.Debug("No message to send");
+                return;
+            }
+
+            try
+            {
+                // Add the message to the conversation
+                var message = $"You: {viewModel.CurrentChatMessage}";
+                viewModel.Conversation.Messages.Add(message);
+                
+                // Send the message via network
+                var chatVerb = new ChatVerb();
+                chatVerb.Message = viewModel.CurrentChatMessage;
+                chatVerb.Nickname = model.Nickname;
+                chatVerb.SourceID = model.LocalNode.ID;
+                
+                var client = new ModernHttpClient(model.LocalNode);
+                if (client.ExecuteAsync(chatVerb, viewModel.Conversation.OtherParty).Result)
+                {
+                    logger.Debug($"Message sent to {viewModel.Conversation.OtherParty.Nickname}: {viewModel.CurrentChatMessage}");
+                }
+                else
+                {
+                    logger.Warn("Failed to send message");
+                }
+                
+                // Clear the input field
+                viewModel.CurrentChatMessage = string.Empty;
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, "Error sending message");
+            }
         }
 
         private void Clear()
@@ -77,8 +116,30 @@ namespace FAP.Application.Controllers
 
         public bool HandleMessage(string id, string nickname, string message)
         {
-            // TODO: Implement actual message handling logic
-            return true;
+            try
+            {
+                logger.Debug($"Received message from {nickname}: {message}");
+                
+                // Find the conversation with this user
+                if (viewModel?.Conversation?.OtherParty?.ID == id)
+                {
+                    // Add the received message to the conversation
+                    var receivedMessage = $"{nickname}: {message}";
+                    viewModel.Conversation.Messages.Add(receivedMessage);
+                    logger.Debug($"Added message to conversation: {receivedMessage}");
+                }
+                else
+                {
+                    logger.Debug($"Message from unknown user {id} ({nickname})");
+                }
+                
+                return true;
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, "Error handling message");
+                return false;
+            }
         }
 
         public void CreateConversation(Node peer)
@@ -89,15 +150,15 @@ namespace FAP.Application.Controllers
             var conversation = new Conversation();
             conversation.OtherParty = peer;
             
-            // Create the conversation view model
-            var conversationViewModel = serviceProvider.GetRequiredService<ConversationViewModel>();
-            conversationViewModel.Conversation = conversation;
-            conversationViewModel.SendChatMessage = new DelegateCommand(SendMessage);
-            conversationViewModel.Close = new DelegateCommand(Clear);
+            // Create the conversation view model and set it as the current view model
+            viewModel = serviceProvider.GetRequiredService<ConversationViewModel>();
+            viewModel.Conversation = conversation;
+            viewModel.SendChatMessage = new DelegateCommand(SendMessage);
+            viewModel.Close = new DelegateCommand(Clear);
             
             // Get the popup controller and add the conversation window
             var popupController = serviceProvider.GetRequiredService<IPopupWindowController>();
-            popupController.AddWindow(conversationViewModel.View, $"Chat with {peer.Nickname}");
+            popupController.AddWindow(viewModel.View, $"Chat with {peer.Nickname}");
         }
     }
 }

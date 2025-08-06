@@ -223,10 +223,13 @@ namespace FAP.Domain.Services
         public bool GetPath(string path, bool noCache, bool distinct, out List<BrowsingFile> results)
         {
             results = new List<BrowsingFile>();
+            var logger = LogManager.GetLogger("faplog");
+            logger.Debug($"GetPath: path='{path}', noCache={noCache}, distinct={distinct}");
 
             //At the root so just return a list of shares
             if (string.IsNullOrEmpty(path) || path == "/")
             {
+                logger.Debug($"GetPath: Processing root path, shares count={model.Shares.Count}");
                 var ms = from s in model.Shares
                              orderby s.Name
                              group s by s.Name
@@ -240,15 +243,18 @@ namespace FAP.Domain.Services
 
                 foreach (var share in ms)
                 {
+                    logger.Debug($"GetPath: Adding share '{share.Name}' with size {share.Size}");
                     results.Add(new BrowsingFile()
                                     {
                                         IsFolder = true,
                                         Size = share.Size,
                                         LastModified = share.LastModified,
-                                        Name = share.Name
+                                        Name = share.Name,
+                                        Path = ""  // Root shares should have empty path
                                     });
                 }
 
+                logger.Debug($"GetPath: Root path complete, returning {results.Count} results");
                 return true;
             }
 

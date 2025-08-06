@@ -75,8 +75,11 @@ namespace FAP.Application.Controllers
 
                 //Check to see if we need to launch an overlord
                 // Don't auto-start overlord if we're in dedicated mode (it will be started explicitly)
-                if (!model.IsDedicated)
+                // Also don't start if we already have an overlord running
+                logger.Debug($"WatchdogController: model.IsDedicated={model.IsDedicated}, overlordLauncherService.IsOverlordActive={overlordLauncherService.IsOverlordActive}");
+                if (!model.IsDedicated && !overlordLauncherService.IsOverlordActive)
                 {
+                    logger.Debug("WatchdogController: Starting overlord via watchdog");
                     overlordLauncherService.StartAndStopIfNeeded();
                 }
 

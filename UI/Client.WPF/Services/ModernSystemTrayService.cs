@@ -72,7 +72,7 @@ namespace Fap.Presentation.Services
                     }
                 };
 
-                _logger.Debug("Modern system tray service initialized successfully");
+
             }
             catch (Exception ex)
             {
@@ -85,7 +85,6 @@ namespace Fap.Presentation.Services
             if (!_disposed)
             {
                 _notifyIcon.Visible = true;
-                _logger.Debug("System tray icon shown");
             }
         }
 
@@ -94,7 +93,6 @@ namespace Fap.Presentation.Services
             if (!_disposed)
             {
                 _notifyIcon.Visible = false;
-                _logger.Debug("System tray icon hidden");
             }
         }
 
@@ -103,7 +101,6 @@ namespace Fap.Presentation.Services
             if (!_disposed)
             {
                 _notifyIcon.ShowBalloonTip(timeout, title, text, icon);
-                _logger.Debug($"Balloon tip shown: {title} - {text}");
             }
         }
 
@@ -114,7 +111,6 @@ namespace Fap.Presentation.Services
                 _notifyIcon?.Dispose();
                 _contextMenu?.Dispose();
                 _disposed = true;
-                _logger.Debug("System tray service disposed");
             }
         }
     }

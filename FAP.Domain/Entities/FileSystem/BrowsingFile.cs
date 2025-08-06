@@ -12,6 +12,7 @@ namespace FAP.Domain.Entities.FileSystem
         private ObservableCollection<BrowsingFile> subItems = new ObservableCollection<BrowsingFile>();
         private BrowsingFile temp;
 
+        [JsonIgnore]
         public ObservableCollection<BrowsingFile> Items
         {
             set { subItems = value; }
@@ -49,9 +50,13 @@ namespace FAP.Domain.Entities.FileSystem
             get { return populated; }
         }
 
+        [System.Runtime.Serialization.DataMember]
         public bool IsFolder { set; get; }
+        [System.Runtime.Serialization.DataMember]
         public string Name { set; get; }
+        [System.Runtime.Serialization.DataMember]
         public long Size { set; get; }
+        [System.Runtime.Serialization.DataMember]
         public DateTime LastModified { set; get; }
 
         public string Extension
@@ -80,6 +85,12 @@ namespace FAP.Domain.Entities.FileSystem
             }
             set
             {
+                if (string.IsNullOrEmpty(value))
+                {
+                    // Don't set anything if the value is null or empty
+                    return;
+                }
+                
                 if (value.Contains("/"))
                 {
                     int split = value.LastIndexOf("/");
@@ -93,6 +104,7 @@ namespace FAP.Domain.Entities.FileSystem
             }
         }
 
+        [System.Runtime.Serialization.DataMember]
         public string Path { set; get; }
 
         public void AddItem(BrowsingFile ent)

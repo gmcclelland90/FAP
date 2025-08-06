@@ -85,6 +85,13 @@ namespace Fap.Presentation
             FrameworkElement.LanguageProperty.OverrideMetadata(typeof(FrameworkElement), new FrameworkPropertyMetadata(XmlLanguage.GetLanguage(CultureInfo.CurrentCulture.IetfLanguageTag)));
 
             base.OnStartup(e);
+            
+            // Initialize the SafeObservableStatic dispatcher for UI updates
+            SafeObservableStatic.Dispatcher = this.Dispatcher;
+            
+            // Start the SafeObservingCollectionManager for UI collection synchronization
+            SafeObservingCollectionManager.Start();
+            
             if (Compose())
             {
                 if (e.Args.Length == 1 && e.Args[0] == "WAIT")
@@ -260,6 +267,7 @@ namespace Fap.Presentation
             // Register Views
             services.AddTransient<MainWindow, MainWindow>();
             services.AddTransient<MessageBox, MessageBox>();
+            services.AddTransient<IMessageBoxView, MessageBox>();
             services.AddTransient<Fap.Presentation.Panels.DownloadQueue, Fap.Presentation.Panels.DownloadQueue>();
             services.AddTransient<SettingsPanel, SettingsPanel>();
             services.AddTransient<TabWindow, TabWindow>();

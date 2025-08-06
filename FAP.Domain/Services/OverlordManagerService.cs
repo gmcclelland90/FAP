@@ -100,7 +100,11 @@ namespace FAP.Domain.Services
 
         public bool IsOverlordActive
         {
-            get { return isRunning && overlordListener != null && overlordListener.IsRunning; }
+            get 
+            { 
+                var result = isRunning && overlordListener != null && overlordListener.IsRunning;
+                return result;
+            }
         }
 
         public void StartAndStopIfNeeded()

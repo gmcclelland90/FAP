@@ -33,6 +33,7 @@ using Fap.Foundation;
 using HttpServer;
 using HttpServer.Headers;
 using HttpServer.Messages;
+using NLog;
 using Directory = FAP.Domain.Entities.FileSystem.Directory;
 using File = System.IO.File;
 
@@ -66,6 +67,9 @@ namespace FAP.Domain.Handlers
 
         public bool Handle(string req, RequestEventArgs e)
         {
+            var logger = LogManager.GetLogger("faplog");
+            logger.Debug($"HTTPHandler.Handle: Processing request for path: {e.Request.Uri.AbsolutePath}");
+            
             e.Response.Status = HttpStatusCode.OK;
             string path = Utility.DecodeURL(e.Request.Uri.AbsolutePath);
             byte[] data = null;
@@ -251,13 +255,26 @@ namespace FAP.Domain.Handlers
                 pagedata.Add("files", files);
                 pagedata.Add("totalSize", Utility.FormatBytes(totalSize));
 
-                if (validPath)
+                // Debug: Log the data being passed to template engine
+                logger.Debug($"HTTPHandler: Template data contains {pagedata.Count} items:");
+                foreach (var kvp in pagedata)
                 {
-                    //Generate the page
-                    page = TemplateEngineService.Generate(page, pagedata);
-                    data = Encoding.UTF8.GetBytes(page);
-                    e.Response.ContentType = contentTypes["html"];
+                    logger.Debug($"HTTPHandler: {kvp.Key} = {kvp.Value?.GetType().Name ?? "null"}");
                 }
+
+                // Debug: Log the template before processing
+                logger.Debug($"HTTPHandler: Template before processing (first 500 chars): {page.Substring(0, Math.Min(500, page.Length))}");
+
+                // Always generate the page, even when there are no shares
+                // This ensures template variables are replaced properly
+                logger.Debug("HTTPHandler: About to call TemplateEngine.Generate");
+                page = TemplateEngine.Generate(page, pagedata);
+                logger.Debug("HTTPHandler: TemplateEngine.Generate completed");
+                
+                // Debug: Log the template after processing
+                logger.Debug($"HTTPHandler: Template after processing (first 500 chars): {page.Substring(0, Math.Min(500, page.Length))}");
+                data = Encoding.UTF8.GetBytes(page);
+                e.Response.ContentType = contentTypes["html"];
 
                 //Clear up
                 foreach (var item in pagedata.Values)

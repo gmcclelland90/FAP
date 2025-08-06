@@ -114,7 +114,13 @@ namespace Fap.Presentation.Panels
             System.Windows.Controls.TreeViewItem src = e.OriginalSource as System.Windows.Controls.TreeViewItem;
 
             BrowsingFile ent = src.DataContext as BrowsingFile;
-            Model.CurrentPath = ent.FullPath;
+            if (ent != null)
+            {
+                var logger = NLog.LogManager.GetLogger("faplog");
+                logger.Debug($"TreeViewItem_Expanded: Expanding item '{ent.Name}' with FullPath='{ent.FullPath}'");
+                Model.CurrentPath = ent.FullPath;
+                logger.Debug($"TreeViewItem_Expanded: Set Model.CurrentPath to '{ent.FullPath}'");
+            }
         }
 
 
@@ -172,7 +178,7 @@ namespace Fap.Presentation.Panels
                 {
                     bar.PathChanged -= new RoutedPropertyChangedEventHandler<string>(bar_PathChanged);
                     rootB.Items.Clear();
-                    bar.Path = Model.CurrentPath.Replace('/','\\');
+                    bar.Path = Model.CurrentPath.Replace('/', '\\');
                     bar.PathChanged += new RoutedPropertyChangedEventHandler<string>(bar_PathChanged);
 
                 }
@@ -218,7 +224,7 @@ namespace Fap.Presentation.Panels
 
         private BrowsingFile GetEntityFromPath(string path)
         {
-            string[] items = path.Split('\\');
+            string[] items = path.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
             BrowsingFile parent = Model.Root.Where(n => n.Name == items[0]).FirstOrDefault();
 
             if (string.IsNullOrEmpty(path))

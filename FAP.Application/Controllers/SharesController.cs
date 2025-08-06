@@ -25,6 +25,7 @@ using System.Waf.Applications;
 using System.Waf.Applications.Services;
 using System.Windows;
 using FAP.Application.ViewModels;
+using FAP.Application.Views;
 using FAP.Domain.Entities;
 using FAP.Domain.Services;
 using Fap.Foundation;
@@ -102,11 +103,13 @@ namespace FAP.Application.Controllers
                                               (name.Length - name.LastIndexOf(Path.DirectorySeparatorChar)) - 1);
                     }
                     //Check name is valid and ok
-                    var messagebox = serviceProvider.GetRequiredService<MessageBoxViewModel>();
-                    messagebox.Response = name;
-                    messagebox.Message = "What do you want to name the share?";
-                    if (messagebox.ShowDialog())
-                        name = messagebox.Response;
+                    // Create a new MessageBox instance to avoid closed window issues
+                    var messageBox = serviceProvider.GetRequiredService<IMessageBoxView>();
+                    var messageBoxViewModel = new MessageBoxViewModel(messageBox);
+                    messageBoxViewModel.Response = name;
+                    messageBoxViewModel.Message = "What do you want to name the share?";
+                    if (messageBoxViewModel.ShowDialog())
+                        name = messageBoxViewModel.Response;
                     else
                         return;
 
@@ -114,7 +117,11 @@ namespace FAP.Application.Controllers
                     {
                         s.Name = name;
                         s.Path = folder;
+                        logger.Debug($"SharesController.AddCommand: Adding share '{s.Name}' with path '{s.Path}' to model.Shares");
+                        logger.Debug($"SharesController.AddCommand: model.Shares count before add: {model.Shares.Count}");
                         model.Shares.Add(s);
+                        logger.Debug($"SharesController.AddCommand: model.Shares count after add: {model.Shares.Count}");
+                        logger.Debug($"SharesController.AddCommand: viewModel.Shares count: {viewModel.Shares?.Count ?? 0}");
                         ThreadPool.QueueUserWorkItem(AsyncRefresh, s);
                     }
                 }
@@ -131,12 +138,14 @@ namespace FAP.Application.Controllers
             var s = o as Share;
             if (null != s)
             {
+                logger.Debug($"SharesController.AsyncRefresh: Starting refresh for share '{s.Name}' with path '{s.Path}'");
                 s.Status = "Scanning..";
                 Domain.Entities.FileSystem.Directory info = scanner.RefreshPath(s);
                 s.Size = info.Size;
                 s.FileCount = info.ItemCount;
                 s.Status = string.Empty;
                 s.LastRefresh = DateTime.Now;
+                logger.Debug($"SharesController.AsyncRefresh: Completed refresh for share '{s.Name}' - Size: {s.Size}, FileCount: {s.FileCount}");
                 RefreshClientStats();
             }
         }
@@ -167,12 +176,14 @@ namespace FAP.Application.Controllers
         {
             if (viewModel.SelectedShare != null)
             {
-                var messagebox = serviceProvider.GetRequiredService<MessageBoxViewModel>();
-                messagebox.Response = viewModel.SelectedShare.Name;
-                messagebox.Message = "What do you want to rename the share to?";
-                if (messagebox.ShowDialog())
+                // Create a new MessageBox instance to avoid closed window issues
+                var messageBox = serviceProvider.GetRequiredService<IMessageBoxView>();
+                var messageBoxViewModel = new MessageBoxViewModel(messageBox);
+                messageBoxViewModel.Response = viewModel.SelectedShare.Name;
+                messageBoxViewModel.Message = "What do you want to rename the share to?";
+                if (messageBoxViewModel.ShowDialog())
                 {
-                    viewModel.SelectedShare.Name = messagebox.Response;
+                    viewModel.SelectedShare.Name = messageBoxViewModel.Response;
                 }
             }
         }
