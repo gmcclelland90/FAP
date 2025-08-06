@@ -1,4 +1,7 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+﻿Severity	Code	Description	Project	File	Line	Suppression State
+Error (active)	CS0103	The name 'LogManager' does not exist in the current context	FAP.Application	C:\Users\gmccl\OneDrive\Documents\GitHub\FAP\FAP.Application\Controllers\BrowserController.cs	48	
+Error (active)	CS0103	The name 'LogManager' does not exist in the current context	FAP.Application	C:\Users\gmccl\OneDrive\Documents\GitHub\FAP\FAP.Application\Controllers\BrowserController.cs	139	
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
