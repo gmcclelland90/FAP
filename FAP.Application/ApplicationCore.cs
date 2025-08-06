@@ -368,7 +368,22 @@ namespace FAP.Application
         {
             var url = o as string;
             if (!string.IsNullOrEmpty(url))
-                Process.Start(url);
+            {
+                try
+                {
+                    // Use ProcessStartInfo to properly open URLs in the default browser
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = url,
+                        UseShellExecute = true
+                    };
+                    Process.Start(psi);
+                }
+                catch (Exception ex)
+                {
+                    LogManager.GetLogger("faplog").Error(ex, "Failed to open URL: {0}", url);
+                }
+            }
         }
 
         private void MainWindowClosing()
@@ -435,7 +450,10 @@ namespace FAP.Application
             var rc = o as Node;
             if (null != rc)
             {
-                var bc = serviceProvider.GetRequiredService<BrowserController>();
+                // Create BrowserController with the specific node
+                var browserViewModel = serviceProvider.GetRequiredService<BrowserViewModel>();
+                var shareInfoService = serviceProvider.GetRequiredService<ShareInfoService>();
+                var bc = new BrowserController(browserViewModel, model, rc, shareInfoService);
                 bc.Initalise();
                 popupController.AddWindow(bc.ViewModel.View, "View share of " + rc.Nickname);
             }

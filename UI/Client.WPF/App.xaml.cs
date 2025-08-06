@@ -265,6 +265,7 @@ namespace Fap.Presentation
             services.AddTransient<TabWindow, TabWindow>();
             services.AddTransient<Query, Query>();
             services.AddTransient<BrowsePanel, BrowsePanel>();
+            services.AddTransient<IBrowserView, BrowsePanel>();
             services.AddTransient<LogPanel, LogPanel>();
             services.AddTransient<SharesPanel, SharesPanel>();
             services.AddTransient<TrayIcon, TrayIcon>();
@@ -307,6 +308,7 @@ namespace Fap.Presentation
             services.AddSingleton<BrowserController>();
             services.AddSingleton<ShareInfoService>();
             services.AddSingleton<ConversationViewModel>();
+            services.AddTransient<IConverstationView, Fap.Presentation.Panels.Conversation>();
             services.AddSingleton<PopupWindowViewModel>();
             services.AddSingleton<InterfaceSelectionViewModel>();
 		}

@@ -58,6 +58,8 @@ namespace FAP.Application.Controllers
             viewModel.Model = model;
             viewModel.SaveCommand = new DelegateCommand(SaveCommand);
             viewModel.CancelCommand = new DelegateCommand(CancelCommand);
+            viewModel.ChangeAvatar = new DelegateCommand(ChangeAvatar);
+            viewModel.EditDownloadDir = new DelegateCommand(EditDownloadDir);
         }
 
         private void SaveCommand()
@@ -71,6 +73,47 @@ namespace FAP.Application.Controllers
         {
             if (viewModel.View is System.Windows.Window window)
                 window.Close();
+        }
+
+        private void ChangeAvatar()
+        {
+            try
+            {
+                var query = serviceProvider.GetRequiredService<QueryViewModel>();
+                string selectedFile;
+                if (query.SelectFile(out selectedFile))
+                {
+                    // Read the image file and convert to base64
+                    byte[] imageBytes = System.IO.File.ReadAllBytes(selectedFile);
+                    string base64Image = Convert.ToBase64String(imageBytes);
+                    model.Avatar = base64Image;
+                    model.Save();
+                    logger.Debug("Avatar changed to: {0}", selectedFile);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, "Failed to change avatar");
+            }
+        }
+
+        private void EditDownloadDir()
+        {
+            try
+            {
+                var query = serviceProvider.GetRequiredService<QueryViewModel>();
+                string selectedFolder;
+                if (query.SelectFolder(out selectedFolder))
+                {
+                    model.DownloadFolder = selectedFolder;
+                    model.Save();
+                    logger.Debug("Download directory changed to: {0}", selectedFolder);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, "Failed to change download directory");
+            }
         }
     }
 }

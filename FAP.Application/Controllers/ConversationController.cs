@@ -83,8 +83,21 @@ namespace FAP.Application.Controllers
 
         public void CreateConversation(Node peer)
         {
-            // TODO: Implement conversation creation logic
             logger.Debug($"Creating conversation with peer: {peer.Nickname}");
+            
+            // Create a new conversation
+            var conversation = new Conversation();
+            conversation.OtherParty = peer;
+            
+            // Create the conversation view model
+            var conversationViewModel = serviceProvider.GetRequiredService<ConversationViewModel>();
+            conversationViewModel.Conversation = conversation;
+            conversationViewModel.SendChatMessage = new DelegateCommand(SendMessage);
+            conversationViewModel.Close = new DelegateCommand(Clear);
+            
+            // Get the popup controller and add the conversation window
+            var popupController = serviceProvider.GetRequiredService<IPopupWindowController>();
+            popupController.AddWindow(conversationViewModel.View, $"Chat with {peer.Nickname}");
         }
     }
 }

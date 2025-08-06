@@ -74,7 +74,11 @@ namespace FAP.Application.Controllers
                 lastRun = Environment.TickCount;
 
                 //Check to see if we need to launch an overlord
-                overlordLauncherService.StartAndStopIfNeeded();
+                // Don't auto-start overlord if we're in dedicated mode (it will be started explicitly)
+                if (!model.IsDedicated)
+                {
+                    overlordLauncherService.StartAndStopIfNeeded();
+                }
 
                 //Update node transfer info - Every 4 seconds
                 try

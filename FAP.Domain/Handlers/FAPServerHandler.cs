@@ -704,7 +704,7 @@ namespace FAP.Domain.Handlers
 
                 //Connect to the remote client 
                 var verb = new InfoVerb();
-                var client = new Client(serverNode);
+                var client = new ModernHttpClient(serverNode);
                 logger.Debug("HandleConnect: About to execute client.Connect to {0}", address);
 
                 // For self-connections (dedicated overlord), skip the reverse connection attempt
@@ -721,6 +721,12 @@ namespace FAP.Domain.Handlers
                     selfNode.OverlordID = serverNode.ID;
                     selfNode.Secret = iv.Secret;
                     
+                    // Use the model's nickname for self-connections
+                    selfNode.Nickname = model.Nickname;
+                    selfNode.Description = model.Description;
+                    selfNode.Avatar = model.Avatar;
+                    logger.Debug("HandleConnect: Set nickname for self-node {0}: {1}", selfNode.ID, selfNode.Nickname);
+                    
                     // For self-connections, we don't use ClientStream as it tries to use the old Client class
                     // Instead, we just add the node to the connected list and send the update
                     lock (sync)
@@ -736,14 +742,21 @@ namespace FAP.Domain.Handlers
                             search.Kill();
                         }
                         
-                        // For self-connections, we don't add a ClientStream since it would try to use the old Client class
-                        // The node is already "connected" since it's the same application
+                        // For self-connections, we need to add the node to connectedClientNodes so it can receive updates
+                        // Create a dummy ClientStream that doesn't actually send messages (since it's self-connection)
+                        var dummyClientStream = new ClientStream();
+                        dummyClientStream.Start(selfNode, serverNode);
+                        connectedClientNodes.Add(dummyClientStream);
+                        
+                        logger.Debug("HandleConnect: Added self-node to connectedClientNodes. Total connected clients: {0}", connectedClientNodes.Count);
+                        
                         update.Nodes.Add(selfNode);
                         NetworkRequest req = update.CreateRequest();
                         req.SourceID = serverNode.ID;
                         req.OverlordID = serverNode.ID;
                         req.AuthKey = iv.Secret;
 
+                        logger.Debug("HandleConnect: Sending update to {0} standard clients", connectedClientNodes.ToList().Where(c => c.Node.NodeType == ClientType.Client).Count());
                         SendToStandardClients(req);
                         //Dont send overlord logs to other overlords
                         if (selfNode.NodeType != ClientType.Overlord)
@@ -764,7 +777,7 @@ namespace FAP.Domain.Handlers
                     return true;
                 }
 
-                if (!client.Execute(verb, address))
+                if (!client.ExecuteAsync(verb, address).Result)
                 {
                     logger.Debug("HandleConnect: client.Execute failed for {0}", address);
                     return false;
@@ -776,11 +789,20 @@ namespace FAP.Domain.Handlers
                 Node n = verb.GetValidatedNode();
                 if (null == n)
                     return false;
+                
+                // Preserve the client's original data but set server-side properties
                 n.Location = iv.Address;
                 n.Online = true;
                 n.NodeType = iv.ClientType;
                 n.OverlordID = serverNode.ID;
                 n.Secret = iv.Secret;
+                
+                // Ensure the client has a nickname, if not set a default
+                if (string.IsNullOrEmpty(n.Nickname))
+                {
+                    n.Nickname = "User-" + n.ID.Substring(0, Math.Min(8, n.ID.Length));
+                    logger.Debug("HandleConnect: Set default nickname for client {0}: {1}", n.ID, n.Nickname);
+                }
 
                 lock (sync)
                 {
@@ -1029,8 +1051,8 @@ namespace FAP.Domain.Handlers
             {
             }
 
-            //Check for samba shares
-
+            //Check for samba shares - DISABLED FOR NOW
+            /*
             string samba = string.Empty;
             try
             {
@@ -1058,6 +1080,8 @@ namespace FAP.Domain.Handlers
             catch
             {
             }
+            */
+            string samba = string.Empty; // SMB shares disabled
 
             lock (sync)
             {

@@ -81,10 +81,10 @@ namespace FAP.Domain.Verbs
         {
             if (null != Node)
             {
-                if (!Node.ContainsKey("Nickname"))
-                    return null;
+                // Don't require nickname to be present - just check that the node exists
+                return Node;
             }
-            return Node;
+            return null;
         }
     }
 }

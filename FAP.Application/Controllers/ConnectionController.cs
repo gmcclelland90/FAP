@@ -205,8 +205,23 @@ namespace FAP.Application.Controllers
                     if (availibleNodes.Count == 0 && model.IsDedicated)
                     {
                         logger.Info("No peers found, connecting to local overlord as dedicated server");
+                        
+                        // Try to find the actual overlord port by checking multicast announcements
                         var localOverlordNode = new DetectedNode();
-                        localOverlordNode.Address = model.LocalNode.Host + ":40"; // Overlord runs on port 40
+                        var localOverlord = detectedPeers.FirstOrDefault(p => p.Address.Contains(model.LocalNode.Host));
+                        
+                        if (localOverlord != null)
+                        {
+                            localOverlordNode.Address = localOverlord.Address;
+                            logger.Info("Found local overlord via multicast: {0}", localOverlordNode.Address);
+                        }
+                        else
+                        {
+                            // Fallback to port 40 if no multicast announcement found
+                            localOverlordNode.Address = model.LocalNode.Host + ":40";
+                            logger.Info("No multicast announcement found, using fallback port: {0}", localOverlordNode.Address);
+                        }
+                        
                         availibleNodes.Add(localOverlordNode);
                         logger.Info("Added local overlord node: {0}", localOverlordNode.Address);
                     }
@@ -296,6 +311,16 @@ namespace FAP.Application.Controllers
                             transmitted.SetData(change.Key, change.Value);
                         }
                         verb.Nodes.Add(n);
+                        
+                        // Also update the local node in the network nodes list
+                        var localNode = model.Network.Nodes.FirstOrDefault(node => node.ID == model.LocalNode.ID);
+                        if (localNode != null)
+                        {
+                            foreach (var change in data)
+                            {
+                                localNode.SetData(change.Key, change.Value);
+                            }
+                        }
                     }
                 }
                 if (null != verb)

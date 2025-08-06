@@ -289,6 +289,7 @@ namespace FAP.Domain.Handlers
         {
             logger.Debug("FAPClientHandler.HandleUpdate: Starting update processing");
             logger.Debug("FAPClientHandler.HandleUpdate: AuthKey = '{0}', Overlord.Secret = '{1}'", req.AuthKey, model.Network.Overlord.Secret);
+            logger.Debug("FAPClientHandler.HandleUpdate: Request data length: {0}", req.Data?.Length ?? 0);
             
             // For self-connections, AuthKey might be empty, so we need to handle that case
             bool authValid = string.IsNullOrEmpty(req.AuthKey) || req.AuthKey == model.Network.Overlord.Secret;
@@ -303,15 +304,28 @@ namespace FAP.Domain.Handlers
                 
                 foreach (Node node in verb.Nodes)
                 {
+                    logger.Debug("FAPClientHandler.HandleUpdate: Processing node {0} (Online: {1}, Nickname: {2})", 
+                        node.ID, node.Online, node.Nickname);
+                    
                     Node search = model.Network.Nodes.Where(i => i.ID == node.ID).FirstOrDefault();
                     if (search == null)
                     {
-                        //Dont allow partial updates to create clients.  Only full updates should contain the online flag.
-                        if (node.ContainsKey("Online") && node.ContainsKey("Nickname") && node.ContainsKey("ID"))
+                        // Add the node if it has an ID and is online (or if Online is not set, assume it's online)
+                        if (!string.IsNullOrEmpty(node.ID) && (node.Online || !node.ContainsKey("Online")))
+                        {
+                            logger.Debug("FAPClientHandler.HandleUpdate: Adding new node {0} to network", node.ID);
                             model.Network.Nodes.Add(node);
+                            logger.Debug("FAPClientHandler.HandleUpdate: Network now has {0} nodes", model.Network.Nodes.Count);
+                        }
+                        else
+                        {
+                            logger.Debug("FAPClientHandler.HandleUpdate: Skipping node {0} - ID: {1}, Online: {2}", 
+                                node.ID, !string.IsNullOrEmpty(node.ID), node.Online);
+                        }
                     }
                     else
                     {
+                        logger.Debug("FAPClientHandler.HandleUpdate: Updating existing node {0}", node.ID);
                         foreach (var param in node.Data)
                             search.SetData(param.Key, param.Value);
                         //Has the client disconnected?
