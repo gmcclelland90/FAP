@@ -245,26 +245,14 @@ namespace FAP.Domain.Services
         private static string ReplaceConditionals(string template, Dictionary<string, object> data)
         {
             // Pattern to match conditionals like $if:condition|content|else_content$ or $if:condition|content$
-            // Use greedy matching for content to handle pipes within attributes
-            // Try to match conditionals with else part first, then fallback to conditionals without else
-            var pattern = @"\$if:([^|]+?)\|(.*?)\|(.*?)\$|\$if:([^|]+?)\|(.*?)\$";
+            // Use non-greedy matching to properly capture content
+            var pattern = @"\$if:([^|]+?)\|(.*?)(?:\|(.*?))?\$";
             
             return Regex.Replace(template, pattern, match =>
             {
-                string condition, trueContent, falseContent = "";
-                
-                // Check if this is a conditional with else part (groups 1,2,3) or without else part (groups 4,5)
-                if (match.Groups[1].Success)
-                {
-                    condition = match.Groups[1].Value.Trim();
-                    trueContent = match.Groups[2].Value;
-                    falseContent = match.Groups[3].Value;
-                }
-                else
-                {
-                    condition = match.Groups[4].Value.Trim();
-                    trueContent = match.Groups[5].Value;
-                }
+                string condition = match.Groups[1].Value.Trim();
+                string trueContent = match.Groups[2].Value;
+                string falseContent = match.Groups[3].Success ? match.Groups[3].Value : "";
 
                 logger.Debug($"TemplateEngine: Processing conditional '{condition}' with trueContent: '{trueContent}' and falseContent: '{falseContent}'");
 
