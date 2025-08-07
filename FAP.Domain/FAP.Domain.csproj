@@ -13,8 +13,9 @@
     <PackageReference Include="protobuf-net" Version="3.2.25" />
     <PackageReference Include="NLog" Version="5.2.8" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="Antlr3.StringTemplate" Version="3.4.1.9005" />
+
     <PackageReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>

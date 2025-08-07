@@ -26,6 +26,10 @@ namespace FAP.Domain.Handlers
         private readonly ServerUploadLimiterService uploadLimiter;
         private readonly Logger logger;
 
+        // Icon cache - missing from original ModernHTTPHandler
+        private readonly Dictionary<string, byte[]> iconCache = new Dictionary<string, byte[]>();
+        private readonly object sync = new object();
+
         public ModernHTTPHandler(ShareInfoService i, Model m, BufferService b, ServerUploadLimiterService u)
         {
             infoService = i;
@@ -122,12 +126,16 @@ namespace FAP.Domain.Handlers
                         {
                             if (browsingFile.IsFolder)
                             {
+                                // Construct the complete folder icon HTML tag
+                                string folderIconHtml = $"<img height=\"16px\" width=\"16px\" src=\"{WEB_ICON_PREFIX}folder\" alt=\"icon\" />";
+                                
                                 var d = new Dictionary<string, object>
                                             {
                                                 {"Name", browsingFile.Name},
                                                 {"Path", Utility.EncodeURL(browsingFile.Name)},
                                                 {"Icon", "folder"},
                                                 {"HasIcon", true}, // Folder icon always exists
+                                                {"IconHtml", folderIconHtml}, // Pre-built HTML tag
                                                 {"Sizetxt", Utility.FormatBytes(browsingFile.Size)},
                                                 {"Size", browsingFile.Size},
                                                 {
@@ -150,6 +158,14 @@ namespace FAP.Domain.Handlers
                                     name = name.Replace("#", "%23");
                                 d.Add("Path", name);
                                 d.Add("Icon", ext);
+                                
+                                // Construct the complete file icon HTML tag
+                                string fileIconHtml = "";
+                                if (!string.IsNullOrEmpty(ext))
+                                {
+                                    fileIconHtml = $"<img height=\"16px\" width=\"16px\" src=\"{WEB_ICON_PREFIX}{ext}\" alt=\"icon\" />";
+                                }
+                                d.Add("IconHtml", fileIconHtml);
                                 
                                 // Check if icon exists (static file or can be generated)
                                 bool hasIcon = false;
@@ -292,51 +308,94 @@ namespace FAP.Domain.Handlers
             {
                 byte[] data = null;
                 
-                // Check if it's a folder icon
-                if (ext == "folder")
+                lock (sync)
                 {
-                    data = GetResource("Images/folder.png");
-                    if (data.Length == 0)
+                    // Check if the icon has been requested already - if so just return that
+                    if (iconCache.ContainsKey(ext))
                     {
-                        logger.Warn("Folder icon not found");
-                        e.Response.StatusCode = 404;
-                        e.IsHandled = true;
-                        return false;
-                    }
-                }
-                else
-                {
-                    // First, check if a static icon file exists for this extension
-                    data = GetResource($"Images/{ext}.png");
-                    
-                    // If no static icon found, generate one dynamically
-                    if (data.Length == 0)
-                    {
-                        try
-                        {
-                            Icon icon = IconReader.GetFileIcon("file." + ext, IconReader.IconSize.Small, false);
-                            using (var mem = new MemoryStream())
-                            {
-                                using (Bitmap bmp = icon.ToBitmap())
-                                {
-                                    bmp.MakeTransparent();
-                                    bmp.Save(mem, ImageFormat.Png);
-                                    data = mem.ToArray();
-                                }
-                            }
-                            logger.Debug($"Generated dynamic icon for extension: {ext}");
-                        }
-                        catch (Exception ex)
-                        {
-                            logger.Error(ex, $"Failed to generate icon for extension: {ext}");
-                            e.Response.StatusCode = 404;
-                            e.IsHandled = true;
-                            return false;
-                        }
+                        data = iconCache[ext];
+                        logger.Debug($"Using cached icon for extension: {ext}");
                     }
                     else
                     {
-                        logger.Debug($"Using static icon for extension: {ext}");
+                        // Icon wasn't cached, generate it
+                        if (ext == "folder")
+                        {
+                            logger.Debug("Attempting to load folder icon");
+                            data = GetResource("Images/folder.png");
+                            if (data.Length > 0)
+                            {
+                                iconCache.Add("folder", data);
+                                logger.Debug($"Cached folder icon, size: {data.Length} bytes");
+                            }
+                            else
+                            {
+                                logger.Warn("Folder icon not found in resources");
+                                e.Response.StatusCode = 404;
+                                e.IsHandled = true;
+                                return false;
+                            }
+                        }
+                        else
+                        {
+                            // First, check if a static icon file exists for this extension
+                            logger.Debug($"Checking for static icon: Images/{ext}.png");
+                            data = GetResource($"Images/{ext}.png");
+                            
+                            if (data.Length > 0)
+                            {
+                                // Static icon found, cache it
+                                iconCache.Add(ext, data);
+                                logger.Debug($"Cached static icon for extension: {ext}, size: {data.Length} bytes");
+                            }
+                            else
+                            {
+                                logger.Debug($"No static icon found for extension: {ext}, will generate dynamically");
+                                // No static icon found, generate one dynamically
+                                try
+                                {
+                                    logger.Debug($"Attempting to generate icon for extension: {ext}");
+                                    Icon icon = IconReader.GetFileIcon("file." + ext, IconReader.IconSize.Small, false);
+                                    
+                                    if (icon == null)
+                                    {
+                                        logger.Warn($"IconReader.GetFileIcon returned null for extension: {ext}");
+                                        e.Response.StatusCode = 404;
+                                        e.IsHandled = true;
+                                        return false;
+                                    }
+                                    
+                                    using (var mem = new MemoryStream())
+                                    {
+                                        using (Bitmap bmp = icon.ToBitmap())
+                                        {
+                                            bmp.MakeTransparent();
+                                            bmp.Save(mem, ImageFormat.Png);
+                                            data = mem.ToArray();
+                                        }
+                                    }
+                                    
+                                    if (data.Length == 0)
+                                    {
+                                        logger.Warn($"Generated icon data is empty for extension: {ext}");
+                                        e.Response.StatusCode = 404;
+                                        e.IsHandled = true;
+                                        return false;
+                                    }
+                                    
+                                    // Cache the generated icon
+                                    iconCache.Add(ext, data);
+                                    logger.Debug($"Generated and cached dynamic icon for extension: {ext}, size: {data.Length} bytes");
+                                }
+                                catch (Exception ex)
+                                {
+                                    logger.Error(ex, $"Failed to generate icon for extension: {ext}");
+                                    e.Response.StatusCode = 404;
+                                    e.IsHandled = true;
+                                    return false;
+                                }
+                            }
+                        }
                     }
                 }
                 
