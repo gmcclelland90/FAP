@@ -141,11 +141,11 @@ namespace FAP.Domain.Net
 
                 // Read FAP headers
                 if (response.Headers.Contains("FAP-AUTH"))
-                    result.AuthKey = response.Headers.GetValues("FAP-AUTH").FirstOrDefault();
+                    result.AuthKey = response.Headers.GetValues("FAP-AUTH").FirstOrDefault() ?? string.Empty;
                 if (response.Headers.Contains("FAP-SOURCE"))
-                    result.SourceID = response.Headers.GetValues("FAP-SOURCE").FirstOrDefault();
+                    result.SourceID = response.Headers.GetValues("FAP-SOURCE").FirstOrDefault() ?? string.Empty;
                 if (response.Headers.Contains("FAP-OVERLORD"))
-                    result.OverlordID = response.Headers.GetValues("FAP-OVERLORD").FirstOrDefault();
+                    result.OverlordID = response.Headers.GetValues("FAP-OVERLORD").FirstOrDefault() ?? string.Empty;
 
                 return true;
             }

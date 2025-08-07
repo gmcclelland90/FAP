@@ -202,7 +202,7 @@ namespace FAP.Domain.Handlers
             ThreadPool.QueueUserWorkItem(processAnnounce);
         }
 
-        private void processAnnounce(object o)
+        private void processAnnounce(object? o)
         {
             while (run)
             {
@@ -237,7 +237,7 @@ namespace FAP.Domain.Handlers
         }
 
 
-        private void ProcessLanConnections(object no)
+        private void ProcessLanConnections(object? no)
         {
             while (run)
             {
@@ -983,7 +983,7 @@ namespace FAP.Domain.Handlers
 
         #region Client port service scanner
 
-        private async void ScanClientAsync(object o)
+        private async void ScanClientAsync(object? o)
         {
             await ScanClientAsync(o as Node);
         }

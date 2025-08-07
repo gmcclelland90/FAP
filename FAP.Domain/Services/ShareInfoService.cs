@@ -72,7 +72,7 @@ namespace FAP.Domain.Services
             }
         }
 
-        private void DoRefreshPath(object o)
+        private void DoRefreshPath(object? o)
         {
             var s = o as Share;
             if (null != s)

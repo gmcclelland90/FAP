@@ -38,7 +38,7 @@ namespace Wpf.Controls
         /// <summary>
         /// Find a specific parent object type in the visual tree
         /// </summary>
-        public static T FindParentControl<T>(DependencyObject outerDepObj) where T : DependencyObject
+        public static T? FindParentControl<T>(DependencyObject outerDepObj) where T : DependencyObject
         {
             DependencyObject dObj = VisualTreeHelper.GetParent(outerDepObj);
             if (dObj == null)
@@ -59,14 +59,14 @@ namespace Wpf.Controls
         /// <summary>
         /// Find the Panel for the TabControl
         /// </summary>
-        public static TabPanel FindVirtualizingTabPanel(Visual visual)
+        public static TabPanel? FindVirtualizingTabPanel(Visual visual)
         {
             if (visual == null)
                 return null;
 
             for (int i = 0; i < VisualTreeHelper.GetChildrenCount(visual); i++)
             {
-                Visual child = VisualTreeHelper.GetChild(visual, i) as Visual;
+                Visual? child = VisualTreeHelper.GetChild(visual, i) as Visual;
 
                 if (child != null)
                 {
@@ -76,7 +76,7 @@ namespace Wpf.Controls
                         return (TabPanel)temp;
                     }
 
-                    TabPanel panel = FindVirtualizingTabPanel(child);
+                    TabPanel? panel = FindVirtualizingTabPanel(child);
                     if (panel != null)
                     {
                         object temp = panel;
@@ -92,7 +92,7 @@ namespace Wpf.Controls
         /// </summary>
         /// <param name="elementToClone"></param>
         /// <returns></returns>
-        public static object CloneElement(object elementToClone)
+        public static object? CloneElement(object elementToClone)
         {
             string xaml = XamlWriter.Save(elementToClone);
             return XamlReader.Load(new XmlTextReader(new StringReader(xaml)));

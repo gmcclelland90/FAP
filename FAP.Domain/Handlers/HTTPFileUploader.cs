@@ -86,9 +86,9 @@ namespace FAP.Domain.Handlers
         {
             length = stream.Length;
             ResumePoint = 0;
-            IHeader rangeHeader =
+            IHeader? rangeHeader =
                 context.Request.Headers.Where(n => n.Name.ToLowerInvariant() == "range").FirstOrDefault();
-            ServerUploadToken token = null;
+            ServerUploadToken? token = null;
             try
             {
                 if (stream.Length > Model.FREE_FILE_LIMIT)

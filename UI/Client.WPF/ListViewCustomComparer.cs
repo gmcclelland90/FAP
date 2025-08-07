@@ -50,6 +50,6 @@ namespace Fap.Presentation
             return result;
         }
 
-        public abstract int Compare(object x, object y);
+        public abstract int Compare(object? x, object? y);
     }
 }

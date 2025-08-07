@@ -118,7 +118,7 @@ namespace FAP.Domain.Services
         {
             listener.Stop();
             listener.OnRequestAsync -= listener_OnRequestAsync;
-            listener = null;
+            listener = null!;
             var server = fap as FAPServerHandler;
             if (null != server)
             {

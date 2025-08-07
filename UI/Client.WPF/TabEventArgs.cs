@@ -19,7 +19,7 @@ namespace Wpf.Controls
         /// <summary>
         ///     The object to be used as the Content for the new TabItem
         /// </summary>
-        public object Content { get; set; }
+        public object Content { get; set; } = null!;
     }
 
     public class TabItemCancelEventArgs : CancelEventArgs
