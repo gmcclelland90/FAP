@@ -25,12 +25,12 @@ namespace FAP.Domain.Entities
     public class Share : BaseEntity
     {
         private long fileCount;
-        private string id;
-        private string name;
-        private string path;
+        private string id = string.Empty;
+        private string name = string.Empty;
+        private string path = string.Empty;
         private DateTime refresh;
         private long size;
-        private string status;
+        private string status = string.Empty;
 
         public Share()
         {

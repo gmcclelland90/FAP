@@ -23,10 +23,10 @@ namespace FAP.Domain.Net
 {
     public class DetectedNode
     {
-        public string Address { set; get; }
-        public string NetworkName { set; get; }
-        public string NetworkID { set; get; }
-        public string OverlordID { set; get; }
+        public string Address { set; get; } = string.Empty;
+        public string NetworkName { set; get; } = string.Empty;
+        public string NetworkID { set; get; } = string.Empty;
+        public string OverlordID { set; get; } = string.Empty;
         public int Priority { set; get; }
         public DateTime LastAnnounce { set; get; }
         public int MaxUsers { set; get; }

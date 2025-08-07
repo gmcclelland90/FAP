@@ -259,8 +259,9 @@ namespace FAP.Domain.Entities.Legacy
 
         public void Save()
         {
-            if (!Directory.Exists(Path.GetDirectoryName(saveLocation)))
-                Directory.CreateDirectory(Path.GetDirectoryName(saveLocation));
+            string? directoryPath = Path.GetDirectoryName(saveLocation);
+            if (!Directory.Exists(directoryPath))
+                Directory.CreateDirectory(directoryPath ?? string.Empty);
 
             var serializer = new XmlSerializer(typeof (Model));
             using (TextWriter textWriter = new StreamWriter(saveLocation))
@@ -304,8 +305,7 @@ namespace FAP.Domain.Entities.Legacy
 
         private void NotifyChange(string path)
         {
-            if (null != PropertyChanged)
-                PropertyChanged(this, new PropertyChangedEventArgs(path));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(path));
         }
     }
 }

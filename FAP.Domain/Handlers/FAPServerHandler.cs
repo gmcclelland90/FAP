@@ -336,13 +336,11 @@ namespace FAP.Domain.Handlers
             SendToOverlordClients(req);
         }
 
-        private void m_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        private void m_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            switch (e.PropertyName)
+            if (e.PropertyName == "LocalNodeID")
             {
-                case "OverlordPriority":
-                    serverNode.GenerateStrength(model.OverlordPriority);
-                    break;
+                serverNode.ID = model.LocalNode.ID;
             }
         }
 

@@ -5,15 +5,15 @@ namespace FAP.Domain.Entities
 {
     public class SearchResult : BaseEntity
     {
-        private string fileName;
+        private string fileName = string.Empty;
         private DateTime modified;
-        private string path;
+        private string path = string.Empty;
         private long size;
-        private string user;
+        private string user = string.Empty;
 
         public bool IsFolder { get; set; }
 
-        public string ClientID { get; set; }
+        public string ClientID { get; set; } = string.Empty;
 
         public string FileName
         {

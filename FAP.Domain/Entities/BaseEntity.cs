@@ -35,14 +35,13 @@ namespace FAP.Domain.Entities
 
         #region INotifyPropertyChanged Members
 
-        public event PropertyChangedEventHandler PropertyChanged;
+        public event PropertyChangedEventHandler PropertyChanged = null!;
 
         #endregion
 
         protected void NotifyChange(string path)
         {
-            if (null != PropertyChanged)
-                PropertyChanged(this, new PropertyChangedEventArgs(path));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(path));
         }
 
         protected void SafeSave(object o, string fileName, Formatting f)
@@ -59,7 +58,7 @@ namespace FAP.Domain.Entities
             obj = null;
         }
 
-        protected T SafeLoad<T>(string fileName)
+        protected T? SafeLoad<T>(string fileName)
         {
             try
             {

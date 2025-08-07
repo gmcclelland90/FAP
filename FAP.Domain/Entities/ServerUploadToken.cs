@@ -10,7 +10,7 @@ namespace FAP.Domain.Entities
     {
         private readonly AutoResetEvent sync = new AutoResetEvent(true);
         private int globalQueuePosition;
-        private string remoteEndPoint;
+        private string remoteEndPoint = string.Empty;
 
         public int GlobalQueuePosition
         {

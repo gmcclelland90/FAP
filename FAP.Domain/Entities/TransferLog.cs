@@ -6,9 +6,9 @@ namespace FAP.Domain.Entities
     {
         private DateTime added;
         private DateTime completed;
-        private string filename;
-        private string nickname;
-        private string path;
+        private string filename = string.Empty;
+        private string nickname = string.Empty;
+        private string path = string.Empty;
         private long size;
         private int speed;
 

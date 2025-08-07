@@ -18,7 +18,7 @@ namespace FAP.Domain.Verbs
         }
 
         public bool NoCache { set; get; }
-        public string Path { set; get; }
+        public string Path { set; get; } = string.Empty;
 
 
         public List<BrowsingFile> Results { set; get; }

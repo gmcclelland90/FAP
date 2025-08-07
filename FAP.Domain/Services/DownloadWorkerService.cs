@@ -35,7 +35,7 @@ namespace FAP.Domain.Services
         private bool isComplete = true;
         private long length;
         private long position;
-        private string status;
+        private string status = string.Empty;
 
         public DownloadWorkerService(Node n, Model m, BufferService b)
         {
@@ -123,14 +123,14 @@ namespace FAP.Domain.Services
 
                     lock (sync)
                         QueueEmpty = queue.Count == 0;
-                    if (QueueEmpty && null != OnWorkerFinished)
-                        OnWorkerFinished(this, EventArgs.Empty);
+                    if (QueueEmpty)
+                        OnWorkerFinished?.Invoke(this, EventArgs.Empty);
 
                     lock (sync)
                     {
                         if (queue.Count > 0)
                             currentItem = queue.Dequeue();
-                        if (null == currentItem)
+                        if (currentItem == null)
                         {
                             isComplete = true;
                             return;
@@ -150,7 +150,7 @@ namespace FAP.Domain.Services
                         //Always get the latest info.
                         verb.NoCache = true;
 
-                        var client = new Client(null);
+                        var client = new Client(null!);
 
                         if (client.Execute(verb, remoteNode))
                         {
@@ -224,7 +224,7 @@ namespace FAP.Domain.Services
                             incompletePath = incompletesb.ToString();
 
 
-                            FileStream fileStream = null;
+                            FileStream fileStream = null!;
 
                             //Check to see if the file already exists.
                             if (File.Exists(mainPath))

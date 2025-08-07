@@ -23,7 +23,7 @@ namespace FAP.Domain.Verbs
 {
     public class BaseVerb
     {
-        public static T Deserialise<T>(string json)
+        public static T? Deserialise<T>(string json)
         {
             return JsonConvert.DeserializeObject<T>(json);
             /*T obj = Activator.CreateInstance<T>();

@@ -147,8 +147,8 @@ namespace FAP.Domain.Handlers
                         {
                             //Try to find the username of the request
                             string userName = e.Context.RemoteEndPoint.Address.ToString();
-                            Node search = model.Network.Nodes.ToList().Where(n => n.ID == req.SourceID).FirstOrDefault();
-                            if (null != search && !string.IsNullOrEmpty(search.Nickname))
+                            Node? search = model.Network.Nodes.ToList().Where(n => n.ID == req.SourceID).FirstOrDefault();
+                            if (search != null && !string.IsNullOrEmpty(search.Nickname))
                                 userName = search.Nickname;
 
                             using (
@@ -165,7 +165,7 @@ namespace FAP.Domain.Handlers
                             txlog.Nickname = userName;
                             txlog.Completed = DateTime.Now;
                             txlog.Filename = Path.GetFileName(possiblePath);
-                            txlog.Path = Path.GetDirectoryName(req.Param);
+                            txlog.Path = Path.GetDirectoryName(req.Param) ?? string.Empty;
                             if (!string.IsNullOrEmpty(txlog.Path))
                             {
                                 txlog.Path = txlog.Path.Replace('\\', '/');
@@ -216,7 +216,7 @@ namespace FAP.Domain.Handlers
             generator.SendHeaders(e.Context, e.Response);
             await e.Context.Stream.WriteAsync(data, 0, data.Length);
             await e.Context.Stream.FlushAsync();
-            data = null;
+            data = null!;
             return true;
         }
 
@@ -255,7 +255,7 @@ namespace FAP.Domain.Handlers
             generator.SendHeaders(e.Context, e.Response);
             await e.Context.Stream.WriteAsync(data, 0, data.Length);
             await e.Context.Stream.FlushAsync();
-            data = null;
+            data = null!;
             return true;
         }
 
@@ -276,7 +276,7 @@ namespace FAP.Domain.Handlers
             generator.SendHeaders(e.Context, e.Response);
             await e.Context.Stream.WriteAsync(data, 0, data.Length);
             await e.Context.Stream.FlushAsync();
-            data = null;
+            data = null!;
 
             return true;
         }

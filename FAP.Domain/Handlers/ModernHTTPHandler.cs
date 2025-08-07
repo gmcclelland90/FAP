@@ -58,11 +58,11 @@ namespace FAP.Domain.Handlers
                     // Handle static file requests
                     data = GetResource(decodedPath.Substring(WEB_PREFIX.Length));
                     
-                    string ext = Path.GetExtension(decodedPath);
+                    string? ext = Path.GetExtension(decodedPath);
                     if (!string.IsNullOrEmpty(ext) && ext.StartsWith("."))
                         ext = ext.Substring(1);
 
-                    e.Response.ContentType = GetContentType(ext);
+                    e.Response.ContentType = GetContentType(ext ?? string.Empty);
                 }
                 else
                 {
@@ -157,7 +157,7 @@ namespace FAP.Domain.Handlers
                                 if (!string.IsNullOrEmpty(name))
                                     name = name.Replace("#", "%23");
                                 d.Add("Path", name);
-                                d.Add("Icon", ext);
+                                d.Add("Icon", ext ?? string.Empty);
                                 
                                 // Construct the complete file icon HTML tag
                                 string fileIconHtml = "";
@@ -283,7 +283,7 @@ namespace FAP.Domain.Handlers
             {
                 var assemblyLocation = typeof(ModernHTTPHandler).Assembly.Location;
                 var assemblyDirectory = Path.GetDirectoryName(assemblyLocation);
-                var resourcePath = Path.Combine(assemblyDirectory, "Web.Resources", name);
+                var resourcePath = Path.Combine(assemblyDirectory ?? string.Empty, "Web.Resources", name);
                 
                 if (File.Exists(resourcePath))
                 {

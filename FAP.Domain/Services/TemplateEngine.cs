@@ -66,36 +66,30 @@ namespace FAP.Domain.Services
 
         private static string ReplaceComplexVariables(string template, Dictionary<string, object> data)
         {
-            // Pattern to match complex variables like $model.LocalNode.Nickname$
+            // Pattern to match complex variables like $file.Name$
             var pattern = @"\$([a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*)\$";
-            
-            logger.Debug($"TemplateEngine: ReplaceComplexVariables called with template length {template.Length}");
-            logger.Debug($"TemplateEngine: ReplaceComplexVariables data contains {data.Count} items:");
-            foreach (var kvp in data)
-            {
-                logger.Debug($"TemplateEngine:   data[{kvp.Key}] = {kvp.Value?.GetType().Name ?? "null"}");
-            }
             
             return Regex.Replace(template, pattern, match =>
             {
                 string varPath = match.Groups[1].Value;
                 logger.Debug($"TemplateEngine: ReplaceComplexVariables found variable ${varPath}$");
-                object value = GetNestedValue(data, varPath);
+                object? value = GetNestedValue(data, varPath);
                 string replacement = value?.ToString() ?? "";
                 logger.Debug($"TemplateEngine: Replaced ${varPath}$ with '{replacement}'");
                 return replacement;
             });
         }
 
-        private static object GetNestedValue(Dictionary<string, object> data, string path)
+        private static object? GetNestedValue(Dictionary<string, object> data, string path)
         {
             logger.Debug($"GetNestedValue: Resolving path '{path}'");
             string[] parts = path.Split('.');
-            object current = null;
+            object? current = null;
 
             // Find the root object
-            if (data.TryGetValue(parts[0], out current))
+            if (data.TryGetValue(parts[0], out object? rootValue))
             {
+                current = rootValue;
                 logger.Debug($"GetNestedValue: Found root object '{parts[0]}', type: {current?.GetType().Name ?? "null"}");
                 // Navigate through the nested properties
                 for (int i = 1; i < parts.Length; i++)
@@ -120,7 +114,7 @@ namespace FAP.Domain.Services
                         // Try as dictionary
                         if (current is Dictionary<string, object> dict)
                         {
-                            if (dict.TryGetValue(parts[i], out object dictValue))
+                            if (dict.TryGetValue(parts[i], out object? dictValue))
                             {
                                 current = dictValue;
                                 logger.Debug($"GetNestedValue: Found dictionary key '{parts[i]}', value: '{current?.ToString() ?? "null"}'");
@@ -163,7 +157,7 @@ namespace FAP.Domain.Services
 
                 logger.Debug($"TemplateEngine: Processing loop for collection '{collectionName}' with item name '{itemName}'");
 
-                if (data.TryGetValue(collectionName, out object collection))
+                if (data.TryGetValue(collectionName, out object? collection))
                 {
                     logger.Debug($"TemplateEngine: Found collection '{collectionName}' of type {collection?.GetType().Name ?? "null"}");
                     
@@ -292,7 +286,7 @@ namespace FAP.Domain.Services
             }
             
             // Check if it's a complex path (like file.HasIcon)
-            object complexValue = GetNestedValue(data, condition);
+            object? complexValue = GetNestedValue(data, condition);
             if (complexValue != null)
             {
                 string strValue = complexValue.ToString();
@@ -306,7 +300,7 @@ namespace FAP.Domain.Services
                 string leftSide = equalityMatch.Groups[1].Value.Trim();
                 string rightSide = equalityMatch.Groups[2].Value.Trim();
                 
-                object leftValue = GetNestedValue(data, leftSide);
+                object? leftValue = GetNestedValue(data, leftSide);
                 string leftStr = leftValue?.ToString() ?? "";
                 string rightStr = rightSide.Trim('"', '\''); // Remove quotes
                 
@@ -320,7 +314,7 @@ namespace FAP.Domain.Services
                 string leftSide = inequalityMatch.Groups[1].Value.Trim();
                 string rightSide = inequalityMatch.Groups[2].Value.Trim();
                 
-                object leftValue = GetNestedValue(data, leftSide);
+                object? leftValue = GetNestedValue(data, leftSide);
                 string leftStr = leftValue?.ToString() ?? "";
                 string rightStr = rightSide.Trim('"', '\''); // Remove quotes
                 

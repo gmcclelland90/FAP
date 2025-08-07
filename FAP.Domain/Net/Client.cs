@@ -108,7 +108,7 @@ namespace FAP.Domain.Net
             try
             {
                 // Use ModernHttpClient internally to avoid deprecated WebRequest
-                using var modernClient = new ModernHttpClient(callingNode);
+                using var modernClient = new ModernHttpClient(callingNode ?? throw new InvalidOperationException("Calling node cannot be null"));
                 return modernClient.DoRequestAsync(url, input, result, timeout).GetAwaiter().GetResult();
             }
             catch

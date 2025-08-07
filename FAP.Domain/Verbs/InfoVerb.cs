@@ -54,7 +54,7 @@ namespace FAP.Domain.Verbs
         /// </summary>
         /// <param name="r"></param>
         /// <returns></returns>
-        public NetworkRequest ProcessRequest(NetworkRequest r)
+        public NetworkRequest? ProcessRequest(NetworkRequest r)
         {
             var inc = Deserialise<InfoVerb>(r.Data);
             Node = inc.Node;
@@ -77,7 +77,7 @@ namespace FAP.Domain.Verbs
 
         #endregion
 
-        public Node GetValidatedNode()
+        public Node? GetValidatedNode()
         {
             if (null != Node)
             {

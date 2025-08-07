@@ -8,8 +8,8 @@ namespace FAP.Domain.Verbs
     /// </summary>
     public class NoopVerb : BaseVerb, FAP.Shared.Interfaces.IVerb
     {
-        public string SourceID { set; get; }
-        public string AuthKey { set; get; }
+        public string SourceID { set; get; } = string.Empty;
+        public string AuthKey { set; get; } = string.Empty;
 
         #region IVerb Members
 

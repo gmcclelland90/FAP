@@ -1,5 +1,6 @@
-﻿using System.Net;
+﻿using System.Net.Http;
 using System.Threading;
+using System.Threading.Tasks;
 using FAP.Domain.Entities;
 
 namespace FAP.Domain.Services
@@ -18,14 +19,13 @@ namespace FAP.Domain.Services
             ThreadPool.QueueUserWorkItem(doCheck);
         }
 
-        private void doCheck(object o)
+        private void doCheck(object? o)
         {
             try
             {
-                var client = new WebClient();
-                string message =
-                    client.DownloadString("http://iownallyourbase.com/fap/updates.php?i=" + model.LocalNode.ID + "&v=" +
-                                          Model.AppVersion);
+                using var client = new HttpClient();
+                string message = client.GetStringAsync("http://iownallyourbase.com/fap/updates.php?i=" + model.LocalNode.ID + "&v=" +
+                                          Model.AppVersion).Result;
                 if (null != message)
                 {
                     foreach (string split in message.Split('\n'))

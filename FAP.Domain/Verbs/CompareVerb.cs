@@ -28,7 +28,7 @@ namespace FAP.Domain.Verbs
     public class CompareVerb : BaseVerb, FAP.Shared.Interfaces.IVerb
     {
         private static readonly object sync = new object();
-        private static NetworkRequest cachedResponse;
+        private static NetworkRequest cachedResponse = null!;
         private static long cacheTime;
         private readonly Model model;
 
@@ -37,7 +37,7 @@ namespace FAP.Domain.Verbs
             model = m;
         }
 
-        public CompareNode Node { set; get; }
+        public CompareNode Node { set; get; } = null!;
         public bool Allowed { set; get; }
 
         #region IVerb Members

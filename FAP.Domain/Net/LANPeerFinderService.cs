@@ -17,7 +17,7 @@ namespace FAP.Domain.Net
             new BackgroundSafeObservable<DetectedNode>();
 
         private readonly IServiceProvider serviceProvider;
-        private MulticastClientService mclient;
+        private MulticastClientService mclient = null!;
         private readonly Logger logger;
 
         public LANPeerFinderService(IServiceProvider serviceProvider)
@@ -32,7 +32,7 @@ namespace FAP.Domain.Net
             get { return announcedAddresses.ToList(); }
         }
 
-        private void announcedAddresses_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        private void announcedAddresses_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
             if (e.Action != NotifyCollectionChangedAction.Add)
             {

@@ -17,7 +17,7 @@ namespace FAP.Domain.Verbs
             shareInfoService = s;
         }
 
-        public string SearchString { set; get; }
+        public string SearchString { set; get; } = string.Empty;
 
         public List<SearchResult> Results
         {
