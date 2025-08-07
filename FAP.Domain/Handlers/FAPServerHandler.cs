@@ -23,9 +23,11 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using FAP.Domain.Entities;
 using FAP.Domain.Net;
 using FAP.Domain.Verbs;
@@ -981,23 +983,24 @@ namespace FAP.Domain.Handlers
 
         #region Client port service scanner
 
-        private void ScanClientAsync(object o)
+        private async void ScanClientAsync(object o)
         {
-            ScanClient(o as Node);
+            await ScanClientAsync(o as Node);
         }
 
         /// <summary>
         /// Scan the client machine for services such as HTTP or samba shares
         /// </summary>
         /// <param name="n"></param>
-        private void ScanClient(Node n)
+        private async Task ScanClientAsync(Node n)
         {
             //Check for HTTP
             string webTitle = string.Empty;
             try
             {
-                var wc = new WebClient();
-                string html = wc.DownloadString("http://" + n.Host);
+                using var httpClient = new HttpClient();
+                httpClient.Timeout = TimeSpan.FromSeconds(5);
+                string html = await httpClient.GetStringAsync("http://" + n.Host);
 
                 if (!string.IsNullOrEmpty(html))
                 {

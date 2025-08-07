@@ -10,7 +10,7 @@ namespace FAP.Domain.Entities.FileSystem
     {
         private bool populated;
         private ObservableCollection<BrowsingFile> subItems = new ObservableCollection<BrowsingFile>();
-        private BrowsingFile temp;
+        private BrowsingFile temp = null!;
 
         [JsonIgnore]
         public ObservableCollection<BrowsingFile> Items
@@ -53,7 +53,7 @@ namespace FAP.Domain.Entities.FileSystem
         [System.Runtime.Serialization.DataMember]
         public bool IsFolder { set; get; }
         [System.Runtime.Serialization.DataMember]
-        public string Name { set; get; }
+        public string Name { set; get; } = string.Empty;
         [System.Runtime.Serialization.DataMember]
         public long Size { set; get; }
         [System.Runtime.Serialization.DataMember]
@@ -105,7 +105,7 @@ namespace FAP.Domain.Entities.FileSystem
         }
 
         [System.Runtime.Serialization.DataMember]
-        public string Path { set; get; }
+        public string Path { set; get; } = string.Empty;
 
         public void AddItem(BrowsingFile ent)
         {

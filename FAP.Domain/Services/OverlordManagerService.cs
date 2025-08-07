@@ -40,7 +40,7 @@ namespace FAP.Domain.Services
         private readonly IServiceProvider serviceProvider;
         private readonly Logger logger;
         private readonly Model model;
-        private ListenerService overlordListener;
+        private ListenerService overlordListener = null!;
         private bool isRunning;
 
         public OverlordManagerService(IServiceProvider serviceProvider, Model m)

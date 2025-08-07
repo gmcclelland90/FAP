@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
+using System.Threading.Tasks;
 using System.Reflection;
 using System.Text;
 using System.Threading;
@@ -29,6 +31,7 @@ namespace FAP.Domain.Services
         private readonly Queue<DownloadRequest> queue = new Queue<DownloadRequest>();
         private readonly Node remoteNode;
         private readonly object sync = new object();
+        private readonly HttpClient httpClient;
         private bool isComplete = true;
         private long length;
         private long position;
@@ -39,6 +42,8 @@ namespace FAP.Domain.Services
             remoteNode = n;
             model = m;
             bufferService = b;
+            httpClient = new HttpClient();
+            httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(Model.AppVersion);
         }
 
         public bool IsQueueFull
@@ -90,7 +95,7 @@ namespace FAP.Domain.Services
 
         #endregion
 
-        public event EventHandler OnWorkerFinished;
+        public event EventHandler OnWorkerFinished = null!;
 
         public void AddDownload(DownloadRequest item)
         {
@@ -100,13 +105,13 @@ namespace FAP.Domain.Services
                 if (isComplete)
                 {
                     isComplete = false;
-                    ThreadPool.QueueUserWorkItem(process);
+                    _ = Task.Run(processAsync);
                 }
                 item.State = DownloadRequestState.Queued;
             }
         }
 
-        private void process(object o)
+        private async Task processAsync()
         {
             try
             {
@@ -238,39 +243,30 @@ namespace FAP.Domain.Services
                                                        FileShare.None);
                             }
 
-                            var req =
-                                (HttpWebRequest)
-                                WebRequest.Create(Multiplexor.Encode(getDownloadUrl(), "GET", currentItem.FullPath));
-                            req.UserAgent = Model.AppVersion;
+                            var req = new HttpRequestMessage(HttpMethod.Get, Multiplexor.Encode(getDownloadUrl(), "GET", currentItem.FullPath));
                             req.Headers.Add("FAP-SOURCE", model.LocalNode.ID);
 
-                            // req.Timeout = 300000;
-                            // req.ReadWriteTimeout = 3000000;
                             //If we are resuming then add range
                             long resumePoint = 0;
                             if (fileStream.Length != 0)
                             {
-                                //Yes Micrsoft if you read this...  OH WHY IS ADDRANGE ONLY AN INT?? We live in an age where we might actually download more than 2gb
+                                //Yes Microsoft if you read this... OH WHY IS ADDRANGE ONLY AN INT?? We live in an age where we might actually download more than 2gb
                                 //req.AddRange(fileStream.Length);
 
                                 //Hack
-                                MethodInfo method = typeof (WebHeaderCollection).GetMethod("AddWithoutValidate",
-                                                                                           BindingFlags.Instance |
-                                                                                           BindingFlags.NonPublic);
-                                string key = "Range";
-                                string val = string.Format("bytes={0}", fileStream.Length);
-                                method.Invoke(req.Headers, new object[] {key, val});
+                                string val = string.Format("bytes={0}-", fileStream.Length);
+                                req.Headers.Add("Range", val);
                                 position = fileStream.Length;
                                 resumePoint = fileStream.Length;
                                 //Seek to the end of the file
                                 fileStream.Seek(fileStream.Length, SeekOrigin.Begin);
                             }
 
-                            var resp = (HttpWebResponse) req.GetResponse();
+                            var resp = await httpClient.SendAsync(req, HttpCompletionOption.ResponseHeadersRead);
 
-                            if (resp.StatusCode == HttpStatusCode.OK)
+                            if (resp.IsSuccessStatusCode)
                             {
-                                using (Stream responseStream = resp.GetResponseStream())
+                                using (Stream responseStream = await resp.Content.ReadAsStreamAsync())
                                 {
                                     var tokenizer = new StreamTokenizer(Encoding.ASCII, "|");
                                     var utilisedBuffers = new List<MemoryBuffer>();
@@ -360,7 +356,7 @@ namespace FAP.Domain.Services
                                 }
                             }
 
-                            resp.Close();
+                            resp.Dispose();
                             model.DownloadQueue.List.Remove(currentItem);
                             currentItem.State = DownloadRequestState.Downloaded;
                             fileStream.Close();
@@ -373,7 +369,7 @@ namespace FAP.Domain.Services
                                 File.Move(incompletePath, mainPath);
                             }
                             status = currentItem.Nickname + " - Complete: " + currentItem.FileName;
-                            resp.Close();
+                            resp.Dispose();
                         }
                         catch
                         {

@@ -453,7 +453,13 @@ namespace FAP.Domain.Handlers
                     e.Response.Headers["Last-Modified"] = modified.ToString("R");
                     // Send response
                     var buffer = new byte[fs.Length];
-                    await fs.ReadAsync(buffer, 0, buffer.Length);
+                    int totalBytesRead = 0;
+                    int bytesRead;
+                    while (totalBytesRead < fs.Length && 
+                           (bytesRead = await fs.ReadAsync(buffer, totalBytesRead, (int)fs.Length - totalBytesRead)) > 0)
+                    {
+                        totalBytesRead += bytesRead;
+                    }
                     await e.Response.Body.WriteAsync(buffer, 0, buffer.Length);
                     e.IsHandled = true;
                     return true;

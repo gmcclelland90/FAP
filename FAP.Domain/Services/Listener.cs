@@ -39,8 +39,8 @@ namespace FAP.Domain.Services
 
         private readonly bool isServer;
         private readonly Model model;
-        private IFAPHandler fap;
-        private ModernNodeServer listener;
+        private IFAPHandler fap = null!;
+        private ModernNodeServer listener = null!;
 
         public ListenerService(IServiceProvider serviceProvider, bool _isServer)
         {

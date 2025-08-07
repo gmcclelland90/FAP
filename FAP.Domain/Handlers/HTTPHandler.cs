@@ -131,7 +131,7 @@ namespace FAP.Domain.Handlers
             }
             else
             {
-                bool validPath = false;
+                // bool validPath = false; // Unused variable
 
                 string page = Encoding.UTF8.GetString(GetResource("template.html"));
                 var pagedata = new Dictionary<string, object>();
@@ -246,7 +246,6 @@ namespace FAP.Domain.Handlers
                         }
                     }
 
-                    validPath = true;
                     //Clear result list to help GC
                     results.Clear();
                 }
@@ -469,7 +468,13 @@ namespace FAP.Domain.Handlers
                                                   FileShare.Read))
                 {
                     var buffer = new byte[stream.Length];
-                    stream.Read(buffer, 0, buffer.Length);
+                    int totalBytesRead = 0;
+                    int bytesRead;
+                    while (totalBytesRead < stream.Length && 
+                           (bytesRead = stream.Read(buffer, totalBytesRead, (int)stream.Length - totalBytesRead)) > 0)
+                    {
+                        totalBytesRead += bytesRead;
+                    }
                     return buffer;
                 }
             }

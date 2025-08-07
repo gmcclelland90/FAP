@@ -86,10 +86,9 @@ namespace FAP.Application
             this.overlordManagerService = overlordManagerService;
             this.serviceProvider = serviceProvider;
             
-            //Don't send two request went doing a post..
-            ServicePointManager.Expect100Continue = false;
-            //Don't limit connections to a single node - 100 I think is the upper limit.
-            ServicePointManager.DefaultConnectionLimit = 100;
+            //Note: ServicePointManager settings are deprecated in .NET 9
+            //These settings no longer affect HttpClient or SslStream
+            //Connection limits and other settings are now handled by HttpClient configuration
             //System.Net.ServicePointManager.MaxServicePointIdleTime = 20000000;
             singleInstanceService = new SingleInstanceService("FAP");
             registerProtocolService = new RegisterProtocolService();

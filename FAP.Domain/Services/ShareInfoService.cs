@@ -35,8 +35,8 @@ namespace FAP.Domain.Services
 {
     public class RootShare
     {
-        public string ID { set; get; }
-        public Directory Data { set; get; }
+        public string ID { set; get; } = string.Empty;
+        public Directory Data { set; get; } = null!;
     }
 
     public class ShareInfoService

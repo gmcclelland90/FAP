@@ -32,7 +32,7 @@ namespace FAP.Domain.Entities
         private int lastUpdate = Environment.TickCount;
 
 
-        private string secret;
+        private string secret = string.Empty;
 
 
         public Node()

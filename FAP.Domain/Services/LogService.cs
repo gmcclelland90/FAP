@@ -23,7 +23,7 @@ namespace FAP.Domain.Services
 
         public LogService(Model m)
         {
-            LoggingConfiguration config = LogManager.Configuration;
+            LoggingConfiguration config = LogManager.Configuration ?? new LoggingConfiguration();
             target = new LogServiceTarget(m.Messages);
             target.Layout =
                 "${level}=> ${message} ${exception:format=Message} ${exception:format=Type} ${exception:format=StackTrace}";

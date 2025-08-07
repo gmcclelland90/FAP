@@ -63,9 +63,9 @@ namespace FAP.Domain.Entities
         private bool alwaysNoCacheBrowsing;
         private bool disableCompare;
         private bool displayedHelp;
-        private string downloadFolder;
-        private DownloadQueue downloadQueue;
-        private string incompleteFolder;
+        private string downloadFolder = string.Empty;
+        private DownloadQueue downloadQueue = null!;
+        private string incompleteFolder = string.Empty;
         private int maxDownloads;
         private int maxDownloadsPerUser;
         private int maxUploads;
@@ -406,7 +406,13 @@ namespace FAP.Domain.Entities
                 Stream stream =
                     Application.GetResourceStream(new Uri("Images/Default_Avatar.png", UriKind.Relative)).Stream;
                 var img = new byte[stream.Length];
-                stream.Read(img, 0, (int) stream.Length);
+                int totalBytesRead = 0;
+                int bytesRead;
+                while (totalBytesRead < stream.Length && 
+                       (bytesRead = stream.Read(img, totalBytesRead, (int)stream.Length - totalBytesRead)) > 0)
+                {
+                    totalBytesRead += bytesRead;
+                }
                 Avatar = Convert.ToBase64String(img);
                 Save();
             }

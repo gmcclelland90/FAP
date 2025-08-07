@@ -25,12 +25,12 @@ namespace FAP.Domain.Verbs
 {
     public class ConnectVerb : BaseVerb, FAP.Shared.Interfaces.IVerb
     {
-        public string Address { set; get; }
-        public string Secret { set; get; }
+        public string Address { set; get; } = string.Empty;
+        public string Secret { set; get; } = string.Empty;
         public ClientType ClientType { set; get; }
 
         [JsonIgnore]
-        public string OverlordID { set; get; }
+        public string OverlordID { set; get; } = string.Empty;
 
         #region IVerb Members
 

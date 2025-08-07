@@ -5,7 +5,7 @@ namespace FAP.Domain.Verbs
 {
     public class AddDownload : BaseVerb, FAP.Shared.Interfaces.IVerb
     {
-        public string URL { set; get; }
+        public string URL { set; get; } = string.Empty;
 
         #region IVerb Members
 
