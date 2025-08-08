@@ -23,4 +23,10 @@
     <ProjectReference Include="..\..\FAP.Foundation\FAP.Foundation.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

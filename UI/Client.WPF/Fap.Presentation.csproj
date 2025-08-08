@@ -36,6 +36,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     
     <None Include="Web.Help\css\ie.css">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
