@@ -8,7 +8,8 @@ using FAP.Domain.Verbs;
 using FAP.Network;
 using FAP.Shared.Entities;
 using FAP.Shared.Interfaces;
-using NLog;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Linq;
 
 namespace FAP.Domain.Net
@@ -16,18 +17,22 @@ namespace FAP.Domain.Net
     public class ModernHttpClient : IDisposable
     {
         private readonly HttpClient _httpClient;
-        private readonly Logger _logger;
+        private readonly ILogger<ModernHttpClient> _logger;
         private readonly INode _callingNode;
         private const int DEFAULT_TIMEOUT = 30000; // 30 seconds
 
-        public ModernHttpClient(INode callingNode)
+        public ModernHttpClient(INode callingNode, ILogger<ModernHttpClient> logger)
         {
             _callingNode = callingNode;
-            _logger = LogManager.GetLogger("faplog");
-            
+            _logger = logger;
             _httpClient = new HttpClient();
             _httpClient.Timeout = TimeSpan.FromMilliseconds(DEFAULT_TIMEOUT);
             _httpClient.DefaultRequestHeaders.Add("User-Agent", Model.AppVersion);
+        }
+
+        public ModernHttpClient(INode callingNode)
+            : this(callingNode, NullLogger<ModernHttpClient>.Instance)
+        {
         }
 
         public async Task<bool> ExecuteAsync(FAP.Shared.Interfaces.IVerb verb, INode destinationNode)
@@ -88,7 +93,7 @@ namespace FAP.Domain.Net
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to execute verb");
+                _logger.LogError(ex, "Failed to execute verb");
                 return false;
             }
         }
@@ -129,7 +134,7 @@ namespace FAP.Domain.Net
                 
                 if (!response.IsSuccessStatusCode)
                 {
-                    _logger.Warn($"HTTP request failed with status: {response.StatusCode}");
+                    _logger.LogWarning("HTTP request failed with status: {StatusCode}", response.StatusCode);
                     return false;
                 }
 
@@ -151,7 +156,7 @@ namespace FAP.Domain.Net
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, $"Failed to make request to {url}");
+                _logger.LogError(ex, "Failed to make request to {Url}", url);
                 return false;
             }
         }

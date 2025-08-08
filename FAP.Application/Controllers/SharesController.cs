@@ -30,14 +30,14 @@ using FAP.Domain.Entities;
 using FAP.Domain.Services;
 using Fap.Foundation;
 using Microsoft.Extensions.DependencyInjection;
-using NLog;
+using Microsoft.Extensions.Logging;
 
 namespace FAP.Application.Controllers
 {
     public class SharesController : AsyncControllerBase
     {
         private readonly IServiceProvider serviceProvider;
-        private readonly Logger logger;
+        private readonly Microsoft.Extensions.Logging.ILogger<SharesController> logger;
         private readonly Model model;
         private readonly ShareInfoService scanner;
         private QueryViewModel browser;
@@ -45,7 +45,7 @@ namespace FAP.Application.Controllers
 
         public SharesController(IServiceProvider serviceProvider, Model m)
         {
-            logger = LogManager.GetLogger("faplog");
+            logger = serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<SharesController>>();
             model = m;
             this.serviceProvider = serviceProvider;
             scanner = serviceProvider.GetRequiredService<ShareInfoService>();
@@ -81,7 +81,7 @@ namespace FAP.Application.Controllers
             {
                 if (model.Shares.Where(os => os.Path == folder).Count() > 0)
                 {
-                    logger.Debug("A share with this path already exists");
+                    logger.LogDebug("A share with this path already exists");
                 }
 
                 try
@@ -117,17 +117,17 @@ namespace FAP.Application.Controllers
                     {
                         s.Name = name;
                         s.Path = folder;
-                        logger.Debug($"SharesController.AddCommand: Adding share '{s.Name}' with path '{s.Path}' to model.Shares");
-                        logger.Debug($"SharesController.AddCommand: model.Shares count before add: {model.Shares.Count}");
+                    logger.LogDebug("SharesController.AddCommand: Adding share '{Name}' with path '{Path}' to model.Shares", s.Name, s.Path);
+                    logger.LogDebug("SharesController.AddCommand: model.Shares count before add: {Count}", model.Shares.Count);
                         model.Shares.Add(s);
-                        logger.Debug($"SharesController.AddCommand: model.Shares count after add: {model.Shares.Count}");
-                        logger.Debug($"SharesController.AddCommand: viewModel.Shares count: {viewModel.Shares?.Count ?? 0}");
+                    logger.LogDebug("SharesController.AddCommand: model.Shares count after add: {Count}", model.Shares.Count);
+                    logger.LogDebug("SharesController.AddCommand: viewModel.Shares count: {Count}", viewModel.Shares?.Count ?? 0);
                         ThreadPool.QueueUserWorkItem(AsyncRefresh, s);
                     }
                 }
                 catch (Exception e)
                 {
-                    logger.Error("Add share error", e);
+                    logger.LogError(e, "Add share error");
                     serviceProvider.GetRequiredService<IMessageService>().ShowError("Failed to add share: " + e.Message);
                 }
             }
@@ -138,14 +138,14 @@ namespace FAP.Application.Controllers
             var s = o as Share;
             if (null != s)
             {
-                logger.Debug($"SharesController.AsyncRefresh: Starting refresh for share '{s.Name}' with path '{s.Path}'");
+                logger.LogDebug("SharesController.AsyncRefresh: Starting refresh for share '{Name}' with path '{Path}'", s.Name, s.Path);
                 s.Status = "Scanning..";
                 Domain.Entities.FileSystem.Directory info = scanner.RefreshPath(s);
                 s.Size = info.Size;
                 s.FileCount = info.ItemCount;
                 s.Status = string.Empty;
                 s.LastRefresh = DateTime.Now;
-                logger.Debug($"SharesController.AsyncRefresh: Completed refresh for share '{s.Name}' - Size: {s.Size}, FileCount: {s.FileCount}");
+                logger.LogDebug("SharesController.AsyncRefresh: Completed refresh for share '{Name}' - Size: {Size}, FileCount: {Count}", s.Name, s.Size, s.FileCount);
                 RefreshClientStats();
             }
         }

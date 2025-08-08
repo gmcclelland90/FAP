@@ -10,8 +10,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using FAP.Network.Entities;
-using NLog;
 
 namespace FAP.Network.Server
 {
@@ -24,24 +24,24 @@ namespace FAP.Network.Server
     public class ModernNodeServer : IDisposable
     {
         private readonly IServiceProvider _serviceProvider;
-        private readonly Logger _logger;
+        private readonly ILogger<ModernNodeServer> _logger;
         private IHost _host;
         private bool _disposed = false;
 
         public event EventHandler<RequestEventArgs> OnRequest;
         public event Func<object, RequestEventArgs, Task> OnRequestAsync;
 
-        public ModernNodeServer(IServiceProvider serviceProvider)
+        public ModernNodeServer(IServiceProvider serviceProvider, ILogger<ModernNodeServer> logger)
         {
             _serviceProvider = serviceProvider;
-            _logger = LogManager.GetLogger("faplog");
+            _logger = logger;
         }
 
         public void Start(IPAddress address, int port)
         {
             try
             {
-                _logger.Debug($"Starting modern node server on {address}:{port}");
+                _logger.LogDebug("Starting modern node server on {Address}:{Port}", address, port);
 
                 _host = Host.CreateDefaultBuilder()
                     .ConfigureWebHostDefaults(webBuilder =>
@@ -64,11 +64,11 @@ namespace FAP.Network.Server
                     .Build();
 
                 _host.Start();
-                _logger.Debug($"Modern node server started successfully on {address}:{port}");
+                _logger.LogDebug("Modern node server started successfully on {Address}:{Port}", address, port);
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to start modern node server");
+                _logger.LogError(ex, "Failed to start modern node server");
                 throw;
             }
         }
@@ -77,14 +77,14 @@ namespace FAP.Network.Server
         {
             try
             {
-                _logger.Debug("Stopping modern node server");
+                _logger.LogDebug("Stopping modern node server");
                 _host?.StopAsync().Wait();
                 _host?.Dispose();
-                _logger.Debug("Modern node server stopped");
+                _logger.LogDebug("Modern node server stopped");
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Error stopping modern node server");
+                _logger.LogError(ex, "Error stopping modern node server");
             }
         }
 
@@ -130,7 +130,7 @@ namespace FAP.Network.Server
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Error handling request");
+                _logger.LogError(ex, "Error handling request");
                 // Only set status code if response hasn't started yet
                 if (!context.Response.HasStarted)
                 {

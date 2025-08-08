@@ -30,20 +30,20 @@ using FAP.Domain.Services;
 using FAP.Domain.Verbs;
 using Fap.Foundation;
 using Microsoft.Extensions.DependencyInjection;
-using NLog;
+using Microsoft.Extensions.Logging;
 
 namespace FAP.Application.Controllers
 {
     public class ConversationController : IConversationController
     {
         private readonly IServiceProvider serviceProvider;
-        private readonly Logger logger;
+        private readonly Microsoft.Extensions.Logging.ILogger<ConversationController> logger;
         private readonly Model model;
         private ConversationViewModel viewModel;
 
         public ConversationController(IServiceProvider serviceProvider, Model m)
         {
-            logger = LogManager.GetLogger("faplog");
+            logger = serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ConversationController>>();
             model = m;
             this.serviceProvider = serviceProvider;
         }
@@ -67,13 +67,13 @@ namespace FAP.Application.Controllers
         {
             if (viewModel?.Conversation?.OtherParty == null)
             {
-                logger.Warn("No conversation or other party available");
+                logger.LogWarning("No conversation or other party available");
                 return;
             }
 
             if (string.IsNullOrEmpty(viewModel.CurrentChatMessage))
             {
-                logger.Debug("No message to send");
+                logger.LogDebug("No message to send");
                 return;
             }
 
@@ -89,14 +89,14 @@ namespace FAP.Application.Controllers
                 chatVerb.Nickname = model.Nickname;
                 chatVerb.SourceID = model.LocalNode.ID;
                 
-                var client = new ModernHttpClient(model.LocalNode);
+                var client = new ModernHttpClient(model.LocalNode, serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<FAP.Domain.Net.ModernHttpClient>>());
                 if (client.ExecuteAsync(chatVerb, viewModel.Conversation.OtherParty).Result)
                 {
-                    logger.Debug($"Message sent to {viewModel.Conversation.OtherParty.Nickname}: {viewModel.CurrentChatMessage}");
+                    logger.LogDebug("Message sent to {Nickname}: {Message}", viewModel.Conversation.OtherParty.Nickname, viewModel.CurrentChatMessage);
                 }
                 else
                 {
-                    logger.Warn("Failed to send message");
+                    logger.LogWarning("Failed to send message");
                 }
                 
                 // Clear the input field
@@ -104,21 +104,21 @@ namespace FAP.Application.Controllers
             }
             catch (Exception ex)
             {
-                logger.Error(ex, "Error sending message");
+                logger.LogError(ex, "Error sending message");
             }
         }
 
         private void Clear()
         {
             // Implementation for clearing conversation
-            logger.Debug("Clearing conversation");
+            logger.LogDebug("Clearing conversation");
         }
 
         public bool HandleMessage(string id, string nickname, string message)
         {
             try
             {
-                logger.Debug($"Received message from {nickname}: {message}");
+                logger.LogDebug("Received message from {Nickname}: {Message}", nickname, message);
                 
                 // Find the conversation with this user
                 if (viewModel?.Conversation?.OtherParty?.ID == id)
@@ -126,25 +126,25 @@ namespace FAP.Application.Controllers
                     // Add the received message to the conversation
                     var receivedMessage = $"{nickname}: {message}";
                     viewModel.Conversation.Messages.Add(receivedMessage);
-                    logger.Debug($"Added message to conversation: {receivedMessage}");
+                    logger.LogDebug("Added message to conversation: {ReceivedMessage}", receivedMessage);
                 }
                 else
                 {
-                    logger.Debug($"Message from unknown user {id} ({nickname})");
+                    logger.LogDebug("Message from unknown user {Id} ({Nickname})", id, nickname);
                 }
                 
                 return true;
             }
             catch (Exception ex)
             {
-                logger.Error(ex, "Error handling message");
+                logger.LogError(ex, "Error handling message");
                 return false;
             }
         }
 
         public void CreateConversation(Node peer)
         {
-            logger.Debug($"Creating conversation with peer: {peer.Nickname}");
+            logger.LogDebug("Creating conversation with peer: {Nickname}", peer.Nickname);
             
             // Create a new conversation
             var conversation = new Conversation();

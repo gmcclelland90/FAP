@@ -8,7 +8,7 @@ using FAP.Domain.Services;
 using Fap.Foundation;
 using HttpServer;
 using HttpServer.Headers;
-using NLog;
+using Microsoft.Extensions.Logging;
 
 namespace FAP.Domain.Handlers
 {
@@ -17,6 +17,7 @@ namespace FAP.Domain.Handlers
         private static readonly byte[] CRLF = Encoding.ASCII.GetBytes("\r\n");
         private static readonly int CHUNK_SIZE_LIMIT = 2000000000; //1.86gb
         private readonly BufferService bufferService;
+        private readonly ILogger<FAPFileUploader> logger;
         private readonly NetworkSpeedMeasurement nsm;
         private readonly ServerUploadLimiterService uploadLimiter;
 
@@ -25,10 +26,11 @@ namespace FAP.Domain.Handlers
         private long position;
         private string status = "FAP Upload - Connecting..";
 
-        public FAPFileUploader(BufferService b, ServerUploadLimiterService u)
+        public FAPFileUploader(BufferService b, ServerUploadLimiterService u, ILogger<FAPFileUploader> logger)
         {
             bufferService = b;
             uploadLimiter = u;
+            this.logger = logger;
             nsm = new NetworkSpeedMeasurement(NetSpeedType.Upload);
         }
 
@@ -182,7 +184,7 @@ namespace FAP.Domain.Handlers
                 }
                 catch (Exception err)
                 {
-                    LogManager.GetLogger("faplog").Trace("Failed write file to http stream", err);
+                    logger.LogTrace(err, "FAPFileUploader.DoUpload: Error while uploading to {User} {Url}", user, url);
                 }
                 finally
                 {

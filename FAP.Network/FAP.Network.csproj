@@ -11,7 +11,7 @@
 
   <ItemGroup>
     <PackageReference Include="protobuf-net" Version="3.2.56" />
-    <PackageReference Include="NLog" Version="6.0.2" />
+    
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.8" />
   </ItemGroup>
 

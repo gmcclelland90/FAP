@@ -28,20 +28,20 @@ using FAP.Domain.Entities;
 using FAP.Domain.Services;
 using Fap.Foundation;
 using Microsoft.Extensions.DependencyInjection;
-using NLog;
+using Microsoft.Extensions.Logging;
 
 namespace FAP.Application.Controllers
 {
     public class CompareController : AsyncControllerBase
     {
         private readonly IServiceProvider serviceProvider;
-        private readonly Logger logger;
+        private readonly Microsoft.Extensions.Logging.ILogger<CompareController> logger;
         private readonly Model model;
         private CompareViewModel viewModel;
 
         public CompareController(IServiceProvider serviceProvider, Model m)
         {
-            logger = LogManager.GetLogger("faplog");
+            logger = serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<CompareController>>();
             model = m;
             this.serviceProvider = serviceProvider;
         }
@@ -65,13 +65,13 @@ namespace FAP.Application.Controllers
         private void Compare()
         {
             // Implementation for compare functionality
-            logger.Debug("Compare operation started");
+            logger.LogDebug("Compare operation started");
         }
 
         private void Reset()
         {
             // Implementation for reset functionality
-            logger.Debug("Reset operation started");
+            logger.LogDebug("Reset operation started");
         }
     }
 }

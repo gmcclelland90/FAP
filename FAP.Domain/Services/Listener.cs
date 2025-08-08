@@ -26,7 +26,7 @@ using FAP.Domain.Verbs;
 using FAP.Network.Server;
 using FAP.Network.Services;
 using Microsoft.Extensions.DependencyInjection;
-using NLog;
+using Microsoft.Extensions.Logging;
 
 namespace FAP.Domain.Services
 {
@@ -35,20 +35,20 @@ namespace FAP.Domain.Services
         private readonly IServiceProvider serviceProvider;
 
         private readonly ModernHTTPHandler http;
-        private readonly Logger logger;
+        private readonly ILogger<ListenerService> logger;
 
         private readonly bool isServer;
         private readonly Model model;
         private IFAPHandler fap = null!;
         private ModernNodeServer listener = null!;
 
-        public ListenerService(IServiceProvider serviceProvider, bool _isServer)
+        public ListenerService(IServiceProvider serviceProvider, bool _isServer, ILogger<ListenerService> logger)
         {
             this.serviceProvider = serviceProvider;
             http = serviceProvider.GetRequiredService<ModernHTTPHandler>();
             isServer = _isServer;
             model = serviceProvider.GetRequiredService<Model>();
-            logger = LogManager.GetLogger("faplog");
+            this.logger = logger;
         }
 
         public bool IsRunning
@@ -58,7 +58,7 @@ namespace FAP.Domain.Services
 
         public void Start(int inport)
         {
-            listener = new ModernNodeServer(serviceProvider);
+            listener = new ModernNodeServer(serviceProvider, serviceProvider.GetRequiredService<ILogger<ModernNodeServer>>());
             listener.OnRequestAsync += listener_OnRequestAsync;
 
             bool trybind = true;
@@ -76,7 +76,8 @@ namespace FAP.Domain.Services
                                                      model,
                                                      serviceProvider.GetRequiredService<MulticastClientService>(),
                                                      serviceProvider.GetRequiredService<LANPeerFinderService>(),
-                                                     serviceProvider.GetRequiredService<MulticastServerService>());
+                                                      serviceProvider.GetRequiredService<MulticastServerService>(),
+                                                      serviceProvider.GetRequiredService<ILogger<FAPServerHandler>>());
                         fap = f;
                         f.Start("Local", "Local");
                     }
@@ -84,8 +85,9 @@ namespace FAP.Domain.Services
                     {
                         var f = new FAPClientHandler(model, serviceProvider.GetRequiredService<ShareInfoService>(),
                                                      serviceProvider.GetRequiredService<IConversationController>(),
-                                                     serviceProvider.GetRequiredService<BufferService>(),
-                                                     serviceProvider.GetRequiredService<ServerUploadLimiterService>());
+                                                      serviceProvider.GetRequiredService<BufferService>(),
+                                                      serviceProvider.GetRequiredService<ServerUploadLimiterService>(),
+                                                      serviceProvider.GetRequiredService<ILogger<FAPClientHandler>>());
                         fap = f;
                         f.Start();
                         model.ClientPort = port;
@@ -97,12 +99,12 @@ namespace FAP.Domain.Services
                     // For clients (isServer=false), retry with next port
                     if (isServer)
                     {
-                        logger.Error(ex, $"Failed to bind overlord to port {port}. Overlords must use port 40.");
+                        logger.LogError(ex, "Failed to bind overlord to port {Port}. Overlords must use port 40.", port);
                         throw new Exception($"Could not bind overlord to port {port}. Overlords must use port 40.");
                     }
                     else
                     {
-                        logger.Warn(ex, $"Failed to bind to port {port}, trying next port");
+                        logger.LogWarning(ex, "Failed to bind to port {Port}, trying next port", port);
                         //Try again
                         port++;
                         if (inport + 100 < port)

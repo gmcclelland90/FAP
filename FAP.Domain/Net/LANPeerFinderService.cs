@@ -7,7 +7,7 @@ using FAP.Domain.Verbs.Multicast;
 using Fap.Foundation;
 using FAP.Network.Services;
 using Microsoft.Extensions.DependencyInjection;
-using NLog;
+using Microsoft.Extensions.Logging;
 
 namespace FAP.Domain.Net
 {
@@ -18,12 +18,12 @@ namespace FAP.Domain.Net
 
         private readonly IServiceProvider serviceProvider;
         private MulticastClientService mclient = null!;
-        private readonly Logger logger;
+        private readonly Microsoft.Extensions.Logging.ILogger<LANPeerFinderService> logger;
 
-        public LANPeerFinderService(IServiceProvider serviceProvider)
+        public LANPeerFinderService(IServiceProvider serviceProvider, Microsoft.Extensions.Logging.ILogger<LANPeerFinderService> logger)
         {
             this.serviceProvider = serviceProvider;
-            logger = LogManager.GetLogger("faplog");
+            this.logger = logger;
             announcedAddresses.CollectionChanged += announcedAddresses_CollectionChanged;
         }
 
@@ -64,7 +64,7 @@ namespace FAP.Domain.Net
         {
             try
             {
-                logger.Debug($"Received multicast message: {cmd}");
+                logger.LogDebug("Received multicast message: {Cmd}", cmd);
                 
                 if (cmd.StartsWith(HelloVerb.Preamble))
                 {
@@ -73,7 +73,7 @@ namespace FAP.Domain.Net
                     
                     if (detectedNode != null)
                     {
-                        logger.Debug($"Parsed HelloVerb from {detectedNode.Address}");
+                        logger.LogDebug("Parsed HelloVerb from {Address}", detectedNode.Address);
                         
                         announcedAddresses.Lock();
                         
@@ -88,35 +88,35 @@ namespace FAP.Domain.Net
                             existingNode.Priority = detectedNode.Priority;
                             existingNode.CurrentUsers = detectedNode.CurrentUsers;
                             existingNode.MaxUsers = detectedNode.MaxUsers;
-                            logger.Debug($"Updated existing node: {detectedNode.Address}");
+                            logger.LogDebug("Updated existing node: {Address}", detectedNode.Address);
                         }
                         else
                         {
                             // Add new node
                             announcedAddresses.Add(detectedNode);
-                            logger.Debug($"Added new node: {detectedNode.Address}");
+                            logger.LogDebug("Added new node: {Address}", detectedNode.Address);
                         }
                         
                         announcedAddresses.Unlock();
                     }
                     else
                     {
-                        logger.Warn($"Failed to parse HelloVerb message: {cmd}");
+                        logger.LogWarning("Failed to parse HelloVerb message: {Cmd}", cmd);
                     }
                 }
                 else if (cmd.StartsWith(WhoVerb.Message))
                 {
-                    logger.Debug("Received WhoVerb message");
+                    logger.LogDebug("Received WhoVerb message");
                     // WhoVerb is handled by the server to trigger announcements
                 }
                 else
                 {
-                    logger.Debug($"Received unknown multicast message: {cmd}");
+                    logger.LogDebug("Received unknown multicast message: {Cmd}", cmd);
                 }
             }
             catch (Exception ex)
             {
-                logger.Error(ex, "Error processing multicast message");
+                logger.LogError(ex, "Error processing multicast message");
             }
         }
     }

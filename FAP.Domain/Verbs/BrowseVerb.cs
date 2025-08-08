@@ -3,7 +3,8 @@ using FAP.Domain.Entities.FileSystem;
 using FAP.Domain.Services;
 using FAP.Shared.Entities;
 using FAP.Shared.Interfaces;
-using NLog;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FAP.Domain.Verbs
 {
@@ -33,7 +34,7 @@ namespace FAP.Domain.Verbs
 
         public NetworkRequest ProcessRequest(NetworkRequest r)
         {
-            var logger = LogManager.GetLogger("faplog");
+            var logger = NullLogger.Instance;
             
             var verb = Deserialise<BrowseVerb>(r.Data);
 
@@ -66,8 +67,8 @@ namespace FAP.Domain.Verbs
             catch (Exception ex)
 // ReSharper restore EmptyGeneralCatchClause
             {
-                var logger = LogManager.GetLogger("faplog");
-                logger.Error(ex, "BrowseVerb.ReceiveResponse: Failed to process response");
+                var logger = NullLogger.Instance;
+                logger.LogError(ex, "BrowseVerb.ReceiveResponse: Failed to process response");
             }
             return false;
         }

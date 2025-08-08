@@ -21,7 +21,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using NLog;
+using Microsoft.Extensions.Logging;
 
 namespace FAP.Network.Services
 {
@@ -36,11 +36,11 @@ namespace FAP.Network.Services
         private readonly byte[] buffer = new byte[50000];
 
         private Socket listenSocket;
-        private Logger logger;
+        private readonly ILogger<MulticastClientService> logger;
 
-        public MulticastClientService()
+        public MulticastClientService(ILogger<MulticastClientService> logger)
         {
-            logger = LogManager.GetLogger("faplog");
+            this.logger = logger;
         }
 
         public event MultiCastRX OnMultiCastRX;

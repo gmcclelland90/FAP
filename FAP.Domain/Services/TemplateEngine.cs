@@ -3,43 +3,44 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using NLog;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FAP.Domain.Services
 {
     public class TemplateEngine
     {
-        private static readonly ILogger logger = LogManager.GetLogger("faplog");
+        private static readonly ILogger logger = NullLogger.Instance;
 
         public static string Generate(string template, Dictionary<string, object> data)
         {
             try
             {
-                logger.Debug($"TemplateEngine.Generate: Starting template processing with {data.Count} data items");
+            logger.LogDebug("TemplateEngine.Generate: Starting template processing with {Count} data items", data.Count);
                 
                 string result = template;
 
                 // Replace simple variables like $variable$
-                logger.Debug($"TemplateEngine.Generate: Starting ReplaceSimpleVariables");
+            logger.LogDebug("TemplateEngine.Generate: Starting ReplaceSimpleVariables");
                 result = ReplaceSimpleVariables(result, data);
-                logger.Debug($"TemplateEngine.Generate: After ReplaceSimpleVariables: {result}");
+            logger.LogDebug("TemplateEngine.Generate: After ReplaceSimpleVariables: {Result}", result);
                 
                 // Replace loops like $files:{file|...}$ (this handles complex variables within loops)
-                logger.Debug($"TemplateEngine.Generate: Starting ReplaceLoops");
+            logger.LogDebug("TemplateEngine.Generate: Starting ReplaceLoops");
                 result = ReplaceLoops(result, data);
-                logger.Debug($"TemplateEngine.Generate: After ReplaceLoops: {result}");
+            logger.LogDebug("TemplateEngine.Generate: After ReplaceLoops: {Result}", result);
                 
                 // Replace any remaining complex variables like $model.LocalNode.Nickname$ (but not loop variables)
-                logger.Debug($"TemplateEngine.Generate: Starting ReplaceComplexVariables");
+            logger.LogDebug("TemplateEngine.Generate: Starting ReplaceComplexVariables");
                 result = ReplaceComplexVariables(result, data);
-                logger.Debug($"TemplateEngine.Generate: After ReplaceComplexVariables: {result}");
+            logger.LogDebug("TemplateEngine.Generate: After ReplaceComplexVariables: {Result}", result);
 
-                logger.Debug($"TemplateEngine.Generate: Template processing completed");
+            logger.LogDebug("TemplateEngine.Generate: Template processing completed");
                 return result;
             }
             catch (Exception ex)
             {
-                logger.Error(ex, "Error generating template");
+            logger.LogError(ex, "Error generating template");
                 return template; // Return original template on error
             }
         }
@@ -56,10 +57,10 @@ namespace FAP.Domain.Services
                 if (data.TryGetValue(varName, out object value))
                 {
                     string replacement = value?.ToString() ?? "";
-                    logger.Debug($"TemplateEngine: Replaced ${varName}$ with '{replacement}'");
+                    logger.LogDebug("TemplateEngine: Replaced ${Var}$ with '{Replacement}'", varName, replacement);
                     return replacement;
                 }
-                logger.Debug($"TemplateEngine: No replacement found for ${varName}$");
+                logger.LogDebug("TemplateEngine: No replacement found for ${Var}$", varName);
                 return match.Value; // Keep original if not found
             });
         }
@@ -72,17 +73,17 @@ namespace FAP.Domain.Services
             return Regex.Replace(template, pattern, match =>
             {
                 string varPath = match.Groups[1].Value;
-                logger.Debug($"TemplateEngine: ReplaceComplexVariables found variable ${varPath}$");
+            logger.LogDebug("TemplateEngine: ReplaceComplexVariables found variable ${VarPath}$", varPath);
                 object? value = GetNestedValue(data, varPath);
                 string replacement = value?.ToString() ?? "";
-                logger.Debug($"TemplateEngine: Replaced ${varPath}$ with '{replacement}'");
+            logger.LogDebug("TemplateEngine: Replaced ${VarPath}$ with '{Replacement}'", varPath, replacement);
                 return replacement;
             });
         }
 
         private static object? GetNestedValue(Dictionary<string, object> data, string path)
         {
-            logger.Debug($"GetNestedValue: Resolving path '{path}'");
+            logger.LogDebug("GetNestedValue: Resolving path '{Path}'", path);
             string[] parts = path.Split('.');
             object? current = null;
 
@@ -90,24 +91,24 @@ namespace FAP.Domain.Services
             if (data.TryGetValue(parts[0], out object? rootValue))
             {
                 current = rootValue;
-                logger.Debug($"GetNestedValue: Found root object '{parts[0]}', type: {current?.GetType().Name ?? "null"}");
+                logger.LogDebug("GetNestedValue: Found root object '{Root}', type: {Type}", parts[0], current?.GetType().Name ?? "null");
                 // Navigate through the nested properties
                 for (int i = 1; i < parts.Length; i++)
                 {
                     if (current == null)
                     {
-                        logger.Debug($"GetNestedValue: Current object is null at part '{parts[i]}', breaking.");
+                        logger.LogDebug("GetNestedValue: Current object is null at part '{Part}', breaking.", parts[i]);
                         break;
                     }
 
-                    logger.Debug($"GetNestedValue: Processing part '{parts[i]}' on object of type {current.GetType().Name}");
+                    logger.LogDebug("GetNestedValue: Processing part '{Part}' on object of type {Type}", parts[i], current.GetType().Name);
 
                     // Use reflection to get the property value
                     var property = current.GetType().GetProperty(parts[i]);
                     if (property != null)
                     {
                         current = property.GetValue(current);
-                        logger.Debug($"GetNestedValue: Found property '{parts[i]}', value: '{current?.ToString() ?? "null"}'");
+                        logger.LogDebug("GetNestedValue: Found property '{Part}', value: '{Value}'", parts[i], current?.ToString() ?? "null");
                     }
                     else
                     {
@@ -117,18 +118,18 @@ namespace FAP.Domain.Services
                             if (dict.TryGetValue(parts[i], out object? dictValue))
                             {
                                 current = dictValue;
-                                logger.Debug($"GetNestedValue: Found dictionary key '{parts[i]}', value: '{current?.ToString() ?? "null"}'");
+                                logger.LogDebug("GetNestedValue: Found dictionary key '{Part}', value: '{Value}'", parts[i], current?.ToString() ?? "null");
                             }
                             else
                             {
-                                logger.Debug($"GetNestedValue: Dictionary does not contain key '{parts[i]}'. Setting current to null.");
+                                logger.LogDebug("GetNestedValue: Dictionary does not contain key '{Part}'. Setting current to null.", parts[i]);
                                 current = null;
                                 break;
                             }
                         }
                         else
                         {
-                            logger.Debug($"GetNestedValue: Object is not a dictionary and no property '{parts[i]}' found. Setting current to null.");
+                            logger.LogDebug("GetNestedValue: Object is not a dictionary and no property '{Part}' found. Setting current to null.", parts[i]);
                             current = null;
                             break;
                         }
@@ -137,10 +138,10 @@ namespace FAP.Domain.Services
             }
             else
             {
-                logger.Debug($"GetNestedValue: Root object '{parts[0]}' not found in data.");
+            logger.LogDebug("GetNestedValue: Root object '{Root}' not found in data.", parts[0]);
             }
 
-            logger.Debug($"GetNestedValue: Final value for '{path}': '{current?.ToString() ?? "null"}'");
+            logger.LogDebug("GetNestedValue: Final value for '{Path}': '{Value}'", path, current?.ToString() ?? "null");
             return current;
         }
 
@@ -155,11 +156,11 @@ namespace FAP.Domain.Services
                 string itemName = match.Groups[2].Value.Trim();
                 string loopTemplate = match.Groups[3].Value;
 
-                logger.Debug($"TemplateEngine: Processing loop for collection '{collectionName}' with item name '{itemName}'");
+            logger.LogDebug("TemplateEngine: Processing loop for collection '{Collection}' with item name '{ItemName}'", collectionName, itemName);
 
                 if (data.TryGetValue(collectionName, out object? collection))
                 {
-                    logger.Debug($"TemplateEngine: Found collection '{collectionName}' of type {collection?.GetType().Name ?? "null"}");
+                    logger.LogDebug("TemplateEngine: Found collection '{Collection}' of type {Type}", collectionName, collection?.GetType().Name ?? "null");
                     
                     if (collection is IEnumerable<object> enumerable)
                     {
@@ -173,7 +174,7 @@ namespace FAP.Domain.Services
                             itemResult = ReplaceComplexVariables(itemResult, itemData);
                             result.Append(itemResult);
                         }
-                        logger.Debug($"TemplateEngine: Processed {enumerable.Count()} items in loop");
+                        logger.LogDebug("TemplateEngine: Processed {Count} items in loop", enumerable.Count());
                         return result.ToString();
                     }
                     else if (collection is System.Collections.IEnumerable enumerableCollection)
@@ -182,13 +183,13 @@ namespace FAP.Domain.Services
                         int count = 0;
                         foreach (var item in enumerableCollection)
                         {
-                            logger.Debug($"TemplateEngine: Processing item {count + 1} of type {item?.GetType().Name ?? "null"}");
+                            logger.LogDebug("TemplateEngine: Processing item {Index} of type {Type}", count + 1, item?.GetType().Name ?? "null");
                             if (item is Dictionary<string, object> dict)
                             {
-                                logger.Debug($"TemplateEngine: Item is Dictionary with {dict.Count} keys:");
+                                logger.LogDebug("TemplateEngine: Item is Dictionary with {Count} keys:", dict.Count);
                                 foreach (var kvp in dict)
                                 {
-                                    logger.Debug($"TemplateEngine:   {kvp.Key} = {kvp.Value}");
+                                    logger.LogDebug("TemplateEngine:   {Key} = {Value}", kvp.Key, kvp.Value);
                                 }
                             }
                             
@@ -196,42 +197,42 @@ namespace FAP.Domain.Services
                             var itemData = new Dictionary<string, object>(data);
                             itemData[itemName] = item;
                             
-                            logger.Debug($"TemplateEngine: Created itemData with {itemData.Count} items:");
+                            logger.LogDebug("TemplateEngine: Created itemData with {Count} items:", itemData.Count);
                             foreach (var kvp in itemData)
                             {
-                                logger.Debug($"TemplateEngine:   itemData[{kvp.Key}] = {kvp.Value?.GetType().Name ?? "null"}");
+                                logger.LogDebug("TemplateEngine:   itemData[{Key}] = {Type}", kvp.Key, kvp.Value?.GetType().Name ?? "null");
                             }
                             
-                            logger.Debug($"TemplateEngine: Loop template before processing: {loopTemplate.Substring(0, Math.Min(200, loopTemplate.Length))}");
+                            logger.LogDebug("TemplateEngine: Loop template before processing: {Snippet}", loopTemplate.Substring(0, Math.Min(200, loopTemplate.Length)));
                             
                                             // Process the loop template with the item data
                 string itemResult = loopTemplate;
                 
-                logger.Debug($"TemplateEngine: Processing item {count + 1} - Loop template before any processing: {itemResult}");
+                logger.LogDebug("TemplateEngine: Processing item {Index} - Loop template before any processing: {ItemResult}", count + 1, itemResult);
                 
                 // First replace simple variables (like $file$)
                 itemResult = ReplaceSimpleVariables(itemResult, itemData);
-                logger.Debug($"TemplateEngine: After ReplaceSimpleVariables: {itemResult}");
+                logger.LogDebug("TemplateEngine: After ReplaceSimpleVariables: {ItemResult}", itemResult);
                 
                 // Then replace conditionals (like $if:file.HasIcon|...$)
                 itemResult = ReplaceConditionals(itemResult, itemData);
-                logger.Debug($"TemplateEngine: After ReplaceConditionals: {itemResult}");
+                logger.LogDebug("TemplateEngine: After ReplaceConditionals: {ItemResult}", itemResult);
                 
                 // Finally replace complex variables (like $file.Name$)
                 itemResult = ReplaceComplexVariables(itemResult, itemData);
-                logger.Debug($"TemplateEngine: After ReplaceComplexVariables: {itemResult}");
+                logger.LogDebug("TemplateEngine: After ReplaceComplexVariables: {ItemResult}", itemResult);
                 
-                logger.Debug($"TemplateEngine: Loop template after processing: {itemResult}");
+                logger.LogDebug("TemplateEngine: Loop template after processing: {ItemResult}", itemResult);
                             
                             result.Append(itemResult);
                             count++;
                         }
-                        logger.Debug($"TemplateEngine: Processed {count} items in loop");
+                        logger.LogDebug("TemplateEngine: Processed {Count} items in loop", count);
                         return result.ToString();
                     }
                 }
 
-                logger.Debug($"TemplateEngine: No collection found for '{collectionName}'");
+                logger.LogDebug("TemplateEngine: No collection found for '{Collection}'", collectionName);
                 return ""; // Return empty string if collection not found
             });
         }
@@ -248,21 +249,21 @@ namespace FAP.Domain.Services
                 string trueContent = match.Groups[2].Value;
                 string falseContent = match.Groups[3].Success ? match.Groups[3].Value : "";
 
-                logger.Debug($"TemplateEngine: Processing conditional '{condition}' with trueContent: '{trueContent}' and falseContent: '{falseContent}'");
+            logger.LogDebug("TemplateEngine: Processing conditional '{Condition}' with trueContent: '{TrueContent}' and falseContent: '{FalseContent}'", condition, trueContent, falseContent);
 
                 // Evaluate the condition
                 bool conditionResult = EvaluateCondition(condition, data);
                 
                 string contentToUse = conditionResult ? trueContent : falseContent;
                 
-                logger.Debug($"TemplateEngine: Conditional '{condition}' evaluated to {conditionResult}, using {(conditionResult ? "true" : "false")} content");
+            logger.LogDebug("TemplateEngine: Conditional '{Condition}' evaluated to {Result}", condition, conditionResult);
                 
                 // Process the selected content with the same data context
-                logger.Debug($"TemplateEngine: Processing conditional content: '{contentToUse}'");
+            logger.LogDebug("TemplateEngine: Processing conditional content: '{Content}'", contentToUse);
                 string processedContent = ReplaceSimpleVariables(contentToUse, data);
-                logger.Debug($"TemplateEngine: After ReplaceSimpleVariables in conditional: '{processedContent}'");
+            logger.LogDebug("TemplateEngine: After ReplaceSimpleVariables in conditional: '{Content}'", processedContent);
                 processedContent = ReplaceComplexVariables(processedContent, data);
-                logger.Debug($"TemplateEngine: After ReplaceComplexVariables in conditional: '{processedContent}'");
+            logger.LogDebug("TemplateEngine: After ReplaceComplexVariables in conditional: '{Content}'", processedContent);
                 
                 return processedContent;
             }, RegexOptions.Singleline);
@@ -321,7 +322,7 @@ namespace FAP.Domain.Services
                 return leftStr != rightStr;
             }
             
-            logger.Debug($"TemplateEngine: Condition '{condition}' not found in data, returning false");
+            logger.LogDebug("TemplateEngine: Condition '{Condition}' not found in data, returning false", condition);
             return false;
         }
     }

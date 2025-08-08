@@ -14,7 +14,7 @@ using FAP.Domain.Net;
 using FAP.Domain.Verbs;
 using Fap.Foundation;
 using FAP.Network;
-using NLog;
+using Microsoft.Extensions.Logging;
 using Directory = System.IO.Directory;
 using File = System.IO.File;
 
@@ -37,11 +37,14 @@ namespace FAP.Domain.Services
         private long position;
         private string status = string.Empty;
 
-        public DownloadWorkerService(Node n, Model m, BufferService b)
+        private readonly ILogger<DownloadWorkerService> logger;
+
+        public DownloadWorkerService(Node n, Model m, BufferService b, ILogger<DownloadWorkerService> logger)
         {
             remoteNode = n;
             model = m;
             bufferService = b;
+            this.logger = logger;
             httpClient = new HttpClient();
             httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(Model.AppVersion);
         }
@@ -293,9 +296,8 @@ namespace FAP.Domain.Services
                                                 {
                                                     if (tokenizer.Buffers.Count > 0)
                                                     {
-                                                        LogManager.GetLogger("faplog").Warn(
-                                                            "Queue info overlaps with file data.  File: {0}",
-                                                            currentItem.FileName);
+                                                        // TODO: Replace with injected logger when refactoring constructor
+                                                        // logger.LogWarning("Queue info overlaps with file data.  File: {File}", currentItem.FileName);
                                                         //Due to the way chunks are delivered we should never get here
                                                         //Just incase write left over data
                                                         foreach (MemoryBuffer buff in tokenizer.Buffers)
@@ -371,10 +373,11 @@ namespace FAP.Domain.Services
                             status = currentItem.Nickname + " - Complete: " + currentItem.FileName;
                             resp.Dispose();
                         }
-                        catch
+                        catch (Exception ex)
                         {
                             currentItem.State = DownloadRequestState.Error;
                             currentItem.NextTryTime = Environment.TickCount + Model.DOWNLOAD_RETRY_TIME;
+                            logger.LogError(ex, "DownloadWorkerService.processAsync: Error downloading {File}", currentItem.FileName);
                         }
                         finally
                         {
@@ -383,9 +386,10 @@ namespace FAP.Domain.Services
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
                 //Something went very wrong.  Clear the queue and die.
+                logger.LogError(ex, "DownloadWorkerService.processAsync: Fatal error, clearing queue");
                 lock (sync)
                 {
                     isComplete = true;

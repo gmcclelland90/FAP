@@ -30,7 +30,7 @@ using FAP.Network;
 using FAP.Shared.Entities;
 using HttpServer;
 using HttpServer.Messages;
-using NLog;
+using Microsoft.Extensions.Logging;
 
 namespace FAP.Domain.Handlers
 {
@@ -38,20 +38,20 @@ namespace FAP.Domain.Handlers
     {
         private readonly BufferService bufferService;
         private readonly IConversationController chatController;
-        private readonly Logger logger;
+        private readonly ILogger<FAPClientHandler> logger;
         private readonly Model model;
         private readonly ServerUploadLimiterService serverUploadLimiterService;
         private readonly ShareInfoService shareInfoService;
 
         public FAPClientHandler(Model m, ShareInfoService s, IConversationController c, BufferService b,
-                                ServerUploadLimiterService sl)
+                                ServerUploadLimiterService sl, ILogger<FAPClientHandler> logger)
         {
             model = m;
             shareInfoService = s;
             chatController = c;
             bufferService = b;
             serverUploadLimiterService = sl;
-            logger = LogManager.GetLogger("faplog");
+            this.logger = logger;
         }
 
         #region IFAPHandler Members
@@ -74,46 +74,46 @@ namespace FAP.Domain.Handlers
                 OverlordID = networkReq.OverlordID,
                 AuthKey = networkReq.AuthKey
             };
-            logger.Trace("Client rx: {0} p: {1} source: {2} overlord: {3}", req.Verb, req.Param, req.SourceID,
+            logger.LogTrace("Client rx: {Verb} p: {Param} source: {Source} overlord: {Overlord}", req.Verb, req.Param, req.SourceID,
                          req.OverlordID);
-            logger.Debug("FAPClientHandler.HandleAsync: Processing verb: {0}", req.Verb);
+            logger.LogDebug("FAPClientHandler.HandleAsync: Processing verb: {Verb}", req.Verb);
             switch (req.Verb)
             {
                 case "BROWSE":
-                    logger.Debug("FAPClientHandler.HandleAsync: Routing to HandleBrowse");
+                    logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleBrowse");
                     return HandleBrowse(e, req);
                 case "UPDATE":
-                    logger.Debug("FAPClientHandler.HandleAsync: Routing to HandleUpdate");
+                    logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleUpdate");
                     return HandleUpdate(e, req);
                 case "INFO":
-                    logger.Debug("FAPClientHandler.HandleAsync: Routing to HandleInfoAsync");
+                    logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleInfoAsync");
                     return await HandleInfoAsync(e);
                 case "NOOP":
-                    logger.Debug("FAPClientHandler.HandleAsync: Routing to HandleNOOP");
+                    logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleNOOP");
                     return HandleNOOP(e, req);
                 case "GET":
-                    logger.Debug("FAPClientHandler.HandleAsync: Routing to HandleGet");
+                    logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleGet");
                     return HandleGet(e, req);
                 case "DISCONNECT":
-                    logger.Debug("FAPClientHandler.HandleAsync: Routing to HandleDisconnect");
+                    logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleDisconnect");
                     return HandleDisconnect(e);
                 case "CHAT":
-                    logger.Debug("FAPClientHandler.HandleAsync: Routing to HandleChat");
+                    logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleChat");
                     return HandleChat(e, req);
                 case "COMPARE":
-                    logger.Debug("FAPClientHandler.HandleAsync: Routing to HandleCompareAsync");
+                    logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleCompareAsync");
                     return await HandleCompareAsync(e, req);
                 case "SEARCH":
-                    logger.Debug("FAPClientHandler.HandleAsync: Routing to HandleSearch");
+                    logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleSearch");
                     return HandleSearch(e, req);
                 case "CONVERSTATION":
-                    logger.Debug("FAPClientHandler.HandleAsync: Routing to HandleConversation");
+                    logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleConversation");
                     return HandleConversation(e, req);
                 case "ADDDOWNLOAD":
-                    logger.Debug("FAPClientHandler.HandleAsync: Routing to HandleAddDownload");
+                    logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleAddDownload");
                     return HandleAddDownload(e, req);
                 default:
-                    logger.Debug("FAPClientHandler.HandleAsync: Unknown verb: {0}", req.Verb);
+                    logger.LogDebug("FAPClientHandler.HandleAsync: Unknown verb: {Verb}", req.Verb);
                     break;
             }
             return false;
@@ -140,7 +140,7 @@ namespace FAP.Domain.Handlers
                 {
                     if (File.Exists(possiblePath))
                     {
-                        var ffu = new FAPFileUploader(bufferService, serverUploadLimiterService);
+                        var ffu = new FAPFileUploader(bufferService, serverUploadLimiterService, Microsoft.Extensions.Logging.Abstractions.NullLogger<FAPFileUploader>.Instance);
                         var session = new TransferSession(ffu);
                         model.TransferSessions.Add(session);
                         try
@@ -156,7 +156,7 @@ namespace FAP.Domain.Handlers
                             {
                                 // TODO: Implement modern upload functionality
                                 // ffu.DoUpload(e.Context, fs, userName, possiblePath);
-                                logger.Info($"Upload requested for {possiblePath} by {userName}");
+                                logger.LogInformation("Upload requested for {Path} by {User}", possiblePath, userName);
                             }
 
                             //Add log of upload
@@ -299,24 +299,24 @@ namespace FAP.Domain.Handlers
 
         private bool HandleUpdate(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
         {
-            logger.Debug("FAPClientHandler.HandleUpdate: Starting update processing");
-            logger.Debug("FAPClientHandler.HandleUpdate: AuthKey = '{0}', Overlord.Secret = '{1}'", req.AuthKey, model.Network.Overlord.Secret);
-            logger.Debug("FAPClientHandler.HandleUpdate: Request data length: {0}", req.Data?.Length ?? 0);
+            logger.LogDebug("FAPClientHandler.HandleUpdate: Starting update processing");
+            logger.LogDebug("FAPClientHandler.HandleUpdate: AuthKey = '{AuthKey}', Overlord.Secret = '{Secret}'", req.AuthKey, model.Network.Overlord.Secret);
+            logger.LogDebug("FAPClientHandler.HandleUpdate: Request data length: {Length}", req.Data?.Length ?? 0);
             
             // For self-connections, AuthKey might be empty, so we need to handle that case
             bool authValid = string.IsNullOrEmpty(req.AuthKey) || req.AuthKey == model.Network.Overlord.Secret;
             
             if (authValid)
             {
-                logger.Debug("FAPClientHandler.HandleUpdate: Authentication valid, processing update");
+                logger.LogDebug("FAPClientHandler.HandleUpdate: Authentication valid, processing update");
                 model.Network.Overlord.LastUpdate = Environment.TickCount;
                 var verb = new UpdateVerb();
                 verb.ProcessRequest(req);
-                logger.Debug("FAPClientHandler.HandleUpdate: Processed UpdateVerb, nodes count: {0}", verb.Nodes?.Count ?? 0);
+                logger.LogDebug("FAPClientHandler.HandleUpdate: Processed UpdateVerb, nodes count: {Count}", verb.Nodes?.Count ?? 0);
                 
                 foreach (Node node in verb.Nodes)
                 {
-                    logger.Debug("FAPClientHandler.HandleUpdate: Processing node {0} (Online: {1}, Nickname: {2})", 
+                    logger.LogDebug("FAPClientHandler.HandleUpdate: Processing node {Id} (Online: {Online}, Nickname: {Nickname})", 
                         node.ID, node.Online, node.Nickname);
                     
                     Node search = model.Network.Nodes.Where(i => i.ID == node.ID).FirstOrDefault();
@@ -325,36 +325,36 @@ namespace FAP.Domain.Handlers
                         // Add the node if it has an ID and is online (or if Online is not set, assume it's online)
                         if (!string.IsNullOrEmpty(node.ID) && (node.Online || !node.ContainsKey("Online")))
                         {
-                            logger.Debug("FAPClientHandler.HandleUpdate: Adding new node {0} to network", node.ID);
+                            logger.LogDebug("FAPClientHandler.HandleUpdate: Adding new node {Id} to network", node.ID);
                             model.Network.Nodes.Add(node);
-                            logger.Debug("FAPClientHandler.HandleUpdate: Network now has {0} nodes", model.Network.Nodes.Count);
+                            logger.LogDebug("FAPClientHandler.HandleUpdate: Network now has {Count} nodes", model.Network.Nodes.Count);
                         }
                         else
                         {
-                            logger.Debug("FAPClientHandler.HandleUpdate: Skipping node {0} - ID: {1}, Online: {2}", 
+                            logger.LogDebug("FAPClientHandler.HandleUpdate: Skipping node {Index} - ID: {Id}, Online: {Online}", 
                                 node.ID, !string.IsNullOrEmpty(node.ID), node.Online);
                         }
                     }
                     else
                     {
-                        logger.Debug("FAPClientHandler.HandleUpdate: Updating existing node {0}", node.ID);
+                        logger.LogDebug("FAPClientHandler.HandleUpdate: Updating existing node {Id}", node.ID);
                         foreach (var param in node.Data)
                             search.SetData(param.Key, param.Value);
                         //Has the client disconnected?
                         if (!search.Online)
                         {
                             model.Network.Nodes.Remove(node);
-                            logger.Trace("Client: Node offline update: " + node.ID);
+                            logger.LogTrace("Client: Node offline update: {Id}", node.ID);
                         }
                     }
                 }
                 SendOk(e);
-                logger.Debug("FAPClientHandler.HandleUpdate: Update processed successfully");
+                logger.LogDebug("FAPClientHandler.HandleUpdate: Update processed successfully");
                 return true;
             }
             else
             {
-                logger.Debug("FAPClientHandler.HandleUpdate: Authentication failed, rejecting update");
+                logger.LogDebug("FAPClientHandler.HandleUpdate: Authentication failed, rejecting update");
             }
             return false;
         }

@@ -6,7 +6,8 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.IO;
 using System.Reflection;
-using NLog;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Fap.Presentation.Services
 {
@@ -14,15 +15,15 @@ namespace Fap.Presentation.Services
     {
         private readonly NotifyIcon _notifyIcon;
         private readonly ContextMenuStrip _contextMenu;
-        private readonly Logger _logger;
+        private readonly Microsoft.Extensions.Logging.ILogger<ModernSystemTrayService> _logger;
         private bool _disposed = false;
 
         public event EventHandler OpenRequested;
         public event EventHandler ExitRequested;
 
-        public ModernSystemTrayService()
+        public ModernSystemTrayService(IServiceProvider serviceProvider)
         {
-            _logger = LogManager.GetLogger("faplog");
+            _logger = serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ModernSystemTrayService>>();
             
             try
             {
@@ -76,7 +77,7 @@ namespace Fap.Presentation.Services
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to initialize system tray service");
+                _logger.LogError(ex, "Failed to initialize system tray service");
             }
         }
 

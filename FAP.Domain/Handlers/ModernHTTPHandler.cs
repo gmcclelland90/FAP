@@ -7,7 +7,7 @@ using FAP.Domain.Entities.FileSystem;
 using FAP.Domain.Services;
 using FAP.Network.Server;
 using Fap.Foundation;
-using NLog;
+using Microsoft.Extensions.Logging;
 using Directory = FAP.Domain.Entities.FileSystem.Directory;
 using File = System.IO.File;
 using System.Drawing;
@@ -24,19 +24,19 @@ namespace FAP.Domain.Handlers
         private readonly Model model;
         private readonly BufferService bufferService;
         private readonly ServerUploadLimiterService uploadLimiter;
-        private readonly Logger logger;
+        private readonly ILogger<ModernHTTPHandler> logger;
 
         // Icon cache - missing from original ModernHTTPHandler
         private readonly Dictionary<string, byte[]> iconCache = new Dictionary<string, byte[]>();
         private readonly object sync = new object();
 
-        public ModernHTTPHandler(ShareInfoService i, Model m, BufferService b, ServerUploadLimiterService u)
+        public ModernHTTPHandler(ShareInfoService i, Model m, BufferService b, ServerUploadLimiterService u, ILogger<ModernHTTPHandler> logger)
         {
             infoService = i;
             model = m;
             bufferService = b;
             uploadLimiter = u;
-            logger = LogManager.GetLogger("faplog");
+            this.logger = logger;
         }
 
         public async Task<bool> HandleAsync(string path, RequestEventArgs e)
@@ -203,37 +203,37 @@ namespace FAP.Domain.Handlers
                     pagedata.Add("totalSize", Utility.FormatBytes(totalSize));
 
                     // Debug: Log the data being passed to template engine
-                    logger.Debug($"ModernHTTPHandler: Template data contains {pagedata.Count} items:");
+                    logger.LogDebug("ModernHTTPHandler: Template data contains {Count} items:", pagedata.Count);
                     foreach (var kvp in pagedata)
                     {
-                        logger.Debug($"ModernHTTPHandler: {kvp.Key} = {kvp.Value?.GetType().Name ?? "null"}");
+                        logger.LogDebug("ModernHTTPHandler: {Key} = {Type}", kvp.Key, kvp.Value?.GetType().Name ?? "null");
                     }
 
                     // Debug: Log the files data structure
                     if (files.Count > 0)
                     {
-                        logger.Debug($"ModernHTTPHandler: Files count = {files.Count}");
+                        logger.LogDebug("ModernHTTPHandler: Files count = {Count}", files.Count);
                         foreach (var file in files)
                         {
-                            logger.Debug($"ModernHTTPHandler: File data:");
+                            logger.LogDebug("ModernHTTPHandler: File data:");
                             foreach (var kvp in file)
                             {
-                                logger.Debug($"ModernHTTPHandler:   {kvp.Key} = {kvp.Value}");
+                                logger.LogDebug("ModernHTTPHandler:   {Key} = {Value}", kvp.Key, kvp.Value);
                             }
                         }
                     }
 
                     // Debug: Log the template before processing
-                    logger.Debug($"ModernHTTPHandler: Template before processing (first 500 chars): {page.Substring(0, Math.Min(500, page.Length))}");
+                    logger.LogDebug("ModernHTTPHandler: Template before processing (first 500 chars): {Snippet}", page.Substring(0, Math.Min(500, page.Length)));
 
                     // Process the template
-                    logger.Debug("ModernHTTPHandler: About to call TemplateEngine.Generate");
+                    logger.LogDebug("ModernHTTPHandler: About to call TemplateEngine.Generate");
                     page = TemplateEngine.Generate(page, pagedata);
-                    logger.Debug("ModernHTTPHandler: TemplateEngine.Generate completed");
+                    logger.LogDebug("ModernHTTPHandler: TemplateEngine.Generate completed");
                     
                     // Debug: Log the template after processing
-                    logger.Debug($"ModernHTTPHandler: Template after processing (first 500 chars): {page.Substring(0, Math.Min(500, page.Length))}");
-                    logger.Debug($"ModernHTTPHandler: Full template after processing: {page}");
+                    logger.LogDebug("ModernHTTPHandler: Template after processing (first 500 chars): {Snippet}", page.Substring(0, Math.Min(500, page.Length)));
+                    logger.LogDebug("ModernHTTPHandler: Full template after processing: {Page}", page);
 
                     data = Encoding.UTF8.GetBytes(page);
                     e.Response.ContentType = "text/html";
@@ -248,7 +248,7 @@ namespace FAP.Domain.Handlers
             }
             catch (Exception ex)
             {
-                logger.Error(ex, "Error handling HTTP request");
+                logger.LogError(ex, "Error handling HTTP request");
                 e.Response.StatusCode = 500;
                 e.IsHandled = true;
             }
@@ -291,12 +291,12 @@ namespace FAP.Domain.Handlers
                 }
                 else
                 {
-                    logger.Warn($"Resource file not found: {resourcePath}");
+                    logger.LogWarning("Resource file not found: {Path}", resourcePath);
                 }
             }
             catch (Exception ex)
             {
-                logger.Error(ex, $"Failed to get resource: {name}");
+                logger.LogError(ex, "Failed to get resource: {Name}", name);
             }
 
             return new byte[0];
@@ -314,23 +314,23 @@ namespace FAP.Domain.Handlers
                     if (iconCache.ContainsKey(ext))
                     {
                         data = iconCache[ext];
-                        logger.Debug($"Using cached icon for extension: {ext}");
+                        logger.LogDebug("Using cached icon for extension: {Ext}", ext);
                     }
                     else
                     {
                         // Icon wasn't cached, generate it
                         if (ext == "folder")
                         {
-                            logger.Debug("Attempting to load folder icon");
+                            logger.LogDebug("Attempting to load folder icon");
                             data = GetResource("Images/folder.png");
                             if (data.Length > 0)
                             {
                                 iconCache.Add("folder", data);
-                                logger.Debug($"Cached folder icon, size: {data.Length} bytes");
+                                logger.LogDebug("Cached folder icon, size: {Length} bytes", data.Length);
                             }
                             else
                             {
-                                logger.Warn("Folder icon not found in resources");
+                                logger.LogWarning("Folder icon not found in resources");
                                 e.Response.StatusCode = 404;
                                 e.IsHandled = true;
                                 return false;
@@ -339,27 +339,27 @@ namespace FAP.Domain.Handlers
                         else
                         {
                             // First, check if a static icon file exists for this extension
-                            logger.Debug($"Checking for static icon: Images/{ext}.png");
+                            logger.LogDebug("Checking for static icon: Images/{Ext}.png", ext);
                             data = GetResource($"Images/{ext}.png");
                             
                             if (data.Length > 0)
                             {
                                 // Static icon found, cache it
                                 iconCache.Add(ext, data);
-                                logger.Debug($"Cached static icon for extension: {ext}, size: {data.Length} bytes");
+                                logger.LogDebug("Cached static icon for extension: {Ext}, size: {Length} bytes", ext, data.Length);
                             }
                             else
                             {
-                                logger.Debug($"No static icon found for extension: {ext}, will generate dynamically");
+                                logger.LogDebug("No static icon found for extension: {Ext}, will generate dynamically", ext);
                                 // No static icon found, generate one dynamically
                                 try
                                 {
-                                    logger.Debug($"Attempting to generate icon for extension: {ext}");
+                                    logger.LogDebug("Attempting to generate icon for extension: {Ext}", ext);
                                     Icon icon = IconReader.GetFileIcon("file." + ext, IconReader.IconSize.Small, false);
                                     
                                     if (icon == null)
                                     {
-                                        logger.Warn($"IconReader.GetFileIcon returned null for extension: {ext}");
+                                        logger.LogWarning("IconReader.GetFileIcon returned null for extension: {Ext}", ext);
                                         e.Response.StatusCode = 404;
                                         e.IsHandled = true;
                                         return false;
@@ -377,7 +377,7 @@ namespace FAP.Domain.Handlers
                                     
                                     if (data.Length == 0)
                                     {
-                                        logger.Warn($"Generated icon data is empty for extension: {ext}");
+                                        logger.LogWarning("Generated icon data is empty for extension: {Ext}", ext);
                                         e.Response.StatusCode = 404;
                                         e.IsHandled = true;
                                         return false;
@@ -385,11 +385,11 @@ namespace FAP.Domain.Handlers
                                     
                                     // Cache the generated icon
                                     iconCache.Add(ext, data);
-                                    logger.Debug($"Generated and cached dynamic icon for extension: {ext}, size: {data.Length} bytes");
+                                    logger.LogDebug("Generated and cached dynamic icon for extension: {Ext}, size: {Length} bytes", ext, data.Length);
                                 }
                                 catch (Exception ex)
                                 {
-                                    logger.Error(ex, $"Failed to generate icon for extension: {ext}");
+                                    logger.LogError(ex, "Failed to generate icon for extension: {Ext}", ext);
                                     e.Response.StatusCode = 404;
                                     e.IsHandled = true;
                                     return false;
@@ -406,7 +406,7 @@ namespace FAP.Domain.Handlers
             }
             catch (Exception ex)
             {
-                logger.Error(ex, "Error sending icon");
+                logger.LogError(ex, "Error sending icon");
                 e.Response.StatusCode = 500;
                 e.IsHandled = true;
                 return false;
@@ -467,7 +467,7 @@ namespace FAP.Domain.Handlers
             }
             catch (Exception ex)
             {
-                logger.Error(ex, "Error sending file");
+                logger.LogError(ex, "Error sending file");
                 e.Response.StatusCode = 500;
                 e.IsHandled = true;
                 return false;

@@ -33,7 +33,7 @@ using FAP.Domain.Net;
 using FAP.Domain.Services;
 using FAP.Domain.Verbs;
 using Fap.Foundation;
-using NLog;
+using Microsoft.Extensions.Logging;
 
 namespace FAP.Application.Controllers
 {
@@ -46,8 +46,8 @@ namespace FAP.Application.Controllers
 
         public BrowserController(BrowserViewModel bvm, Model model, Node client, ShareInfoService i)
         {
-            var logger = LogManager.GetLogger("faplog");
-            logger.Debug($"BrowserController constructor: client={client?.Nickname ?? "null"}, model={model?.Nickname ?? "null"}");
+            var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
+            logger.LogDebug("BrowserController constructor: client={Client}, model={Model}", client?.Nickname ?? "null", model?.Nickname ?? "null");
             
             this.client = client ?? throw new ArgumentNullException(nameof(client), "Client node cannot be null");
             this.model = model ?? throw new ArgumentNullException(nameof(model), "Model cannot be null");
@@ -55,7 +55,7 @@ namespace FAP.Application.Controllers
             shareInfo = i ?? throw new ArgumentNullException(nameof(i), "ShareInfoService cannot be null");
             bvm.NoCache = model.AlwaysNoCacheBrowsing;
             
-            logger.Debug($"BrowserController constructor: Successfully created with client={this.client.Nickname}");
+            logger.LogDebug("BrowserController constructor: Successfully created with client={Client}", this.client.Nickname);
         }
 
         public BrowserViewModel ViewModel
@@ -83,28 +83,28 @@ namespace FAP.Application.Controllers
 
         private void Populate(string ent)
         {
-            var logger = LogManager.GetLogger("faplog");
-            logger.Debug($"Populate: Starting with path='{ent}'");
+            var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
+            logger.LogDebug("Populate: Starting with path='{Path}'", ent);
             
             ent = ent.Replace('/', '\\');
             bvm.IsBusy = true;
             if (string.IsNullOrEmpty(ent))
             {
-                logger.Debug("Populate: Empty path, clearing root and starting root browse");
+                logger.LogDebug("Populate: Empty path, clearing root and starting root browse");
                 bvm.Root.Clear();
                 ThreadPool.QueueUserWorkItem(PopulateAsync, null);
                 return;
             }
             string[] items = ent.Split('\\');
-            logger.Debug($"Populate: Split path into {items.Length} items: [{string.Join(", ", items)}]");
+            logger.LogDebug("Populate: Split path into {Count} items: [{Items}]", items.Length, string.Join(", ", items));
             BrowsingFile parent = bvm.Root.Where(n => n.Name == items[0]).FirstOrDefault();
-            logger.Debug($"Populate: Found parent in Root: {parent?.Name ?? "null"}");
+            logger.LogDebug("Populate: Found parent in Root: {Parent}", parent?.Name ?? "null");
 
             if (parent == null)
             {
                 // If we can't find the parent in Root, this might be a direct share name
                 // Create a temporary BrowsingFile to represent this share
-                logger.Debug($"Populate: Parent not found in Root, creating temporary share for '{items[0]}'");
+                logger.LogDebug("Populate: Parent not found in Root, creating temporary share for '{Item}'", items[0]);
                 var tempShare = new BrowsingFile();
                 tempShare.Name = items[0];
                 tempShare.FullPath = ent;
@@ -116,16 +116,16 @@ namespace FAP.Application.Controllers
             if (items.Length == 1)
             {
                 // This is a root share being expanded
-                logger.Debug($"Populate: Single item path, expanding root share '{parent.Name}'");
+                logger.LogDebug("Populate: Single item path, expanding root share '{Name}'", parent.Name);
                 if (!parent.IsPopulated || bvm.NoCache)
                 {
-                    logger.Debug($"Populate: Share not populated or no cache, starting populate for '{parent.Name}'");
+                    logger.LogDebug("Populate: Share not populated or no cache, starting populate for '{Name}'", parent.Name);
                     parent.ClearItems();
                     ThreadPool.QueueUserWorkItem(PopulateAsync, parent);
                 }
                 else
                 {
-                    logger.Debug($"Populate: Share already populated, setting as current item");
+                    logger.LogDebug("Populate: Share already populated, setting as current item");
                     bvm.CurrentItem = parent;
                     bvm.IsBusy = false;
                 }
@@ -167,13 +167,13 @@ namespace FAP.Application.Controllers
             try
             {
                 // Add verbose logging to understand what's happening
-                var logger = LogManager.GetLogger("faplog");
-                logger.Debug($"PopulateAsync: Starting with client={client?.Nickname ?? "null"}, model={model?.Nickname ?? "null"}");
+                var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
+                logger.LogDebug("PopulateAsync: Starting with client={Client}, model={Model}", client?.Nickname ?? "null", model?.Nickname ?? "null");
                 
                 // Check if required objects are available
                 if (client == null)
                 {
-                    logger.Warn("PopulateAsync: Client is null");
+                    logger.LogWarning("PopulateAsync: Client is null");
                     SafeObservableStatic.Dispatcher.Invoke(DispatcherPriority.Normal,
                                                            new Action(
                                                                delegate
@@ -187,7 +187,7 @@ namespace FAP.Application.Controllers
 
                 if (model?.LocalNode == null)
                 {
-                    logger.Warn("PopulateAsync: Model or LocalNode is null");
+                    logger.LogWarning("PopulateAsync: Model or LocalNode is null");
                     SafeObservableStatic.Dispatcher.Invoke(DispatcherPriority.Normal,
                                                            new Action(
                                                                delegate
@@ -199,26 +199,26 @@ namespace FAP.Application.Controllers
                     return;
                 }
 
-                logger.Debug($"PopulateAsync: Client={client.Nickname}, Host={client.Host}, ID={client.ID}");
-                logger.Debug($"PopulateAsync: Model={model.Nickname}, LocalNode={model.LocalNode.Nickname}");
+                logger.LogDebug("PopulateAsync: Client={Nickname}, Host={Host}, ID={Id}", client.Nickname, client.Host, client.ID);
+                logger.LogDebug("PopulateAsync: Model={Nickname}, LocalNode={LocalNickname}", model.Nickname, model.LocalNode.Nickname);
 
                 var fse = o as BrowsingFile;
                 if (null != fse)
                 {
                     try
                     {
-                        logger.Debug($"PopulateAsync: Creating ModernHttpClient for path={fse.FullPath}");
+                        logger.LogDebug("PopulateAsync: Creating ModernHttpClient for path={Path}", fse.FullPath);
                         var c = new ModernHttpClient(model.LocalNode);
                         var cmd = new BrowseVerb(shareInfo);
                         cmd.Path = fse.FullPath;
                         cmd.NoCache = bvm.NoCache;
                         
-                                                 logger.Debug($"PopulateAsync: About to execute command with client={client.Nickname}");
-                         var result = c.ExecuteAsync(cmd, client).Result;
-                                                  logger.Debug($"PopulateAsync: Execute result = {result}");
+                        logger.LogDebug("PopulateAsync: About to execute command with client={Nickname}", client.Nickname);
+                        var result = c.ExecuteAsync(cmd, client).Result;
+                        logger.LogDebug("PopulateAsync: Execute result = {Result}", result);
                          if (result)
                          {
-                             logger.Debug($"PopulateAsync: Command executed successfully, Results count = {cmd.Results?.Count ?? 0}");
+                             logger.LogDebug("PopulateAsync: Command executed successfully, Results count = {Count}", cmd.Results?.Count ?? 0);
                              try
                              {
                                  SafeObservableStatic.Dispatcher.Invoke(DispatcherPriority.Normal,
@@ -229,7 +229,7 @@ namespace FAP.Application.Controllers
                                                                                     {
                                                                                         if (cmd.Results != null)
                                                                                         {
-                                                                                            logger.Debug($"PopulateAsync: Processing {cmd.Results.Count} results");
+                                                                                             logger.LogDebug("PopulateAsync: Processing {Count} results", cmd.Results.Count);
                                                                                             bvm.Status = "Download complete (" +
                                                                                                          cmd.Results.Count + ").";
                                                                                             fse.IsPopulated = true;
@@ -244,14 +244,14 @@ namespace FAP.Application.Controllers
                                                                                         }
                                                                                         else
                                                                                         {
-                                                                                            logger.Debug("PopulateAsync: No results returned from browse operation");
+                                                                                            logger.LogDebug("PopulateAsync: No results returned from browse operation");
                                                                                             bvm.Status = "No results returned from browse operation.";
                                                                                         }
                                                                                         bvm.IsBusy = false;
                                                                                     }
                                                                                     catch (Exception ex)
                                                                                     {
-                                                                                        logger.Error(ex, "PopulateAsync: Error updating UI after successful browse");
+                                                                                         logger.LogError(ex, "PopulateAsync: Error updating UI after successful browse");
                                                                                         bvm.Status = $"Error updating UI: {ex.Message}";
                                                                                         bvm.IsBusy = false;
                                                                                     }
@@ -260,7 +260,7 @@ namespace FAP.Application.Controllers
                              }
                              catch (Exception ex)
                              {
-                                 logger.Error(ex, "PopulateAsync: Error invoking dispatcher for UI update");
+                                  logger.LogError(ex, "PopulateAsync: Error invoking dispatcher for UI update");
                                  bvm.Status = $"Error updating UI: {ex.Message}";
                                  bvm.IsBusy = false;
                              }
@@ -283,7 +283,7 @@ namespace FAP.Application.Controllers
                             }
                             else
                             {
-                                logger.Warn("PopulateAsync: SafeObservableStatic.Dispatcher is null, cannot update UI for failed browse command");
+                            logger.LogWarning("PopulateAsync: SafeObservableStatic.Dispatcher is null, cannot update UI for failed browse command");
                             }
                         }
                     }
@@ -305,7 +305,7 @@ namespace FAP.Application.Controllers
                         }
                         else
                         {
-                            logger.Warn("PopulateAsync: SafeObservableStatic.Dispatcher is null, cannot update UI for browse command error");
+                            logger.LogWarning("PopulateAsync: SafeObservableStatic.Dispatcher is null, cannot update UI for browse command error");
                         }
                     }
                 }
@@ -313,23 +313,23 @@ namespace FAP.Application.Controllers
                 {
                     try
                     {
-                        logger.Debug($"PopulateAsync: Creating ModernHttpClient for root browse");
+                        logger.LogDebug("PopulateAsync: Creating ModernHttpClient for root browse");
                         var c = new ModernHttpClient(model.LocalNode);
                         var cmd = new BrowseVerb(shareInfo);
                         cmd.Path = ""; // Root path for initial browse
                         cmd.NoCache = bvm.NoCache;
 
-                                                 logger.Debug($"PopulateAsync: About to execute root command with client={client.Nickname}");
-                         var result = c.ExecuteAsync(cmd, client).Result;
-                                                  logger.Debug($"PopulateAsync: Execute result = {result}");
+                        logger.LogDebug("PopulateAsync: About to execute root command with client={Nickname}", client.Nickname);
+                        var result = c.ExecuteAsync(cmd, client).Result;
+                        logger.LogDebug("PopulateAsync: Execute result = {Result}", result);
                          if (result)
                          {
-                             logger.Debug($"PopulateAsync: Root command executed successfully, Results count = {cmd.Results?.Count ?? 0}");
+                             logger.LogDebug("PopulateAsync: Root command executed successfully, Results count = {Count}", cmd.Results?.Count ?? 0);
                              try
                              {
                                  if (SafeObservableStatic.Dispatcher == null)
                                  {
-                                     logger.Warn("PopulateAsync: SafeObservableStatic.Dispatcher is null, cannot update UI");
+                                    logger.LogWarning("PopulateAsync: SafeObservableStatic.Dispatcher is null, cannot update UI");
                                      return;
                                  }
                                  
@@ -341,13 +341,13 @@ namespace FAP.Application.Controllers
                                                                                     {
                                                                                         if (bvm == null)
                                                                                         {
-                                                                                            logger.Warn("PopulateAsync: BrowserViewModel is null, skipping UI update");
+                                                                                            logger.LogWarning("PopulateAsync: BrowserViewModel is null, skipping UI update");
                                                                                             return;
                                                                                         }
                                                                                         
                                                                                         if (cmd.Results != null)
                                                                                         {
-                                                                                            logger.Debug($"PopulateAsync: Processing {cmd.Results.Count} root results");
+                                                                                            logger.LogDebug("PopulateAsync: Processing {Count} root results", cmd.Results.Count);
                                                                                             bvm.Status = "Download complete (" +
                                                                                                          cmd.Results.Count + ").";
                                                                                             var ent = new BrowsingFile();
@@ -358,7 +358,7 @@ namespace FAP.Application.Controllers
                                                                                                 {
                                                                                                     browseResult.FullPath = browseResult.Name;
                                                                                                 }
-                                                                                                logger.Debug($"PopulateAsync: Adding root share '{browseResult.Name}' with FullPath='{browseResult.FullPath}'");
+                                                                                                logger.LogDebug("PopulateAsync: Adding root share '{Name}' with FullPath='{FullPath}'", browseResult.Name, browseResult.FullPath);
                                                                                                 bvm.Root.Add(browseResult);
                                                                                                 ent.AddItem(browseResult);
                                                                                             }
@@ -367,14 +367,14 @@ namespace FAP.Application.Controllers
                                                                                         }
                                                                                         else
                                                                                         {
-                                                                                            logger.Debug("PopulateAsync: No results returned from root browse operation");
+                                                                                            logger.LogDebug("PopulateAsync: No results returned from root browse operation");
                                                                                             bvm.Status = "No results returned from browse operation.";
                                                                                         }
                                                                                         bvm.IsBusy = false;
                                                                                     }
                                                                                     catch (Exception ex)
                                                                                     {
-                                                                                        logger.Error(ex, "PopulateAsync: Error updating UI after successful root browse");
+                        logger.LogError(ex, "PopulateAsync: Error updating UI after successful root browse");
                                                                                         if (bvm != null)
                                                                                         {
                                                                                             bvm.Status = $"Error updating UI: {ex.Message}";
@@ -386,7 +386,7 @@ namespace FAP.Application.Controllers
                              }
                              catch (Exception ex)
                              {
-                                 logger.Error(ex, "PopulateAsync: Error invoking dispatcher for root browse UI update");
+                 logger.LogError(ex, "PopulateAsync: Error invoking dispatcher for root browse UI update");
                                  if (bvm != null && SafeObservableStatic.Dispatcher != null)
                                  {
                                      try
@@ -400,10 +400,10 @@ namespace FAP.Application.Controllers
                                                                                         }
                                                                                     ));
                                      }
-                                     catch (Exception dispatcherEx)
-                                     {
-                                         logger.Error(dispatcherEx, "PopulateAsync: Error updating status after dispatcher error");
-                                     }
+                                      catch (Exception dispatcherEx)
+                                      {
+                                          logger.LogError(dispatcherEx, "PopulateAsync: Error updating status after dispatcher error");
+                                      }
                                  }
                              }
                          }
@@ -437,7 +437,7 @@ namespace FAP.Application.Controllers
                         }
                         else
                         {
-                            logger.Warn("PopulateAsync: SafeObservableStatic.Dispatcher is null, cannot update UI for browse command error");
+                    logger.LogWarning("PopulateAsync: SafeObservableStatic.Dispatcher is null, cannot update UI for browse command error");
                         }
                     }
                 }
@@ -460,8 +460,8 @@ namespace FAP.Application.Controllers
                 }
                 else
                 {
-                    var logger = LogManager.GetLogger("faplog");
-                    logger.Warn("PopulateAsync: SafeObservableStatic.Dispatcher is null, cannot update UI for browse operation error");
+                    var logger2 = Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
+                    logger2.LogWarning("PopulateAsync: SafeObservableStatic.Dispatcher is null, cannot update UI for browse operation error");
                 }
             }
         }

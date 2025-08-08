@@ -25,14 +25,15 @@ using FAP.Network.Entities;
 using FAP.Network.Server;
 using HttpServer;
 using HttpServer.Headers;
-using NLog;
+using Microsoft.Extensions.Logging;
 
 namespace FAP.Network
 {
     public class Multiplexor
     {
         private static readonly string preample = "/Fap.app/";
-        private static readonly Logger logger = LogManager.GetLogger("faplog");
+        private static ILogger<Multiplexor>? staticLogger;
+        public static void InitializeLogger(ILogger<Multiplexor> logger) => staticLogger = logger;
 
         public static string Encode(string url, string verb, string param)
         {
@@ -122,13 +123,13 @@ namespace FAP.Network
             }
             if (r.Method == "POST")
             {
-                logger.Debug($"DecodeModern: Processing POST request for verb: {req.Verb}");
+                staticLogger?.LogTrace("Multiplexor.DecodeModernAsync: Reading POST body");
                 req.Data = await GetPostStringModernAsync(r);
-                logger.Debug($"DecodeModern: Request data length: {req.Data?.Length ?? 0}");
+                staticLogger?.LogTrace("Multiplexor.DecodeModernAsync: POST body read length={Length}", req.Data?.Length ?? 0);
             }
             else
             {
-                logger.Debug($"DecodeModern: Processing {r.Method} request for verb: {req.Verb}");
+                staticLogger?.LogTrace("Multiplexor.DecodeModernAsync: Handling non-POST {Method}", r.Method);
             }
 
             // Extract headers
@@ -158,7 +159,7 @@ namespace FAP.Network
             }
             catch (Exception ex)
             {
-                logger.Debug($"Error in synchronous wrapper: {ex.Message}");
+                staticLogger?.LogError(ex, "Multiplexor.DecodeModern: Failed to decode request");
                 return new NetworkRequest();
             }
         }
@@ -169,7 +170,7 @@ namespace FAP.Network
             {
                 if (e.Body == null)
                 {
-                    logger.Debug("GetPostStringModern: Request body is null");
+                    staticLogger?.LogWarning("Multiplexor.GetPostStringModernAsync: Body was null");
                     return string.Empty;
                 }
 
@@ -182,14 +183,14 @@ namespace FAP.Network
                 using (var reader = new StreamReader(e.Body, Encoding.UTF8, leaveOpen: true))
                 {
                     string content = await reader.ReadToEndAsync();
-                    logger.Debug($"GetPostStringModern: Read {content.Length} characters from request body");
+                    staticLogger?.LogTrace("Multiplexor.GetPostStringModernAsync: Read {Length} bytes", content?.Length ?? 0);
                     return content;
                 }
             }
             catch (Exception ex)
             {
                 // Log the error but return empty string to avoid breaking the flow
-                logger.Debug($"Error reading request body: {ex.Message}");
+                staticLogger?.LogError(ex, "Multiplexor.GetPostStringModernAsync: Error reading request body");
                 return string.Empty;
             }
         }
@@ -204,7 +205,7 @@ namespace FAP.Network
             }
             catch (Exception ex)
             {
-                logger.Debug($"Error in synchronous wrapper: {ex.Message}");
+                // TODO: add ILogger<Multiplexor> and log
                 return string.Empty;
             }
         }

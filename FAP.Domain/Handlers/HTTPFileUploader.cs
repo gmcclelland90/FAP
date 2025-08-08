@@ -28,13 +28,14 @@ using Fap.Foundation;
 using HttpServer;
 using HttpServer.Headers;
 using HttpServer.Messages;
-using NLog;
+using Microsoft.Extensions.Logging;
 
 namespace FAP.Domain.Handlers
 {
     public class HTTPFileUploader : ITransferWorker
     {
         private readonly BufferService bufferService;
+        private readonly ILogger<HTTPFileUploader> logger;
         private readonly NetworkSpeedMeasurement nsm;
         private readonly ServerUploadLimiterService uploadLimiter;
 
@@ -43,10 +44,11 @@ namespace FAP.Domain.Handlers
         private long position;
         private string status = "HTTP - Connecting..";
 
-        public HTTPFileUploader(BufferService b, ServerUploadLimiterService u)
+        public HTTPFileUploader(BufferService b, ServerUploadLimiterService u, ILogger<HTTPFileUploader> logger)
         {
             bufferService = b;
             uploadLimiter = u;
+            this.logger = logger;
             nsm = new NetworkSpeedMeasurement(NetSpeedType.Upload);
         }
 
@@ -173,7 +175,7 @@ namespace FAP.Domain.Handlers
                 }
                 catch (Exception err)
                 {
-                    LogManager.GetLogger("faplog").Trace("Failed to send body through context stream.", err);
+                    logger.LogTrace(err, "HTTPFileUploader.DoUpload: Error while uploading to {User} {Url}", user, url);
                 }
                 finally
                 {

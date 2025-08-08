@@ -43,7 +43,8 @@ using Fap.Foundation;
 using Fap.Presentation.Panels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using NLog;
+using Microsoft.Extensions.Logging;
+// using NLog.Extensions.Logging;
 using System.Waf.Presentation.Services;
 using Fap.Presentation.Services;
 
@@ -55,6 +56,7 @@ namespace Fap.Presentation
     public partial class App : System.Windows.Application
     {
         private IServiceProvider serviceProvider;
+        private IHost host;
         private SplashScreen appSplash;
 
         private string GetImage()
@@ -179,8 +181,11 @@ namespace Fap.Presentation
             else
             {
                 Console.WriteLine(e.Exception.Message);
-                if (null != serviceProvider)
-                    LogManager.GetLogger("faplog").Fatal("Unhandled dispatcher exception", e.Exception);
+                if (serviceProvider != null)
+                {
+                    var logger = serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<App>>();
+                    logger.LogCritical(e.Exception, "Unhandled dispatcher exception");
+                }
                 e.Handled = true;
             }
         }
@@ -197,8 +202,11 @@ namespace Fap.Presentation
             else
             {
                 Console.WriteLine(e.Exception.Message);
-                if (null != serviceProvider)
-                    LogManager.GetLogger("faplog").Fatal("Unhandled exception", e.Exception);
+                if (serviceProvider != null)
+                {
+                    var logger = serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<App>>();
+                    logger.LogCritical(e.Exception, "Unhandled exception");
+                }
                 e.Handled = true;
             }
         }
@@ -207,7 +215,19 @@ namespace Fap.Presentation
         {
              try
              {
-                 var services = new ServiceCollection();
+                 var builder = Host.CreateApplicationBuilder();
+
+                 // Logging: MEL + optional NLog bridge during migration
+                 builder.Logging.ClearProviders();
+                 builder.Logging.AddConsole();
+                 builder.Logging.AddDebug();
+                 builder.Logging.AddEventLog(); // optional on Windows
+                 // Removed NLog bridge
+                 
+                 // Set minimum log level to Debug to see debug logs in Visual Studio
+                 builder.Logging.SetMinimumLevel(LogLevel.Debug);
+
+                 var services = builder.Services;
                  
                  // Register services from all modules
                  RegisterDomainServices(services);
@@ -215,7 +235,14 @@ namespace Fap.Presentation
                  RegisterApplicationServices(services);
                  RegisterGUIServices(services);
 
-                 serviceProvider = services.BuildServiceProvider();
+                 host = builder.Build();
+                 serviceProvider = host.Services;
+                 
+                 // Test logging to verify it's working
+                 var logger = serviceProvider.GetRequiredService<ILogger<App>>();
+                 logger.LogDebug("App startup - Debug logging is working!");
+                 logger.LogInformation("App startup - Information logging is working!");
+                 
                  return true;
              }
              catch
@@ -233,7 +260,6 @@ namespace Fap.Presentation
             services.AddSingleton<LANPeerFinderService>();
             services.AddSingleton<BufferService>();
             services.AddSingleton<ServerUploadLimiterService>();
-            services.AddSingleton<LogService>();
             services.AddSingleton<OverlordManagerService>();
             services.AddSingleton<UpdateCheckerService>();
         }

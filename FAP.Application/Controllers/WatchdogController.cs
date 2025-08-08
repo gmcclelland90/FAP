@@ -25,7 +25,7 @@ using FAP.Domain;
 using FAP.Domain.Entities;
 using FAP.Domain.Net;
 using FAP.Domain.Services;
-using NLog;
+using Microsoft.Extensions.Logging;
 
 namespace FAP.Application.Controllers
 {
@@ -38,15 +38,15 @@ namespace FAP.Application.Controllers
         //Sync object for scanfordownloads - only single invocations allowed.
         private readonly object sync = new object();
         private readonly List<DownloadWorkerService> workers = new List<DownloadWorkerService>();
-        private Logger logger;
+        private readonly Microsoft.Extensions.Logging.ILogger<WatchdogController> logger;
         private bool run;
 
-        public WatchdogController(Model m, SharesController s, BufferService b, OverlordManagerService o)
+        public WatchdogController(Model m, SharesController s, BufferService b, OverlordManagerService o, Microsoft.Extensions.Logging.ILogger<WatchdogController> logger)
         {
             model = m;
             shareController = s;
             bufferService = b;
-            logger = LogManager.GetLogger("faplog");
+            this.logger = logger;
             overlordLauncherService = o;
         }
 
@@ -76,10 +76,10 @@ namespace FAP.Application.Controllers
                 //Check to see if we need to launch an overlord
                 // Don't auto-start overlord if we're in dedicated mode (it will be started explicitly)
                 // Also don't start if we already have an overlord running
-                logger.Debug($"WatchdogController: model.IsDedicated={model.IsDedicated}, overlordLauncherService.IsOverlordActive={overlordLauncherService.IsOverlordActive}");
+                logger.LogDebug("WatchdogController: model.IsDedicated={Dedicated}, overlordLauncherService.IsOverlordActive={Active}", model.IsDedicated, overlordLauncherService.IsOverlordActive);
                 if (!model.IsDedicated && !overlordLauncherService.IsOverlordActive)
                 {
-                    logger.Debug("WatchdogController: Starting overlord via watchdog");
+                    logger.LogDebug("WatchdogController: Starting overlord via watchdog");
                     overlordLauncherService.StartAndStopIfNeeded();
                 }
 
@@ -197,7 +197,7 @@ namespace FAP.Application.Controllers
                                 {
                                     addedDownload = true;
                                     //Max workers not reached, add download via new worker.
-                                    var worker = new DownloadWorkerService(client, model, bufferService);
+                                    var worker = new DownloadWorkerService(client, model, bufferService, Microsoft.Extensions.Logging.Abstractions.NullLogger<DownloadWorkerService>.Instance);
                                     worker.OnWorkerFinished += worker_OnWorkerFinished;
                                     workers.Add(worker);
                                     worker.AddDownload(item);

@@ -40,7 +40,7 @@ using FAP.Network.Services;
 using HttpServer;
 using HttpServer.Headers;
 using HttpServer.Messages;
-using NLog;
+using Microsoft.Extensions.Logging;
 
 namespace FAP.Domain.Handlers
 {
@@ -58,7 +58,7 @@ namespace FAP.Domain.Handlers
         private readonly BackgroundSafeObservable<Uplink> extOverlordServers = new BackgroundSafeObservable<Uplink>();
         private readonly BackgroundSafeObservable<Node> externalNodes = new BackgroundSafeObservable<Node>();
 
-        private readonly Logger logger;
+        private readonly ILogger<FAPServerHandler> logger;
         private readonly Model model;
         private readonly MulticastClientService multicastClient;
         private readonly MulticastServerService multicastServer;
@@ -70,10 +70,10 @@ namespace FAP.Domain.Handlers
         private bool run = true;
 
         public FAPServerHandler(IPAddress host, int port, Model m, MulticastClientService c, LANPeerFinderService p,
-                                MulticastServerService ms)
+                                MulticastServerService ms, ILogger<FAPServerHandler> logger)
         {
             multicastServer = ms;
-            logger = LogManager.GetLogger("faplog");
+            this.logger = logger;
             peerFinder = p;
             serverNode = new Overlord();
             serverNode.Nickname = "Overlord";
@@ -109,42 +109,42 @@ namespace FAP.Domain.Handlers
                 OverlordID = networkReq.OverlordID,
                 AuthKey = networkReq.AuthKey
             };
-            logger.Trace("Server rx: {0} p: {1} source: {2} overlord: {3}", req.Verb, req.Param, req.SourceID,
+            logger.LogTrace("Server rx: {Verb} p: {Param} source: {Source} overlord: {Overlord}", req.Verb, req.Param, req.SourceID,
                          req.OverlordID);
-            logger.Debug("HandleAsync: Processing verb: {0}", req.Verb);
+            logger.LogDebug("HandleAsync: Processing verb: {Verb}", req.Verb);
             bool result = false;
             switch (req.Verb)
             {
                 case "INFO":
-                    logger.Debug("HandleAsync: Routing to HandleClient");
+                    logger.LogDebug("HandleAsync: Routing to HandleClient");
                     result = await HandleClientAsync(req, e);
                     break;
                 case "CONNECT":
-                    logger.Debug("HandleAsync: Routing to HandleConnect");
+                    logger.LogDebug("HandleAsync: Routing to HandleConnect");
                     result = await HandleConnectAsync(req, e);
                     break;
                 case "CHAT":
-                    logger.Debug("HandleAsync: Routing to HandleChat");
+                    logger.LogDebug("HandleAsync: Routing to HandleChat");
                     result = HandleChat(req, e);
                     break;
                 case "COMPARE":
-                    logger.Debug("HandleAsync: Routing to HandleCompare");
+                    logger.LogDebug("HandleAsync: Routing to HandleCompare");
                     result = HandleCompare(e, req);
                     break;
                 case "SEARCH":
-                    logger.Debug("HandleAsync: Routing to HandleSearch");
+                    logger.LogDebug("HandleAsync: Routing to HandleSearch");
                     result = HandleSearch(e, req);
                     break;
                 case "UPDATE":
-                    logger.Debug("HandleAsync: Routing to HandleUpdate");
+                    logger.LogDebug("HandleAsync: Routing to HandleUpdate");
                     result = HandleUpdate(e, req);
                     break;
                 case "NOOP":
-                    logger.Debug("HandleAsync: Routing to HandleNOOP");
+                    logger.LogDebug("HandleAsync: Routing to HandleNOOP");
                     result = HandleNOOP(e, req);
                     break;
                 default:
-                    logger.Debug("HandleAsync: Unknown verb: {0}", req.Verb);
+                    logger.LogDebug("HandleAsync: Unknown verb: {Verb}", req.Verb);
                     break;
             }
             
@@ -163,7 +163,7 @@ namespace FAP.Domain.Handlers
 
         private void SendToStandardClients(NetworkRequest r)
         {
-            logger.Debug("SendToStandardClients: Sending to {0} standard clients", connectedClientNodes.ToList().Where(c => c.Node.NodeType == ClientType.Client).Count());
+            logger.LogDebug("SendToStandardClients: Sending to {Count} standard clients", connectedClientNodes.ToList().Where(c => c.Node.NodeType == ClientType.Client).Count());
             foreach (ClientStream peer in connectedClientNodes.ToList().Where(c => c.Node.NodeType == ClientType.Client)
                 )
                 peer.AddMessage(r);
@@ -192,9 +192,9 @@ namespace FAP.Domain.Handlers
 
         public void Start(string networkId, string networkName)
         {
-            logger.Info("Local overlord started.");
-            logger.Debug("Local overlord started with ID: {0}", serverNode.ID);
-            logger.Debug("Local overlord address: {0}", serverNode.Location);
+            logger.LogInformation("Local overlord started.");
+            logger.LogDebug("Local overlord started with ID: {Id}", serverNode.ID);
+            logger.LogDebug("Local overlord address: {Location}", serverNode.Location);
             peerFinder.Start();
             network.NetworkID = networkId;
             network.NetworkName = networkName;
@@ -251,7 +251,7 @@ namespace FAP.Domain.Handlers
                     //If not already connected to that peer then connect
                     if (extOverlordServers.ToList().Where(o => o.Destination.Location == peer.Address).Count() == 0)
                     {
-                        logger.Debug("Server connecting as client to external overlord at {0}", peer.Address);
+                        logger.LogDebug("Server connecting as client to external overlord at {Address}", peer.Address);
                         var verb = new ConnectVerb();
                         verb.Address = serverNode.Location;
                         verb.ClientType = ClientType.Overlord;
@@ -276,13 +276,13 @@ namespace FAP.Domain.Handlers
                             uplink.OnDisconnect += uplink_OnDisconnect;
 
                             uplink.Start();
-                            logger.Debug("Server connected to client to external overlord at {0}", peer.Address);
+                            logger.LogDebug("Server connected to client to external overlord at {Address}", peer.Address);
                             break;
                         }
                         else
                         {
                             //Failed to connect ot the external overlord
-                            logger.Debug("Server failed to connect to external overlord at {0}", peer.Address);
+                            logger.LogDebug("Server failed to connect to external overlord at {Address}", peer.Address);
                             peerFinder.RemovePeer(peer);
                             extOverlordServers.Remove(uplink);
                         }
@@ -297,7 +297,7 @@ namespace FAP.Domain.Handlers
             //A remote overlord has disconnected, notify local clients of all associated peering going offline.
             lock (sync)
             {
-                logger.Debug("Server had uplink disconnect to {0}", s.Destination.ID);
+                logger.LogDebug("Server had uplink disconnect to {Id}", s.Destination.ID);
                 extOverlordServers.Remove(s);
                 var verb = new UpdateVerb();
                 foreach (Node node in externalNodes.ToList())
@@ -375,12 +375,12 @@ namespace FAP.Domain.Handlers
         {
             try
             {
-                logger.Debug("HandleUpdate: Starting update processing for source {0}", req.SourceID);
-                logger.Debug("HandleUpdate: Request data length: {0}", req.Data?.Length ?? 0);
+            logger.LogDebug("HandleUpdate: Starting update processing for source {Source}", req.SourceID);
+            logger.LogDebug("HandleUpdate: Request data length: {Length}", req.Data?.Length ?? 0);
                 var verb = new UpdateVerb();
-                logger.Debug("HandleUpdate: Created UpdateVerb, about to process request");
+            logger.LogDebug("HandleUpdate: Created UpdateVerb, about to process request");
                 verb.ProcessRequest(req);
-                logger.Debug("HandleUpdate: Processed UpdateVerb, nodes count: {0}", verb.Nodes?.Count ?? 0);
+            logger.LogDebug("HandleUpdate: Processed UpdateVerb, nodes count: {Count}", verb.Nodes?.Count ?? 0);
 
                 //Ignore updates about ourself
                 if (verb.Nodes != null && verb.Nodes.Count == 1 && verb.Nodes[0].ID == serverNode.ID)
@@ -401,7 +401,7 @@ namespace FAP.Domain.Handlers
                     Node client = verb.Nodes.Where(n => n.ID == localClient.Node.ID).FirstOrDefault();
                     if (null != client && verb.Nodes.Count == 1)
                     {
-                        logger.Trace("Server got update from local client {0}", client.ID);
+                        logger.LogTrace("Server got update from local client {Id}", client.ID);
                         lock (sync)
                         {
                             //Copy to local store
@@ -434,7 +434,7 @@ namespace FAP.Domain.Handlers
                             n.Destination.NodeType == ClientType.Overlord).FirstOrDefault();
                     if (null != overlord)
                     {
-                        logger.Trace("Server got update from external overlord {0}", overlord.Destination.ID);
+                        logger.LogTrace("Server got update from external overlord {Id}", overlord.Destination.ID);
                         //Check each update
                         var nverb = new UpdateVerb();
                         foreach (Node update in verb.Nodes)
@@ -454,7 +454,7 @@ namespace FAP.Domain.Handlers
                                             FirstOrDefault();
                                     if (null != osearch)
                                     {
-                                        logger.Trace("Server got update from external about itself: {0}",
+                                        logger.LogTrace("Server got update from external about itself: {Id}",
                                                      osearch.Destination.ID);
                                         //Copy to local store
                                         foreach (var value in update.Data)
@@ -501,7 +501,7 @@ namespace FAP.Domain.Handlers
                                     }
                                     else
                                     {
-                                        logger.Trace("Server got update from external server about : {0}", update.ID);
+                                        logger.LogTrace("Server got update from external server about : {Id}", update.ID);
 
                                         //Check to see if the external node is connected locally, if so then dont retransmit changes but store changes under the relevant object
                                         ClientStream localNode =
@@ -563,9 +563,9 @@ namespace FAP.Domain.Handlers
             }
             catch (Exception ex)
             {
-                logger.Error(ex, "HandleUpdate: Exception occurred during update processing");
+                logger.LogError(ex, "HandleUpdate: Exception occurred during update processing");
             }
-            logger.Debug("Server received an invalid update");
+            logger.LogDebug("Server received an invalid update");
             SendError(e);
             return false;
         }
@@ -665,18 +665,18 @@ namespace FAP.Domain.Handlers
 
             try
             {
-                logger.Debug("HandleConnect: Starting connection processing");
-                logger.Debug("HandleConnect: NetworkRequest.Verb = {0}, Data = {1}, AuthKey = {2}, SourceID = {3}, OverlordID = {4}", 
+                logger.LogDebug("HandleConnect: Starting connection processing");
+                logger.LogDebug("HandleConnect: NetworkRequest.Verb = {Verb}, Data = {Data}, AuthKey = {AuthKey}, SourceID = {Source}, OverlordID = {Overlord}", 
                     r.Verb, r.Data, r.AuthKey, r.SourceID, r.OverlordID);
                 
                 var iv = new ConnectVerb();
                 iv.ProcessRequest(r);
                 address = iv.Address;
-                logger.Debug("HandleConnect: Address = {0}, Secret = {1}", address, iv.Secret);
+                logger.LogDebug("HandleConnect: Address = {Address}, Secret = {Secret}", address, iv.Secret);
 
                 if (string.IsNullOrEmpty(iv.Secret))
                 {
-                    logger.Debug("HandleConnect: Rejecting connection with no secret");
+                    logger.LogDebug("HandleConnect: Rejecting connection with no secret");
                     //Dont allow connections with no secret
                     return false;
                 }
@@ -684,34 +684,34 @@ namespace FAP.Domain.Handlers
                 //Dont allow connections to ourselves unless we're running as a dedicated overlord
                 if (iv.Address == serverNode.Location && !model.IsDedicated)
                 {
-                    logger.Debug("HandleConnect: Rejecting self-connection (not dedicated overlord)");
+                    logger.LogDebug("HandleConnect: Rejecting self-connection (not dedicated overlord)");
                     return false;
                 }
                 
-                logger.Debug("HandleConnect: Self-connection check passed");
+                logger.LogDebug("HandleConnect: Self-connection check passed");
 
                 //Only allow one connect attempt at once
                 lock (sync)
                 {
                     if (connectingIDs.Contains(address))
                     {
-                        logger.Debug("HandleConnect: Connection already in progress for {0}", address);
+                        logger.LogDebug("HandleConnect: Connection already in progress for {Address}", address);
                         return false;
                     }
                     connectingIDs.Add(address);
                 }
-                logger.Debug("HandleConnect: Added to connectingIDs");
+                logger.LogDebug("HandleConnect: Added to connectingIDs");
 
                 //Connect to the remote client 
                 var verb = new InfoVerb();
                 var client = new ModernHttpClient(serverNode);
-                logger.Debug("HandleConnect: About to execute client.Connect to {0}", address);
+                logger.LogDebug("HandleConnect: About to execute client.Connect to {Address}", address);
 
                 // For self-connections (dedicated overlord), skip the reverse connection attempt
                 // In dedicated mode, the client (port 30) and overlord (port 40) are on the same machine
                 if (model.IsDedicated && iv.Address.Contains(serverNode.Host))
                 {
-                    logger.Debug("HandleConnect: Self-connection detected (dedicated mode), skipping reverse connection");
+                    logger.LogDebug("HandleConnect: Self-connection detected (dedicated mode), skipping reverse connection");
                     // Create a dummy node for self-connection
                     var selfNode = new Node();
                     selfNode.ID = r.SourceID;
@@ -725,7 +725,7 @@ namespace FAP.Domain.Handlers
                     selfNode.Nickname = model.Nickname;
                     selfNode.Description = model.Description;
                     selfNode.Avatar = model.Avatar;
-                    logger.Debug("HandleConnect: Set nickname for self-node {0}: {1}", selfNode.ID, selfNode.Nickname);
+                    logger.LogDebug("HandleConnect: Set nickname for self-node {Id}: {Nickname}", selfNode.ID, selfNode.Nickname);
                     
                     // For self-connections, we don't use ClientStream as it tries to use the old Client class
                     // Instead, we just add the node to the connected list and send the update
@@ -748,7 +748,7 @@ namespace FAP.Domain.Handlers
                         dummyClientStream.Start(selfNode, serverNode);
                         connectedClientNodes.Add(dummyClientStream);
                         
-                        logger.Debug("HandleConnect: Added self-node to connectedClientNodes. Total connected clients: {0}", connectedClientNodes.Count);
+                        logger.LogDebug("HandleConnect: Added self-node to connectedClientNodes. Total connected clients: {Count}", connectedClientNodes.Count);
                         
                         update.Nodes.Add(selfNode);
                         NetworkRequest req = update.CreateRequest();
@@ -756,7 +756,7 @@ namespace FAP.Domain.Handlers
                         req.OverlordID = serverNode.ID;
                         req.AuthKey = iv.Secret;
 
-                        logger.Debug("HandleConnect: Sending update to {0} standard clients", connectedClientNodes.ToList().Where(c => c.Node.NodeType == ClientType.Client).Count());
+                        logger.LogDebug("HandleConnect: Sending update to {Count} standard clients", connectedClientNodes.ToList().Where(c => c.Node.NodeType == ClientType.Client).Count());
                         SendToStandardClients(req);
                         //Dont send overlord logs to other overlords
                         if (selfNode.NodeType != ClientType.Overlord)
@@ -779,10 +779,10 @@ namespace FAP.Domain.Handlers
 
                 if (!client.ExecuteAsync(verb, address).Result)
                 {
-                    logger.Debug("HandleConnect: client.Execute failed for {0}", address);
+                    logger.LogDebug("HandleConnect: client.Execute failed for {Address}", address);
                     return false;
                 }
-                logger.Debug("HandleConnect: client.Execute succeeded");
+                logger.LogDebug("HandleConnect: client.Execute succeeded");
                 //Connected ok
                 var c = new ClientStream();
                 c.OnDisconnect += c_OnDisconnect;
@@ -801,7 +801,7 @@ namespace FAP.Domain.Handlers
                 if (string.IsNullOrEmpty(n.Nickname))
                 {
                     n.Nickname = "User-" + n.ID.Substring(0, Math.Min(8, n.ID.Length));
-                    logger.Debug("HandleConnect: Set default nickname for client {0}: {1}", n.ID, n.Nickname);
+                    logger.LogDebug("HandleConnect: Set default nickname for client {Id}: {Nickname}", n.ID, n.Nickname);
                 }
 
                 lock (sync)
@@ -856,7 +856,7 @@ namespace FAP.Domain.Handlers
                     // Don't use ClientStream.AddMessage for dedicated mode as it uses the old Client class
                     if (model.IsDedicated)
                     {
-                        logger.Debug("HandleConnect: Skipping AddMessage for dedicated mode to avoid old Client usage");
+                        logger.LogDebug("HandleConnect: Skipping AddMessage for dedicated mode to avoid old Client usage");
                     }
                     else
                     {
@@ -876,7 +876,7 @@ namespace FAP.Domain.Handlers
                     // Don't use ClientStream.AddMessage for dedicated mode as it uses the old Client class
                     if (model.IsDedicated)
                     {
-                        logger.Debug("HandleConnect: Skipping AddMessage for dedicated mode to avoid old Client usage");
+                        logger.LogDebug("HandleConnect: Skipping AddMessage for dedicated mode to avoid old Client usage");
                     }
                     else
                     {
@@ -887,7 +887,7 @@ namespace FAP.Domain.Handlers
             }
             catch (Exception ex)
             {
-                logger.Error(ex, "HandleConnect: Exception occurred: {0}", ex.Message);
+                logger.LogError(ex, "HandleConnect: Exception occurred: {Message}", ex.Message);
             }
             finally
             {
@@ -915,7 +915,7 @@ namespace FAP.Domain.Handlers
                         //  var search = connectedClientNodes.Where(n => n.Node.ID == s.Node.ID && s.Node.Secret == s.Node.Secret).FirstOrDefault();
                         // if (null == search)
                         {
-                            logger.Debug("Server dropped client {0}", s.Node.ID);
+                            logger.LogDebug("Server dropped client {Id}", s.Node.ID);
                             connectedClientNodes.Remove(s);
                             s.OnDisconnect -= c_OnDisconnect;
                             var info = new UpdateVerb();

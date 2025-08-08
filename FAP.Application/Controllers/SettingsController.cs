@@ -29,20 +29,20 @@ using FAP.Domain.Entities;
 using FAP.Domain.Services;
 using Fap.Foundation;
 using Microsoft.Extensions.DependencyInjection;
-using NLog;
+using Microsoft.Extensions.Logging;
 
 namespace FAP.Application.Controllers
 {
     public class SettingsController : AsyncControllerBase
     {
         private readonly IServiceProvider serviceProvider;
-        private readonly Logger logger;
+        private readonly Microsoft.Extensions.Logging.ILogger<SettingsController> logger;
         private readonly Model model;
         private SettingsViewModel viewModel;
 
         public SettingsController(IServiceProvider serviceProvider, Model m)
         {
-            logger = LogManager.GetLogger("faplog");
+            logger = serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<SettingsController>>();
             model = m;
             this.serviceProvider = serviceProvider;
         }
@@ -88,12 +88,12 @@ namespace FAP.Application.Controllers
                     string base64Image = Convert.ToBase64String(imageBytes);
                     model.Avatar = base64Image;
                     model.Save();
-                    logger.Debug("Avatar changed to: {0}", selectedFile);
+                    logger.LogDebug("Avatar changed to: {File}", selectedFile);
                 }
             }
             catch (Exception ex)
             {
-                logger.Error(ex, "Failed to change avatar");
+                logger.LogError(ex, "Failed to change avatar");
             }
         }
 
@@ -107,12 +107,12 @@ namespace FAP.Application.Controllers
                 {
                     model.DownloadFolder = selectedFolder;
                     model.Save();
-                    logger.Debug("Download directory changed to: {0}", selectedFolder);
+                    logger.LogDebug("Download directory changed to: {Folder}", selectedFolder);
                 }
             }
             catch (Exception ex)
             {
-                logger.Error(ex, "Failed to change download directory");
+                logger.LogError(ex, "Failed to change download directory");
             }
         }
     }

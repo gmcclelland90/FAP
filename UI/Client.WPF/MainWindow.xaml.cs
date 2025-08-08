@@ -32,6 +32,7 @@ using FAP.Domain;
 using FAP.Application.ViewModels;
 using FAP.Domain.Entities;
 using Fap.Presentation.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Fap.Presentation
 {
@@ -40,10 +41,12 @@ namespace Fap.Presentation
 	/// </summary>
     public partial class MainWindow : Window, IMainWindow
 	{
+        private readonly IServiceProvider _serviceProvider;
         private ModernSystemTrayService _systemTrayService;
 
-		public MainWindow()
+        public MainWindow(IServiceProvider serviceProvider)
 		{
+            _serviceProvider = serviceProvider;
 			this.InitializeComponent();
             //Position window
             Left = SystemParameters.PrimaryScreenWidth - Width - 50;
@@ -72,7 +75,7 @@ namespace Fap.Presentation
         {
             try
             {
-                _systemTrayService = new ModernSystemTrayService();
+            _systemTrayService = new ModernSystemTrayService(_serviceProvider);
                 _systemTrayService.OpenRequested += (s, e) => 
                 {
                     Dispatcher.Invoke(() =>

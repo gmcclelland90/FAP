@@ -33,7 +33,7 @@ using Fap.Foundation;
 using HttpServer;
 using HttpServer.Headers;
 using HttpServer.Messages;
-using NLog;
+using Microsoft.Extensions.Logging;
 using Directory = FAP.Domain.Entities.FileSystem.Directory;
 using File = System.IO.File;
 
@@ -56,19 +56,21 @@ namespace FAP.Domain.Handlers
         private readonly object sync = new object();
         private readonly ServerUploadLimiterService uploadLimiter;
 
-        public HTTPHandler(ShareInfoService i, Model m, BufferService b, ServerUploadLimiterService u)
+        private readonly ILogger<HTTPHandler> logger;
+
+        public HTTPHandler(ShareInfoService i, Model m, BufferService b, ServerUploadLimiterService u, ILogger<HTTPHandler> logger)
         {
             infoService = i;
             model = m;
             bufferService = b;
             uploadLimiter = u;
+            this.logger = logger;
             AddDefaultMimeTypes();
         }
 
         public bool Handle(string req, RequestEventArgs e)
         {
-            var logger = LogManager.GetLogger("faplog");
-            logger.Debug($"HTTPHandler.Handle: Processing request for path: {e.Request.Uri.AbsolutePath}");
+            logger.LogDebug("HTTPHandler.Handle: Processing request for path: {Path}", e.Request.Uri.AbsolutePath);
             
             e.Response.Status = HttpStatusCode.OK;
             string path = Utility.DecodeURL(e.Request.Uri.AbsolutePath);
@@ -255,23 +257,23 @@ namespace FAP.Domain.Handlers
                 pagedata.Add("totalSize", Utility.FormatBytes(totalSize));
 
                 // Debug: Log the data being passed to template engine
-                logger.Debug($"HTTPHandler: Template data contains {pagedata.Count} items:");
+                logger.LogDebug("HTTPHandler: Template data contains {Count} items:", pagedata.Count);
                 foreach (var kvp in pagedata)
                 {
-                    logger.Debug($"HTTPHandler: {kvp.Key} = {kvp.Value?.GetType().Name ?? "null"}");
+                    logger.LogDebug("HTTPHandler: {Key} = {Type}", kvp.Key, kvp.Value?.GetType().Name ?? "null");
                 }
 
                 // Debug: Log the template before processing
-                logger.Debug($"HTTPHandler: Template before processing (first 500 chars): {page.Substring(0, Math.Min(500, page.Length))}");
+                logger.LogDebug("HTTPHandler: Template before processing (first 500 chars): {Snippet}", page.Substring(0, Math.Min(500, page.Length)));
 
                 // Always generate the page, even when there are no shares
                 // This ensures template variables are replaced properly
-                logger.Debug("HTTPHandler: About to call TemplateEngine.Generate");
+                logger.LogDebug("HTTPHandler: About to call TemplateEngine.Generate");
                 page = TemplateEngine.Generate(page, pagedata);
-                logger.Debug("HTTPHandler: TemplateEngine.Generate completed");
+                logger.LogDebug("HTTPHandler: TemplateEngine.Generate completed");
                 
                 // Debug: Log the template after processing
-                logger.Debug($"HTTPHandler: Template after processing (first 500 chars): {page.Substring(0, Math.Min(500, page.Length))}");
+                logger.LogDebug("HTTPHandler: Template after processing (first 500 chars): {Snippet}", page.Substring(0, Math.Min(500, page.Length)));
                 data = Encoding.UTF8.GetBytes(page);
                 e.Response.ContentType = contentTypes["html"];
 
@@ -361,7 +363,7 @@ namespace FAP.Domain.Handlers
         /// <param name="stream">File stream</param>
         private void SendFile(IHttpContext context, Stream stream, string url)
         {
-            var worker = new HTTPFileUploader(bufferService, uploadLimiter);
+            var worker = new HTTPFileUploader(bufferService, uploadLimiter, Microsoft.Extensions.Logging.Abstractions.NullLogger<HTTPFileUploader>.Instance);
             TransferSession session = null;
             try
             {

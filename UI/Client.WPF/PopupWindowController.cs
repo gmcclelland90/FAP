@@ -29,20 +29,20 @@ using FAP.Domain.Entities;
 using FAP.Domain.Services;
 using Fap.Foundation;
 using Microsoft.Extensions.DependencyInjection;
-using NLog;
+using Microsoft.Extensions.Logging;
 
 namespace Fap.Presentation
 {
     public class PopupWindowController : IPopupWindowController
     {
         private readonly IServiceProvider serviceProvider;
-        private readonly Logger logger;
+        private readonly Microsoft.Extensions.Logging.ILogger<PopupWindowController> logger;
         private readonly List<TabWindow> windows = new List<TabWindow>();
         private TabWindow currentWindow;
 
         public PopupWindowController(IServiceProvider serviceProvider)
         {
-            logger = LogManager.GetLogger("faplog");
+            logger = serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<PopupWindowController>>();
             this.serviceProvider = serviceProvider;
         }
 
@@ -50,7 +50,7 @@ namespace Fap.Presentation
         {
             try
             {
-                logger.Debug($"Adding window: {title}");
+                logger.LogDebug("Adding window: {Title}", title);
                 
                 // Create a new TabWindow if we don't have one or if the current one is closed
                 if (currentWindow == null || !currentWindow.IsLoaded)
@@ -73,27 +73,27 @@ namespace Fap.Presentation
                 var viewModel = currentWindow.DataContext as PopupWindowViewModel;
                 if (viewModel != null)
                 {
-                    logger.Debug($"Adding tab to DocumentViews. Current count: {viewModel.DocumentViews.Count}");
+                    logger.LogDebug("Adding tab to DocumentViews. Current count: {Count}", viewModel.DocumentViews.Count);
                     viewModel.DocumentViews.Add(tab);
                     viewModel.ActiveDocumentView = tab;
-                    logger.Debug($"Added tab. New count: {viewModel.DocumentViews.Count}");
+                    logger.LogDebug("Added tab. New count: {Count}", viewModel.DocumentViews.Count);
                 }
                 else
                 {
-                    logger.Error("PopupWindowViewModel is null!");
+                    logger.LogError("PopupWindowViewModel is null!");
                 }
 
-                logger.Debug($"Successfully added window: {title}");
+                logger.LogDebug("Successfully added window: {Title}", title);
             }
             catch (Exception ex)
             {
-                logger.Error(ex, $"Error adding window: {title}");
+                logger.LogError(ex, "Error adding window: {Title}", title);
             }
         }
 
         public void Close()
         {
-            logger.Debug("Closing all popup windows");
+            logger.LogDebug("Closing all popup windows");
             foreach (var window in windows.ToList())
             {
                 try
@@ -102,7 +102,7 @@ namespace Fap.Presentation
                 }
                 catch (Exception ex)
                 {
-                    logger.Error(ex, "Error closing window");
+                    logger.LogError(ex, "Error closing window");
                 }
             }
             windows.Clear();
@@ -111,7 +111,7 @@ namespace Fap.Presentation
 
         public void SwitchToTab(object viewModel)
         {
-            logger.Debug("Switching to tab");
+            logger.LogDebug("Switching to tab");
             // Implementation for switching to tab
         }
 
@@ -123,13 +123,13 @@ namespace Fap.Presentation
 
         public void Highlight(object viewModel)
         {
-            logger.Debug("Highlighting tab");
+            logger.LogDebug("Highlighting tab");
             // Implementation for highlighting tab
         }
 
         public void FlashIfNotActive()
         {
-            logger.Debug("Flashing if not active");
+            logger.LogDebug("Flashing if not active");
             if (currentWindow != null && currentWindow.IsLoaded)
             {
                 currentWindow.FlashIfNotActive();

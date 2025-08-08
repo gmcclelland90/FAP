@@ -27,7 +27,7 @@ using FAP.Domain.Entities;
 using FAP.Domain.Entities.FileSystem;
 using Fap.Foundation;
 using Fap.Foundation.Sorting;
-using NLog;
+using Microsoft.Extensions.Logging;
 using Directory = FAP.Domain.Entities.FileSystem.Directory;
 using File = System.IO.File;
 
@@ -45,11 +45,13 @@ namespace FAP.Domain.Services
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + @"\FAP\ShareInfo\";
 
         private readonly Model model;
+        private readonly ILogger<ShareInfoService> logger;
         private readonly List<RootShare> shares = new List<RootShare>();
 
-        public ShareInfoService(Model m)
+        public ShareInfoService(Model m, ILogger<ShareInfoService> logger)
         {
             model = m;
+            this.logger = logger;
         }
 
         public void Load()
@@ -66,7 +68,7 @@ namespace FAP.Domain.Services
                 }
                 catch (Exception e)
                 {
-                    LogManager.GetLogger("faplog").Debug("Failed to load share info for" + share.Name, e);
+                    logger.LogDebug(e, "ShareInfoService.Load: Failed to load share {Id}, scheduling refresh", share.ID);
                     ThreadPool.QueueUserWorkItem(DoRefreshPath, share);
                 }
             }
@@ -115,7 +117,7 @@ namespace FAP.Domain.Services
                     }
                     catch (Exception e)
                     {
-                        LogManager.GetLogger("faplog").Warn("Failed save share info for " + share.Name, e);
+                        logger.LogWarning(e, "ShareInfoService.RefreshPath: Failed to save share {Id}", share.ID);
                     }
                     return rs.Data;
                 }
@@ -223,13 +225,14 @@ namespace FAP.Domain.Services
         public bool GetPath(string path, bool noCache, bool distinct, out List<BrowsingFile> results)
         {
             results = new List<BrowsingFile>();
-            var logger = LogManager.GetLogger("faplog");
-            logger.Debug($"GetPath: path='{path}', noCache={noCache}, distinct={distinct}");
+            // TODO: Inject ILogger<ShareInfoService>
+            var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
+            logger.LogDebug("GetPath: path='{Path}', noCache={NoCache}, distinct={Distinct}", path, noCache, distinct);
 
             //At the root so just return a list of shares
             if (string.IsNullOrEmpty(path) || path == "/")
             {
-                logger.Debug($"GetPath: Processing root path, shares count={model.Shares.Count}");
+                logger.LogDebug("GetPath: Processing root path, shares count={Count}", model.Shares.Count);
                 var ms = from s in model.Shares
                              orderby s.Name
                              group s by s.Name
@@ -243,7 +246,7 @@ namespace FAP.Domain.Services
 
                 foreach (var share in ms)
                 {
-                    logger.Debug($"GetPath: Adding share '{share.Name}' with size {share.Size}");
+                    logger.LogDebug("GetPath: Adding share '{Name}' with size {Size}", share.Name, share.Size);
                     results.Add(new BrowsingFile()
                                     {
                                         IsFolder = true,
@@ -254,7 +257,7 @@ namespace FAP.Domain.Services
                                     });
                 }
 
-                logger.Debug($"GetPath: Root path complete, returning {results.Count} results");
+                logger.LogDebug("GetPath: Root path complete, returning {Count} results", results.Count);
                 return true;
             }
 

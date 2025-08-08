@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using Fap.Foundation;
-using NLog;
+using Microsoft.Extensions.Logging;
 
 namespace FAP.Domain.Services
 {
@@ -8,16 +8,16 @@ namespace FAP.Domain.Services
     {
         public const int Buffer = 2621440; //2mb
         public const int SmallBuffer = 25600; //25kb
-        private readonly Logger logger;
+        private readonly ILogger<BufferService> logger;
         private readonly Stack<MemoryBuffer> pool = new Stack<MemoryBuffer>();
         private readonly Stack<MemoryBuffer> smallPool = new Stack<MemoryBuffer>();
 
         private int largeCount = 10;
         private int smallCount = 10;
 
-        public BufferService()
+        public BufferService(ILogger<BufferService> logger)
         {
-            logger = LogManager.GetLogger("faplog");
+            this.logger = logger;
         }
 
         public void Clean()
@@ -101,7 +101,7 @@ namespace FAP.Domain.Services
             }
             else
             {
-                logger.Warn("Tried to free incorrectly sized arg with length: {0}", input.Data.Length);
+                logger.LogWarning("BufferService.FreeBuffer: Unexpected buffer size {Size}", input.Data.Length);
             }
         }
     }

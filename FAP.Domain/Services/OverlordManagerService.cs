@@ -31,23 +31,23 @@ using FAP.Network.Server;
 using FAP.Network.Services;
 using Fap.Foundation;
 using Microsoft.Extensions.DependencyInjection;
-using NLog;
+using Microsoft.Extensions.Logging;
 
 namespace FAP.Domain.Services
 {
     public class OverlordManagerService
     {
         private readonly IServiceProvider serviceProvider;
-        private readonly Logger logger;
+        private readonly ILogger<OverlordManagerService> logger;
         private readonly Model model;
         private ListenerService overlordListener = null!;
         private bool isRunning;
 
-        public OverlordManagerService(IServiceProvider serviceProvider, Model m)
+        public OverlordManagerService(IServiceProvider serviceProvider, Model m, ILogger<OverlordManagerService> logger)
         {
-            logger = LogManager.GetLogger("faplog");
             model = m;
             this.serviceProvider = serviceProvider;
+            this.logger = logger;
         }
 
         public void Start()
@@ -57,22 +57,22 @@ namespace FAP.Domain.Services
                 // Check if already running
                 if (IsOverlordActive)
                 {
-                    logger.Debug("Overlord manager is already running, skipping start");
+                    logger.LogDebug("Overlord manager is already running, skipping start");
                     return;
                 }
 
-                logger.Debug("Starting overlord manager");
+                logger.LogDebug("Starting overlord manager");
                 
                 // Start the overlord server on port 40
-                overlordListener = new ListenerService(serviceProvider, true);
+                overlordListener = new ListenerService(serviceProvider, true, serviceProvider.GetRequiredService<ILogger<ListenerService>>());
                 overlordListener.Start(40);
                 
                 isRunning = true;
-                logger.Debug("Overlord manager started successfully");
+                logger.LogDebug("Overlord manager started successfully");
             }
             catch (Exception ex)
             {
-                logger.Error(ex, "Failed to start overlord manager");
+                logger.LogError(ex, "Failed to start overlord manager");
                 throw;
             }
         }
@@ -81,7 +81,7 @@ namespace FAP.Domain.Services
         {
             try
             {
-                logger.Debug("Stopping overlord manager");
+                logger.LogDebug("Stopping overlord manager");
                 
                 if (overlordListener != null)
                 {
@@ -90,11 +90,11 @@ namespace FAP.Domain.Services
                 }
                 
                 isRunning = false;
-                logger.Debug("Overlord manager stopped");
+                logger.LogDebug("Overlord manager stopped");
             }
             catch (Exception ex)
             {
-                logger.Error(ex, "Error stopping overlord manager");
+                logger.LogError(ex, "Error stopping overlord manager");
             }
         }
 
@@ -109,7 +109,7 @@ namespace FAP.Domain.Services
 
         public void StartAndStopIfNeeded()
         {
-            logger.Debug("Starting and stopping overlord if needed");
+            logger.LogDebug("Starting and stopping overlord if needed");
             
             if (!IsOverlordActive)
             {

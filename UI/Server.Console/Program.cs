@@ -14,8 +14,8 @@ using FAP.Domain.Verbs;
 using System.Net;
 using System.Waf.Applications.Services;
 using FAP.Application.Views;
-using NLog.Filters;
-using NLog;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using System.Waf.Presentation.Services; // For MessageService
 using FAP.Domain.Entities; // For Model
@@ -34,7 +34,7 @@ namespace Server.Console
         }
 
         private IServiceProvider serviceProvider;
-        private LogService logService;
+        private ILogger<Program> logger;
         private Model model;
 
         private void Run()
@@ -42,8 +42,6 @@ namespace Server.Console
 
             if(Compose())
             {
-                logService = serviceProvider.GetRequiredService<LogService>();
-                logService.Filter = LogLevel.Trace;
                 model = serviceProvider.GetRequiredService<Model>();
                 model.Messages.CollectionChanged += new System.Collections.Specialized.NotifyCollectionChangedEventHandler(Messages_CollectionChanged);
 
@@ -52,6 +50,7 @@ namespace Server.Console
                 core.StartOverlordServer();
                
                 System.Console.WriteLine("Server started");
+                logger?.LogInformation("Server started");
                 System.Console.ReadKey();
             }
             else
@@ -72,10 +71,22 @@ namespace Server.Console
 
         private bool Compose()
         {
-             try
+            try
              {
-                 var services = new ServiceCollection();
+                 var builder = Host.CreateApplicationBuilder();
+
+                 // Logging: MEL + optional NLog bridge during migration
+                 builder.Logging.ClearProviders();
+                 builder.Logging.AddConsole();
+                 builder.Logging.AddDebug();
+                 builder.Logging.AddEventLog(); // optional on Windows
+                 // Removed NLog bridge
                  
+                 // Set minimum log level to Debug to see debug logs in Visual Studio
+                 builder.Logging.SetMinimumLevel(LogLevel.Debug);
+                 
+                 var services = builder.Services;
+
                  // Register domain services
                  services.AddSingleton<ShareInfoService>();
                  services.AddSingleton<ListenerService>();
@@ -84,7 +95,6 @@ namespace Server.Console
                  services.AddSingleton<LANPeerFinderService>();
                  services.AddSingleton<BufferService>();
                  services.AddSingleton<ServerUploadLimiterService>();
-                 services.AddSingleton<LogService>();
                  services.AddSingleton<OverlordManagerService>();
 
                  // Register network services
@@ -104,7 +114,8 @@ namespace Server.Console
                  services.AddTransient<ISharesView, SharesView>();
                  services.AddTransient<IQuery, Query>();
 
-                 serviceProvider = services.BuildServiceProvider();
+                 serviceProvider = builder.Build().Services;
+                 logger = serviceProvider.GetRequiredService<ILogger<Program>>();
                  return true;
              }
              catch

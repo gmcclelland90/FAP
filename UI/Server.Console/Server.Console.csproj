@@ -7,14 +7,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="NLog" Version="6.0.2" />
+    
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Logging.EventLog" Version="9.0.8" />
+    
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\FAP.Application\FAP.Application.csproj" />
     <ProjectReference Include="..\..\FAP.Domain\FAP.Domain.csproj" />
     <ProjectReference Include="..\..\FAP.Network\FAP.Network.csproj" />
+    <ProjectReference Include="..\..\FAP.Foundation\FAP.Foundation.csproj" />
   </ItemGroup>
 
 </Project>

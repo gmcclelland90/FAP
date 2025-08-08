@@ -4,20 +4,20 @@ using System.Linq;
 using FAP.Application.Controllers;
 using FAP.Application.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
-using NLog;
+using Microsoft.Extensions.Logging;
 
 namespace Fap.Presentation
 {
     public class ModernPopupWindowController : IPopupWindowController
     {
         private readonly IServiceProvider serviceProvider;
-        private readonly Logger logger;
+        private readonly Microsoft.Extensions.Logging.ILogger<ModernPopupWindowController> logger;
         private readonly List<ModernTabWindow> windows = new List<ModernTabWindow>();
         private ModernTabWindow currentWindow;
 
         public ModernPopupWindowController(IServiceProvider serviceProvider)
         {
-            logger = LogManager.GetLogger("faplog");
+            logger = serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ModernPopupWindowController>>();
             this.serviceProvider = serviceProvider;
         }
 
@@ -43,18 +43,18 @@ namespace Fap.Presentation
                 }
                 else
                 {
-                    logger.Error("ModernTabWindowViewModel is null!");
+                    logger.LogError("ModernTabWindowViewModel is null!");
                 }
             }
             catch (Exception ex)
             {
-                logger.Error(ex, $"Error adding window: {title}");
+                logger.LogError(ex, "Error adding window: {Title}", title);
             }
         }
 
         public void Close()
         {
-            logger.Debug("Closing all popup windows");
+            logger.LogDebug("Closing all popup windows");
             foreach (var window in windows.ToList())
             {
                 try
@@ -63,7 +63,7 @@ namespace Fap.Presentation
                 }
                 catch (Exception ex)
                 {
-                    logger.Error(ex, "Error closing window");
+                    logger.LogError(ex, "Error closing window");
                 }
             }
             windows.Clear();
@@ -72,7 +72,7 @@ namespace Fap.Presentation
 
         public void SwitchToTab(object viewModel)
         {
-            logger.Debug("Switching to tab");
+            logger.LogDebug("Switching to tab");
             // Implementation for switching to tab
         }
 
@@ -84,13 +84,13 @@ namespace Fap.Presentation
 
         public void Highlight(object viewModel)
         {
-            logger.Debug("Highlighting tab");
+            logger.LogDebug("Highlighting tab");
             // Implementation for highlighting tab
         }
 
         public void FlashIfNotActive()
         {
-            logger.Debug("Flashing if not active");
+            logger.LogDebug("Flashing if not active");
             if (currentWindow != null && currentWindow.IsLoaded)
             {
                 // Flash the window if it's not active

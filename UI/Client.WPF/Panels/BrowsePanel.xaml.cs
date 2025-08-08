@@ -35,6 +35,7 @@ using System.Windows.Media.Animation;
 using FAP.Application.Views;
 using FAP.Domain.Entities.FileSystem;
 using FAP.Application.ViewModels;
+using Microsoft.Extensions.Logging;
 
 namespace Fap.Presentation.Panels
 {
@@ -116,10 +117,10 @@ namespace Fap.Presentation.Panels
             BrowsingFile ent = src.DataContext as BrowsingFile;
             if (ent != null)
             {
-                var logger = NLog.LogManager.GetLogger("faplog");
-                logger.Debug($"TreeViewItem_Expanded: Expanding item '{ent.Name}' with FullPath='{ent.FullPath}'");
+                Microsoft.Extensions.Logging.ILogger logger = Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
+                logger.LogDebug("TreeViewItem_Expanded: Expanding item '{Name}' with FullPath='{FullPath}'", ent.Name, ent.FullPath);
                 Model.CurrentPath = ent.FullPath;
-                logger.Debug($"TreeViewItem_Expanded: Set Model.CurrentPath to '{ent.FullPath}'");
+                logger.LogDebug("TreeViewItem_Expanded: Set Model.CurrentPath to '{FullPath}'", ent.FullPath);
             }
         }
 

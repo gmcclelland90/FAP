@@ -40,7 +40,7 @@ using Fap.Foundation;
 using Fap.Foundation.RegistryServices;
 using Fap.Foundation.Services;
 using Microsoft.Extensions.DependencyInjection;
-using NLog;
+using Microsoft.Extensions.Logging;
 using FAP.Network.Entities; // For RemoteClient
 
 namespace FAP.Application
@@ -49,7 +49,8 @@ namespace FAP.Application
     {
         private readonly ConnectionController connectionController;
         private readonly InterfaceController interfaceController;
-        private readonly LogService logService;
+        private readonly ILogger<ApplicationCore> logger;
+        // Removed NLog-based LogService
         private readonly Model model;
         private readonly OverlordManagerService overlordManagerService;
         private readonly RegisterProtocolService registerProtocolService;
@@ -71,7 +72,7 @@ namespace FAP.Application
 
         public ApplicationCore(
             Model model,
-            LogService logService,
+            ILogger<ApplicationCore> logger,
             ConnectionController connectionController,
             UpdateCheckerService updateChecker,
             InterfaceController interfaceController,
@@ -79,7 +80,8 @@ namespace FAP.Application
             IServiceProvider serviceProvider)
         {
             this.model = model;
-            this.logService = logService;
+            this.logger = logger;
+            // LogService removed
             this.connectionController = connectionController;
             this.updateChecker = updateChecker;
             this.interfaceController = interfaceController;
@@ -176,7 +178,7 @@ namespace FAP.Application
 
                 //Delete any empty folders in the incomplete folder
                 RemoveEmptyFolders(model.IncompleteFolder);
-                LogManager.GetLogger("faplog").Debug("Client started with ID: {0}", model.LocalNode.ID);
+            logger.LogDebug("Client started with ID: {ClientId}", model.LocalNode.ID);
 
                 model.DownloadQueue.Load();
 
@@ -240,21 +242,19 @@ namespace FAP.Application
 
         public void StartClient()
         {
-            var logger = LogManager.GetLogger("faplog");
-            logger.Debug($"ApplicationCore.StartClient: Starting client on port {model.LocalNode.Port}");
+            logger.LogDebug("ApplicationCore.StartClient: Starting client on port {Port}", model.LocalNode.Port);
             
             // Create ListenerService with IServiceProvider instead of IContainer
-            client = new ListenerService(serviceProvider, false);
+            client = new ListenerService(serviceProvider, false, serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ListenerService>>());
             client.Start(model.LocalNode.Port);
             connectionController.Start();
             
-            logger.Debug("ApplicationCore.StartClient: Client started successfully");
+            logger.LogDebug("ApplicationCore.StartClient: Client started successfully");
         }
 
         public void StartOverlordServer()
         {
-            var logger = LogManager.GetLogger("faplog");
-            logger.Debug("ApplicationCore.StartOverlordServer: Starting dedicated overlord server");
+            logger.LogDebug("ApplicationCore.StartOverlordServer: Starting dedicated overlord server");
             
             model.IsDedicated = true;
             overlordManagerService.Start();
@@ -262,7 +262,7 @@ namespace FAP.Application
             // Give the overlord server a moment to start up before connecting
             Thread.Sleep(1000);
             
-            logger.Debug("ApplicationCore.StartOverlordServer: Starting client to connect to overlord");
+            logger.LogDebug("ApplicationCore.StartOverlordServer: Starting client to connect to overlord");
             // Also start the client to connect to the overlord
             StartClient();
         }
@@ -394,7 +394,7 @@ namespace FAP.Application
                 }
                 catch (Exception ex)
                 {
-                    LogManager.GetLogger("faplog").Error(ex, "Failed to open URL: {0}", url);
+                    logger.LogError(ex, "Failed to open URL: {Url}", url);
                 }
             }
         }
@@ -418,34 +418,6 @@ namespace FAP.Application
         {
             switch (mainWindowModel.CurrentChatMessage)
             {
-                case "/trace":
-                    logService.Filter = LogLevel.Trace;
-                    model.Messages.Add("Debug level set to: Trace");
-                    break;
-                case "/debug":
-                    logService.Filter = LogLevel.Debug;
-                    model.Messages.Add("Debug level set to: Debug");
-                    break;
-                case "/info":
-                    logService.Filter = LogLevel.Debug;
-                    model.Messages.Add("Debug level set to: Info");
-                    break;
-                case "/warn":
-                    logService.Filter = LogLevel.Debug;
-                    model.Messages.Add("Debug level set to: Warning");
-                    break;
-                case "/error":
-                    logService.Filter = LogLevel.Debug;
-                    model.Messages.Add("Debug level set to: Error");
-                    break;
-                case "/fatal":
-                    logService.Filter = LogLevel.Debug;
-                    model.Messages.Add("Debug level set to: Fatal");
-                    break;
-                case "/off":
-                    logService.Filter = LogLevel.Off;
-                    model.Messages.Add("Debug level set to: Fatal");
-                    break;
                 case "/disconnect":
                     model.Messages.Add("Disconnecting from current overlord..");
                     connectionController.Disconnect();
@@ -460,17 +432,16 @@ namespace FAP.Application
 
         private void viewShare(object o)
         {
-            var logger = LogManager.GetLogger("faplog");
-            logger.Debug($"viewShare: Called with object={o?.GetType().Name ?? "null"}");
+            logger.LogDebug("viewShare: Called with object={Type}", o?.GetType().Name ?? "null");
             
             var rc = o as Node;
-            logger.Debug($"viewShare: Cast to Node result={rc?.Nickname ?? "null"}");
+            logger.LogDebug("viewShare: Cast to Node result={Nickname}", rc?.Nickname ?? "null");
             
             if (null != rc)
             {
                 try
                 {
-                    logger.Debug($"viewShare: Original node - Nickname={rc.Nickname}, Host={rc.Host}, ID={rc.ID}");
+                    logger.LogDebug("viewShare: Original node - Nickname={Nickname}, Host={Host}, ID={Id}", rc.Nickname, rc.Host, rc.ID);
                     
                     // Create BrowserController with the specific node
                     var browserViewModel = serviceProvider.GetRequiredService<BrowserViewModel>();
@@ -490,7 +461,7 @@ namespace FAP.Application
                         properNode.SetData(kvp.Key, kvp.Value);
                     }
                     
-                    logger.Debug($"viewShare: Created proper node - Nickname={properNode.Nickname}, Host={properNode.Host}, ID={properNode.ID}");
+                    logger.LogDebug("viewShare: Created proper node - Nickname={Nickname}, Host={Host}, ID={Id}", properNode.Nickname, properNode.Host, properNode.ID);
                     
                     var bc = new BrowserController(browserViewModel, model, properNode, shareInfoService);
                     bc.Initalise();
@@ -498,12 +469,12 @@ namespace FAP.Application
                 }
                 catch (Exception ex)
                 {
-                    LogManager.GetLogger("faplog").Error(ex, "Error creating browser controller for node: {0}", rc?.Nickname ?? "unknown");
+                    logger.LogError(ex, "Error creating browser controller for node: {Nickname}", rc?.Nickname ?? "unknown");
                 }
             }
             else
             {
-                LogManager.GetLogger("faplog").Warn("viewShare called with null node");
+                logger.LogWarning("viewShare called with null node");
             }
         }
 

@@ -21,7 +21,7 @@ using System;
 using System.IO;
 using Fap.Foundation;
 using Newtonsoft.Json;
-using NLog;
+using Microsoft.Extensions.Logging;
 
 namespace FAP.Domain.Entities
 {
@@ -44,6 +44,18 @@ namespace FAP.Domain.Entities
                 SafeSave(this, saveLocation, Formatting.None);
         }
 
+        private readonly ILogger<DownloadQueue> logger;
+
+        public DownloadQueue()
+        {
+            logger = Microsoft.Extensions.Logging.Abstractions.NullLogger<DownloadQueue>.Instance;
+        }
+
+        public DownloadQueue(ILogger<DownloadQueue> logger)
+        {
+            this.logger = logger;
+        }
+
         public void Load()
         {
             lock (sync)
@@ -57,9 +69,9 @@ namespace FAP.Domain.Entities
                         queue.AddRange(saved.List.ToList());
                     }
                 }
-                catch (Exception e)
+            catch (Exception e)
                 {
-                    LogManager.GetLogger("faplog").Warn("Failed to read download queue", e);
+                logger.LogWarning(e, "DownloadQueue.Load: Failed to load queue from {Path}", DATA_FOLDER + saveLocation);
                 }
             }
         }

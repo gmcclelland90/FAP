@@ -31,7 +31,7 @@ using FAP.Domain.Verbs;
 using Fap.Foundation;
 using Fap.Foundation.Services;
 using Newtonsoft.Json;
-using NLog;
+using Microsoft.Extensions.Logging;
 using Directory = System.IO.Directory;
 using File = System.IO.File;
 using System.ComponentModel;
@@ -65,6 +65,7 @@ namespace FAP.Domain.Entities
         private bool displayedHelp;
         private string downloadFolder = string.Empty;
         private DownloadQueue downloadQueue = null!;
+        private readonly ILogger<Model> logger;
         private string incompleteFolder = string.Empty;
         private int maxDownloads;
         private int maxDownloadsPerUser;
@@ -84,6 +85,13 @@ namespace FAP.Domain.Entities
             uiTransferSession = new SafeObservingCollection<TransferSession>(transferSessions);
             uiDownloads = new SafeObservingCollection<TransferLog>(downloads);
             uiUploads = new SafeObservingCollection<TransferLog>(uploads);
+            logger = Microsoft.Extensions.Logging.Abstractions.NullLogger<Model>.Instance;
+        }
+
+        public Model(ILogger<Model> logger)
+            : this()
+        {
+            this.logger = logger;
         }
 
         [JsonIgnore]
@@ -384,7 +392,7 @@ namespace FAP.Domain.Entities
                 }
                 catch (Exception e)
                 {
-                    LogManager.GetLogger("faplog").Warn("Failed to read config", e);
+                    logger.LogWarning(e, "Model.Load: Failed loading configuration from {Path}", DATA_FOLDER + saveLocation);
                 }
             }
         }
@@ -477,7 +485,7 @@ namespace FAP.Domain.Entities
             int index = parentDir.LastIndexOf('/');
             if (index == -1)
             {
-                LogManager.GetLogger("faplog").Error("Unable to add download as an invalid url as passed!");
+                logger.LogError("Model.AddDownloadURL: Invalid URL, missing '/' separator: {Url}", url);
             }
             else
             {
@@ -491,7 +499,7 @@ namespace FAP.Domain.Entities
                 if (null == node)
                 {
                     //Node not found
-                    LogManager.GetLogger("faplog").Error("Unable to add download as node {0} was not found!", nodeId);
+                    logger.LogError("Model.AddDownloadURL: Node not found for id {NodeId}", nodeId);
                 }
                 else
                 {
@@ -521,14 +529,12 @@ namespace FAP.Domain.Entities
                         }
                         else
                         {
-                            LogManager.GetLogger("faplog").Error(
-                                "Unable to add download as {0} was not found on the remote server!", fileName);
+                            logger.LogError("Model.AddDownloadURL: File not found on remote server: {File}", fileName);
                         }
                     }
                     else
                     {
-                        LogManager.GetLogger("faplog").Error("Unable to add download as node {0} was not accessible!",
-                                                             nodeId);
+                        logger.LogError("Model.AddDownloadURL: Node was not accessible: {NodeId}", nodeId);
                     }
                 }
             }
