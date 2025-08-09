@@ -630,6 +630,12 @@ namespace FAP.Domain.Handlers
         private bool HandleSearch(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
         {
             FAP.Shared.FapMetrics.Inc(ref FAP.Shared.FapMetrics.SearchRequested);
+            // Structured logging: request details
+            SearchVerb incoming = null!;
+            try { incoming = System.Text.Json.JsonSerializer.Deserialize(req.Data ?? string.Empty, FapJsonContext.Default.SearchVerb) ?? new SearchVerb(); }
+            catch { incoming = new SearchVerb(); }
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+
             var verb = new SearchVerb(null);
             NetworkRequest result = verb.ProcessRequest(req);
             byte[] data = Encoding.UTF8.GetBytes(result.Data);
@@ -640,6 +646,17 @@ namespace FAP.Domain.Handlers
             e.Context.Stream.Flush();
             data = null;
             FAP.Shared.FapMetrics.Inc(ref FAP.Shared.FapMetrics.SearchCompleted);
+            int resultCount = 0;
+            try
+            {
+                var outVerb = System.Text.Json.JsonSerializer.Deserialize(result.Data ?? string.Empty, FapJsonContext.Default.SearchVerb);
+                resultCount = outVerb?.Results?.Count ?? 0;
+            }
+            catch { }
+            sw.Stop();
+            logger.LogInformation("SearchCompleted count={Count} elapsedMs={Elapsed} pattern={Pattern} before={Before} after={After} lt={Smaller} gt={Larger}",
+                resultCount, sw.ElapsedMilliseconds, incoming?.SearchString ?? string.Empty,
+                incoming?.ModifiedBefore, incoming?.ModifiedAfter, incoming?.SmallerThan, incoming?.LargerThan);
             return true;
         }
 

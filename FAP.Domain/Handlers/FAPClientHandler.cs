@@ -22,6 +22,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using FAP.Domain.Entities;
 using FAP.Domain.Services;
 using FAP.Domain.Verbs;
@@ -266,6 +267,12 @@ namespace FAP.Domain.Handlers
         private async Task<bool> HandleSearchAsync(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
         {
             FAP.Shared.FapMetrics.Inc(ref FAP.Shared.FapMetrics.SearchRequested);
+            // Structured logging: capture request
+            SearchVerb incoming = null!;
+            try { incoming = JsonSerializer.Deserialize(req.Data ?? string.Empty, FapJsonContext.Default.SearchVerb) ?? new SearchVerb(); }
+            catch { incoming = new SearchVerb(); }
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+
             var verb = new SearchVerb(shareInfoService);
             NetworkRequest result = verb.ProcessRequest(req);
             byte[] data = Encoding.UTF8.GetBytes(result.Data);
@@ -276,6 +283,19 @@ namespace FAP.Domain.Handlers
             await e.Context.Stream.FlushAsync();
             data = null!;
             FAP.Shared.FapMetrics.Inc(ref FAP.Shared.FapMetrics.SearchCompleted);
+
+            // Structured logging: completion with result count
+            int resultCount = 0;
+            try
+            {
+                var outVerb = JsonSerializer.Deserialize(result.Data ?? string.Empty, FapJsonContext.Default.SearchVerb);
+                resultCount = outVerb?.Results?.Count ?? 0;
+            }
+            catch { }
+            sw.Stop();
+            logger.LogInformation("SearchCompleted count={Count} elapsedMs={Elapsed} pattern={Pattern} before={Before} after={After} lt={Smaller} gt={Larger}",
+                resultCount, sw.ElapsedMilliseconds, incoming?.SearchString ?? string.Empty,
+                incoming?.ModifiedBefore, incoming?.ModifiedAfter, incoming?.SmallerThan, incoming?.LargerThan);
             return true;
         }
 
