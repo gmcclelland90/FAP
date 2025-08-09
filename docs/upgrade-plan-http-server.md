@@ -407,17 +407,15 @@ public class FapWebHost
 
 ### Foundation
 - [x] Add ASP.NET Core packages (N/A in .NET 9 shared framework)
-- [ ] Create FapProtocolMiddleware (optional; using endpoint handlers/ModernHTTPHandler for now)
-- [ ] Create WebInterfaceMiddleware (optional; using endpoint handlers/ModernHTTPHandler for now)
+- [x] Decide routing approach: using endpoint handlers and `ModernHTTPHandler` (middleware not needed)
 - [x] Update NodeServer to use Kestrel
 - [x] Configure Kestrel for FAP ports
 
 ### Protocol Migration
-- [ ] Migrate FAP protocol handling
-- [x] Update Multiplexor for Kestrel
-- [ ] Migrate request/response encoding
-- [ ] Update FAP verb processing
-- [ ] Test protocol compatibility
+- [x] Centralize FAP decode for `/Fap.app/*` in `ModernNodeServer` (attaches decoded request)
+- [x] Update `Multiplexor` usage for Kestrel (`DecodeModernAsync`)
+- [ ] Update FAP verb processing where needed (continue using existing handlers)
+- [ ] Test protocol compatibility (CONNECT/BROWSE/SEARCH/DOWNLOAD)
 
 ### Web Interface Compatibility
  - [x] Serve static files from `Web.Resources` via `UseStaticFiles`
@@ -427,6 +425,7 @@ public class FapWebHost
  - [x] Add ETag for icons and long-lived cache (30 days)
  - [x] Stream file responses to reduce memory usage
  - [x] Validate web interface functionality
+  - [x] Add HEAD support for file endpoints; implement `If-Range` and `If-None-Match` for efficient re-requests
 
 ### Configuration
 - [x] Configure Kestrel performance settings (HTTP/1.1/2/3)
@@ -454,15 +453,19 @@ public class FapWebHost
   - [ ] Confirm responses consistently written via `ModernResponseWriter` where applicable
 
 - File download path performance
-  - [ ] Enable range requests for large file downloads handled in `ModernHTTPHandler` (use `SendFileAsync` or range-aware streaming)
+  - [x] Enable range requests for large file downloads handled in `ModernHTTPHandler` (range-aware streaming)
+  - [x] Add HEAD, ETag, If-Range handling for downloads
   - [ ] Consider mapping direct downloads to static-file pipeline where feasible to leverage kernel sendfile
 
 - Observability
-  - [ ] Track per-route 429 counts and request timings; expose in `/health/details`
+  - [x] Add `/health/details` with uptime and activeRequests counters
+  - [ ] Track per-route 429 counts/timings and expose in `/health/details`
 
 - Performance validation
   - [ ] Throughput and latency measurements for typical LAN concurrency
   - [ ] Tune rate limiter permit limits based on observed concurrency
+
+Note: HTTPS/QUIC intentionally not enabled (LAN-only, prioritizing maximum throughput over TLS).
 
 ## Risk Assessment
 

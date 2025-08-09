@@ -487,6 +487,9 @@ namespace FAP.Domain.Handlers
                 {
                     e.Response.Headers["Last-Modified"] = modified.ToString("R");
                     e.Response.Headers["Accept-Ranges"] = "bytes";
+                    // Lightweight strong ETag using length + last-write time
+                    string fileEtag = $"\"{fs.Length}-{modified.Ticks}\"";
+                    e.Response.Headers["ETag"] = fileEtag;
 
                     long totalLength = fs.Length;
                     long start = 0;
@@ -494,6 +497,7 @@ namespace FAP.Domain.Handlers
                     bool isRange = false;
 
                     var rangeHeader = e.Request.Headers["Range"];
+                    var ifRangeHeader = e.Request.Headers["If-Range"];
                     if (!string.IsNullOrEmpty(rangeHeader))
                     {
                         // Expected formats:
@@ -552,12 +556,38 @@ namespace FAP.Domain.Handlers
                         }
                     }
 
+                    // If-Range: only honor Range when validator matches
+                    if (isRange && !string.IsNullOrEmpty(ifRangeHeader))
+                    {
+                        var ifRange = ifRangeHeader.ToString().Trim();
+                        bool validatorMatches = false;
+                        if (ifRange.StartsWith("\"") && ifRange.EndsWith("\""))
+                        {
+                            validatorMatches = string.Equals(ifRange, fileEtag, StringComparison.Ordinal);
+                        }
+                        else if (DateTime.TryParse(ifRange, out var ifRangeDate))
+                        {
+                            validatorMatches = modified <= ifRangeDate.ToUniversalTime();
+                        }
+                        if (!validatorMatches)
+                        {
+                            isRange = false;
+                        }
+                    }
+
                     if (isRange)
                     {
                         long length = end - start + 1;
                         e.Response.StatusCode = 206; // Partial Content
                         e.Response.Headers["Content-Range"] = $"bytes {start}-{end}/{totalLength}";
                         e.Response.Headers["Content-Length"] = length.ToString();
+
+                        // HEAD: headers only
+                        if (string.Equals(e.Request.Method, "HEAD", StringComparison.OrdinalIgnoreCase))
+                        {
+                            e.IsHandled = true;
+                            return true;
+                        }
 
                         fs.Position = start;
                         var remaining = length;
@@ -575,6 +605,20 @@ namespace FAP.Domain.Handlers
                     {
                         e.Response.StatusCode = 200;
                         e.Response.Headers["Content-Length"] = totalLength.ToString();
+                        // Conditional GET via ETag
+                        var inm = e.Request.Headers["If-None-Match"];
+                        if (!string.IsNullOrEmpty(inm) && string.Equals(inm.ToString(), fileEtag, StringComparison.Ordinal))
+                        {
+                            e.Response.StatusCode = 304;
+                            e.IsHandled = true;
+                            return true;
+                        }
+                        // HEAD: headers only
+                        if (string.Equals(e.Request.Method, "HEAD", StringComparison.OrdinalIgnoreCase))
+                        {
+                            e.IsHandled = true;
+                            return true;
+                        }
                         // Stream full file
                         var buffer = new byte[64 * 1024];
                         int bytesRead;
