@@ -30,7 +30,7 @@ using FAP.Domain.Net;
 using FAP.Domain.Verbs;
 using Fap.Foundation;
 using Fap.Foundation.Services;
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using Directory = System.IO.Directory;
 using File = System.IO.File;
@@ -335,7 +335,7 @@ namespace FAP.Domain.Entities
         {
             lock (downloadQueue)
             {
-                SafeSave(this, saveLocation, Formatting.Indented);
+                SafeSave(this, saveLocation, FAP.Domain.JsonConfiguration.IndentedOptions);
             }
         }
 
@@ -347,7 +347,7 @@ namespace FAP.Domain.Entities
                 {
                     if (File.Exists(DATA_FOLDER + saveLocation))
                     {
-                        var saved = SafeLoad<Model>(saveLocation);
+                        var saved = SafeLoad<Model>(saveLocation, FAP.Domain.JsonConfiguration.IndentedOptions);
 
                         Shares.Clear();
                         Shares.AddRange(saved.Shares.OrderBy(s => s.Name).ToList());

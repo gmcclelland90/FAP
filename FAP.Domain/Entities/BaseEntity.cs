@@ -21,7 +21,7 @@ using System;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.Serialization;
-using Newtonsoft.Json;
+using System.Text.Json;
 
 namespace FAP.Domain.Entities
 {
@@ -44,26 +44,26 @@ namespace FAP.Domain.Entities
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(path));
         }
 
-        protected void SafeSave(object o, string fileName, Formatting f)
+        protected void SafeSave(object o, string fileName, System.Text.Json.JsonSerializerOptions options)
         {
             if (string.IsNullOrEmpty(fileName))
                 throw new Exception("Unable to save as no filename was specified.");
             if (!Directory.Exists(DATA_FOLDER))
                 Directory.CreateDirectory(DATA_FOLDER);
 
-            string obj = JsonConvert.SerializeObject(o, f);
+            string obj = JsonSerializer.Serialize(o, options);
 
             File.WriteAllText(DATA_FOLDER + fileName, obj);
             File.WriteAllText(DATA_FOLDER + fileName + BACKUP_EXT, obj);
             obj = null;
         }
 
-        protected T? SafeLoad<T>(string fileName)
+        protected T? SafeLoad<T>(string fileName, System.Text.Json.JsonSerializerOptions? options = null)
         {
             try
             {
                 if (File.Exists(DATA_FOLDER + fileName))
-                    return JsonConvert.DeserializeObject<T>(File.ReadAllText(DATA_FOLDER + fileName));
+                    return JsonSerializer.Deserialize<T>(File.ReadAllText(DATA_FOLDER + fileName), options ?? FAP.Domain.JsonConfiguration.IndentedOptions);
             }
             catch
             {
@@ -72,7 +72,7 @@ namespace FAP.Domain.Entities
             try
             {
                 if (File.Exists(DATA_FOLDER + fileName + BACKUP_EXT))
-                    return JsonConvert.DeserializeObject<T>(File.ReadAllText(DATA_FOLDER + fileName + BACKUP_EXT));
+                    return JsonSerializer.Deserialize<T>(File.ReadAllText(DATA_FOLDER + fileName + BACKUP_EXT), options ?? FAP.Domain.JsonConfiguration.IndentedOptions);
             }
             catch
             {

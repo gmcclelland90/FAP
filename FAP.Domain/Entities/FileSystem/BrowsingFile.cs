@@ -2,7 +2,7 @@
 using System.Collections.ObjectModel;
 using System.Text;
 using Fap.Foundation;
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 namespace FAP.Domain.Entities.FileSystem
 {

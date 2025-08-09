@@ -20,7 +20,6 @@
 using System;
 using System.IO;
 using Fap.Foundation;
-using Newtonsoft.Json;
 using Microsoft.Extensions.Logging;
 
 namespace FAP.Domain.Entities
@@ -41,7 +40,7 @@ namespace FAP.Domain.Entities
         public void Save()
         {
             lock (sync)
-                SafeSave(this, saveLocation, Formatting.None);
+                SafeSave(this, saveLocation, FAP.Domain.JsonConfiguration.CompactOptions);
         }
 
         private readonly ILogger<DownloadQueue> logger;
@@ -65,7 +64,7 @@ namespace FAP.Domain.Entities
                     queue.Clear();
                     if (File.Exists(DATA_FOLDER + saveLocation))
                     {
-                        var saved = SafeLoad<DownloadQueue>(saveLocation);
+                        var saved = SafeLoad<DownloadQueue>(saveLocation, FAP.Domain.JsonConfiguration.CompactOptions);
                         queue.AddRange(saved.List.ToList());
                     }
                 }

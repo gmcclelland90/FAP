@@ -17,7 +17,7 @@
 
 #endregion
 
-using Newtonsoft.Json;
+using System.Text.Json;
 
 namespace FAP.Domain.Verbs
 {
@@ -25,7 +25,8 @@ namespace FAP.Domain.Verbs
     {
         public static T? Deserialise<T>(string json)
         {
-            return JsonConvert.DeserializeObject<T>(json);
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true, PropertyNamingPolicy = null };
+            return JsonSerializer.Deserialize<T>(json, options);
             /*T obj = Activator.CreateInstance<T>();
             using (MemoryStream ms = new MemoryStream(Encoding.ASCII.GetBytes(json)))
             {
@@ -37,8 +38,8 @@ namespace FAP.Domain.Verbs
 
         public static string Serialize<T>(T obj)
         {
-            return JsonConvert.SerializeObject(obj, Formatting.None,
-                                               new JsonSerializerSettings {NullValueHandling = NullValueHandling.Ignore});
+            var options = new JsonSerializerOptions { WriteIndented = false, PropertyNamingPolicy = null, DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull };
+            return JsonSerializer.Serialize(obj, options);
             /* DataContractJsonSerializer serializer = new DataContractJsonSerializer(obj.GetType());
              using (MemoryStream ms = new MemoryStream())
              {

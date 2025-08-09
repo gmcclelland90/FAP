@@ -1,6 +1,6 @@
 ﻿using FAP.Shared.Entities;
 using FAP.Shared.Interfaces;
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 namespace FAP.Domain.Verbs
 {
