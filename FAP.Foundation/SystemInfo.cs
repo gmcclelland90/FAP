@@ -124,7 +124,11 @@ namespace Fap.Foundation
                 }
                 return 1;
             }
-            catch { return 1; }
+            catch
+            {
+                // Fallback to process bitness
+                try { return IntPtr.Size * 8; } catch { return 1; }
+            }
         }
 
         public string GetMoboBrand()
