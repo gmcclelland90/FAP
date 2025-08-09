@@ -138,7 +138,8 @@ namespace FAP.Domain.Net
 
                 // Make the request
                 var sw = System.Diagnostics.Stopwatch.StartNew();
-                using var response = await _httpClient.SendAsync(request);
+                using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromMilliseconds(Math.Max(1, timeout)));
+                using var response = await _httpClient.SendAsync(request, cts.Token);
                 sw.Stop();
                 
                 if (!response.IsSuccessStatusCode)

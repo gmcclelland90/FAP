@@ -30,19 +30,20 @@ namespace Fap.Presentation.Services
                 // Create the notify icon
                 _notifyIcon = new NotifyIcon();
                 
-                // Load the icon
-                var iconPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "Images", "folder-yellow.ico");
-                if (File.Exists(iconPath))
+                // Load the icon (prefer embedded pack URI for single-file publish)
+                var iconPack = System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/Images/folder-yellow.ico"));
+                if (iconPack != null)
                 {
-                    _notifyIcon.Icon = new Icon(iconPath);
+                    _notifyIcon.Icon = new Icon(iconPack.Stream);
                 }
                 else
                 {
-                                    // Fallback to embedded resource
-                var iconStream = System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/Fap.Presentation;component/Images/folder-yellow.ico"));
-                    if (iconStream != null)
+                    // Fallback to on-disk file (development/run-from-build)
+                    var baseDir = AppContext.BaseDirectory;
+                    var iconPath = Path.Combine(baseDir, "Images", "folder-yellow.ico");
+                    if (File.Exists(iconPath))
                     {
-                        _notifyIcon.Icon = new Icon(iconStream.Stream);
+                        _notifyIcon.Icon = new Icon(iconPath);
                     }
                 }
 
