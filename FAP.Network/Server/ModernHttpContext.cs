@@ -30,6 +30,20 @@ namespace FAP.Network.Server
         public Stream Stream => _context.Response.Body;
 
         /// <summary>
+        /// Helper to enable request buffering if handlers need to re-read the body.
+        /// </summary>
+        public void EnableRequestBuffering()
+        {
+            try
+            {
+                _context.Request.EnableBuffering();
+            }
+            catch
+            {
+            }
+        }
+
+        /// <summary>
         /// Gets the underlying ASP.NET Core HttpContext.
         /// </summary>
         public HttpContext AspNetCoreContext => _context;

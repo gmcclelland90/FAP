@@ -12,6 +12,7 @@ using Directory = FAP.Domain.Entities.FileSystem.Directory;
 using File = System.IO.File;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Security.Cryptography;
 
 namespace FAP.Domain.Handlers
 {
@@ -28,6 +29,7 @@ namespace FAP.Domain.Handlers
 
         // Icon cache - missing from original ModernHTTPHandler
         private readonly Dictionary<string, byte[]> iconCache = new Dictionary<string, byte[]>();
+        private readonly Dictionary<string, string> iconEtagCache = new Dictionary<string, string>();
         private readonly object sync = new object();
 
         public ModernHTTPHandler(ShareInfoService i, Model m, BufferService b, ServerUploadLimiterService u, ILogger<ModernHTTPHandler> logger)
@@ -46,6 +48,7 @@ namespace FAP.Domain.Handlers
                 e.Response.StatusCode = 200;
                 string decodedPath = Utility.DecodeURL(path);
                 byte[] data = null;
+                string etag = string.Empty;
 
                 if (decodedPath.StartsWith(WEB_ICON_PREFIX))
                 {
@@ -237,6 +240,8 @@ namespace FAP.Domain.Handlers
 
                     data = Encoding.UTF8.GetBytes(page);
                     e.Response.ContentType = "text/html";
+                    // Dynamic listing: avoid caching to keep UI fresh
+                    e.Response.Headers["Cache-Control"] = "no-store";
                 }
 
                 if (data != null)
@@ -307,6 +312,7 @@ namespace FAP.Domain.Handlers
             try
             {
                 byte[] data = null;
+                string etag = string.Empty;
                 
                 lock (sync)
                 {
@@ -314,6 +320,8 @@ namespace FAP.Domain.Handlers
                     if (iconCache.ContainsKey(ext))
                     {
                         data = iconCache[ext];
+                        if (iconEtagCache.TryGetValue(ext, out var cachedTag))
+                            etag = cachedTag;
                         logger.LogDebug("Using cached icon for extension: {Ext}", ext);
                     }
                     else
@@ -326,6 +334,8 @@ namespace FAP.Domain.Handlers
                             if (data.Length > 0)
                             {
                                 iconCache.Add("folder", data);
+                                etag = ComputeEtag("folder", data);
+                                iconEtagCache["folder"] = etag;
                                 logger.LogDebug("Cached folder icon, size: {Length} bytes", data.Length);
                             }
                             else
@@ -346,6 +356,8 @@ namespace FAP.Domain.Handlers
                             {
                                 // Static icon found, cache it
                                 iconCache.Add(ext, data);
+                                etag = ComputeEtag(ext, data);
+                                iconEtagCache[ext] = etag;
                                 logger.LogDebug("Cached static icon for extension: {Ext}, size: {Length} bytes", ext, data.Length);
                             }
                             else
@@ -385,6 +397,8 @@ namespace FAP.Domain.Handlers
                                     
                                     // Cache the generated icon
                                     iconCache.Add(ext, data);
+                                    etag = ComputeEtag(ext, data);
+                                    iconEtagCache[ext] = etag;
                                     logger.LogDebug("Generated and cached dynamic icon for extension: {Ext}, size: {Length} bytes", ext, data.Length);
                                 }
                                 catch (Exception ex)
@@ -398,7 +412,20 @@ namespace FAP.Domain.Handlers
                         }
                     }
                 }
-                
+                // Conditional response: ETag handling
+                if (!string.IsNullOrEmpty(etag))
+                {
+                    var inm = e.Request.Headers["If-None-Match"].FirstOrDefault();
+                    if (!string.IsNullOrEmpty(inm) && string.Equals(inm, etag, StringComparison.Ordinal))
+                    {
+                        e.Response.StatusCode = 304; // Not Modified
+                        e.IsHandled = true;
+                        return true;
+                    }
+                    e.Response.Headers["ETag"] = etag;
+                }
+                // Cache for 30 days (icons rarely change)
+                e.Response.Headers["Cache-Control"] = "public,max-age=2592000";
                 e.Response.ContentType = "image/png";
                 await e.Response.Body.WriteAsync(data, 0, data.Length);
                 e.IsHandled = true;
@@ -411,6 +438,14 @@ namespace FAP.Domain.Handlers
                 e.IsHandled = true;
                 return false;
             }
+        }
+
+        private static string ComputeEtag(string key, byte[] data)
+        {
+            using var sha = SHA256.Create();
+            var hash = sha.ComputeHash(data);
+            var b64 = Convert.ToBase64String(hash);
+            return $"\"{key}-{data.Length}-{b64}\""; // quoted ETag
         }
 
         private bool SendIcon(RequestEventArgs e, string ext)
@@ -451,16 +486,14 @@ namespace FAP.Domain.Handlers
                 using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
                     e.Response.Headers["Last-Modified"] = modified.ToString("R");
-                    // Send response
-                    var buffer = new byte[fs.Length];
-                    int totalBytesRead = 0;
+                    e.Response.Headers["Content-Length"] = fs.Length.ToString();
+                    // Stream file to response to minimize memory usage
+                    var buffer = new byte[64 * 1024];
                     int bytesRead;
-                    while (totalBytesRead < fs.Length && 
-                           (bytesRead = await fs.ReadAsync(buffer, totalBytesRead, (int)fs.Length - totalBytesRead)) > 0)
+                    while ((bytesRead = await fs.ReadAsync(buffer, 0, buffer.Length)) > 0)
                     {
-                        totalBytesRead += bytesRead;
+                        await e.Response.Body.WriteAsync(buffer, 0, bytesRead);
                     }
-                    await e.Response.Body.WriteAsync(buffer, 0, buffer.Length);
                     e.IsHandled = true;
                     return true;
                 }

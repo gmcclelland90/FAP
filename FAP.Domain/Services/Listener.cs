@@ -144,11 +144,10 @@ namespace FAP.Domain.Services
 
         private async Task listener_OnRequestAsync(object sender, FAP.Network.Server.RequestEventArgs arg)
         {
-            // Check User-Agent to determine if this is a FAP request
-            string userAgent = arg.Request.Headers["User-Agent"].FirstOrDefault() ?? string.Empty;
-            bool isFapRequest = userAgent.StartsWith("FAP");
+            // Prefer path-based routing to avoid UA dependency
+            bool isFapPath = arg.Request.Path.StartsWith("/Fap.app/");
             
-            if (!isFapRequest)
+            if (!isFapPath)
             {
                 // HTTP request
                 if (arg.Request.Method == "GET")

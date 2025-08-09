@@ -200,7 +200,28 @@ namespace FAP.Network.Server
                 bool isFapPath = request.Path.HasValue && request.Path.Value!.StartsWith("/Fap.app/");
                 if (isFapPath)
                 {
-                    // FAP protocol request: forward to subscribers (ListenerService) and exit
+                    // Ensure body can be read for POST verbs
+                    try { request.EnableBuffering(); } catch { }
+                    // Decode FAP request centrally and attach it so downstream handlers can reuse
+                    try
+                    {
+                        var decoded = await Multiplexor.DecodeModernAsync(modernRequest);
+                        context.Items["FAP.NetworkRequest"] = decoded;
+                        _logger.LogTrace("FAP decoded: verb={Verb} dataLen={Len}", decoded.Verb, decoded.Data?.Length ?? 0);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to decode FAP request");
+                        if (!context.Response.HasStarted)
+                        {
+                            response.StatusCode = StatusCodes.Status400BadRequest;
+                            response.ContentType = "text/plain";
+                            await response.WriteAsync("Bad Request");
+                        }
+                        return;
+                    }
+
+                    // FAP protocol request: forward to subscribers (ListenerService)
                     if (OnRequestAsync != null)
                         await OnRequestAsync(this, requestArgs);
                     else

@@ -97,7 +97,17 @@ namespace FAP.Domain.Handlers
         public async Task<bool> HandleAsync(FAP.Network.Server.RequestEventArgs e)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            var networkReq = await Multiplexor.DecodeModernAsync(e.Request);
+            // Prefer centrally-decoded request attached by ModernNodeServer to avoid double-reading the body
+            FAP.Network.Entities.NetworkRequest networkReq;
+            var aspCtx = e.Context?.AspNetCoreContext;
+            if (aspCtx != null && aspCtx.Items.TryGetValue("FAP.NetworkRequest", out var decoded) && decoded is FAP.Network.Entities.NetworkRequest predecoded)
+            {
+                networkReq = predecoded;
+            }
+            else
+            {
+                networkReq = await Multiplexor.DecodeModernAsync(e.Request);
+            }
             var req = new FAP.Shared.Entities.NetworkRequest
             {
                 Verb = networkReq.Verb,
