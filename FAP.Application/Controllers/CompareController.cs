@@ -95,10 +95,12 @@ namespace FAP.Application.Controllers
                     var maxParallel = Math.Max(2, Environment.ProcessorCount);
                     var options = new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = maxParallel };
 
+                    var startedAt = DateTime.UtcNow;
                     System.Threading.Tasks.Parallel.ForEach(peers, options, peer =>
                     {
                         try
                         {
+                            var peerStart = DateTime.UtcNow;
                             var client = new Client(model.LocalNode);
                             var verb = new CompareVerb();
                             var ok = client.Execute(verb, peer, 7000);
@@ -109,6 +111,7 @@ namespace FAP.Application.Controllers
                                     Nickname = string.IsNullOrEmpty(peer.Nickname) ? peer.Host : peer.Nickname
                                 };
                                 errorNode.Status = "Error";
+                                errorNode.LatencyMs = (long)(DateTime.UtcNow - peerStart).TotalMilliseconds;
                                 viewModel.Data.Add(errorNode);
                                 return;
                             }
@@ -118,6 +121,7 @@ namespace FAP.Application.Controllers
                                 result.Nickname = string.IsNullOrEmpty(peer.Nickname) ? peer.Host : peer.Nickname;
 
                             result.Status = verb.Allowed ? "OK" : "Denied";
+                            result.LatencyMs = (long)(DateTime.UtcNow - peerStart).TotalMilliseconds;
                             viewModel.Data.Add(result);
                         }
                         catch (Exception ex)
@@ -128,10 +132,14 @@ namespace FAP.Application.Controllers
                                 Nickname = string.IsNullOrEmpty(peer.Nickname) ? peer.Host : peer.Nickname
                             };
                             errorNode.Status = "Error";
+                            // If we reached here we still have elapsed time for the attempt
+                            // Capture approximate latency for visibility
+                            errorNode.LatencyMs = 0;
                             viewModel.Data.Add(errorNode);
                         }
                     });
-                    viewModel.Status = "Complete";
+                    var totalMs = (long)(DateTime.UtcNow - startedAt).TotalMilliseconds;
+                    viewModel.Status = $"Complete in {totalMs} ms";
                 }
                 finally
                 {

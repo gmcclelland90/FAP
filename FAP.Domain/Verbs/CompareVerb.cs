@@ -74,27 +74,29 @@ namespace FAP.Domain.Verbs
                     {
                         var si = new SystemInfo();
                         Node = new CompareNode();
-                        Node.SetData("COMP-CPUSpeed", si.GetCPUSpeed().ToString());
-                        Node.SetData("COMP-CPUType", si.GetCPUType());
-                        Node.SetData("COMP-CPUCores", si.GetCPUCores().ToString());
-                        Node.SetData("COMP-CPUThreads", si.GetCPUThreads().ToString());
-                        Node.SetData("COMP-CPUBits", si.GetCPUBits().ToString());
-                        Node.SetData("COMP-MoboBrand", si.GetMoboBrand());
-                        Node.SetData("COMP-MoboModel", si.GetMoboModel());
-                        Node.SetData("COMP-BIOSVersion", si.GetBIOSVersion());
-                        Node.SetData("COMP-RAMSize", si.GetMemorySize().ToString());
-                        Node.SetData("COMP-GPUModel", si.GetGPUDescription());
-                        Node.SetData("COMP-GPUCount", si.GetGPUCount().ToString());
-                        Node.SetData("COMP-GPUTotalMemory", si.GetTotalGPUMemory().ToString());
-                        Node.SetData("COMP-DisplayPrimaryHeight", si.GetPrimaryDisplayHeight().ToString());
-                        Node.SetData("COMP-DisplayPrimaryWidth", si.GetPrimaryDisplayWidth().ToString());
-                        Node.SetData("COMP-DisplayTotalWidth", si.GetTotalDisplayWidth().ToString());
-                        Node.SetData("COMP-DisplayTotalHeight", si.GetTotalDisplayHeight().ToString());
-                        Node.SetData("COMP-HDDSize", si.GetTotalHDDSize().ToString());
-                        Node.SetData("COMP-HDDFree", si.GetTotalHDDFree().ToString());
-                        Node.SetData("COMP-HDDCount", si.GetHDDCount().ToString());
-                        Node.SetData("COMP-NICSpeed", si.GetNetworkSpeed().ToString());
-                        Node.SetData("COMP-SoundCard", si.GetSoundcardName());
+                        System.Threading.Tasks.Parallel.Invoke(
+                            () => Node.SetData("COMP-CPUSpeed", si.GetCPUSpeed().ToString()),
+                            () => Node.SetData("COMP-CPUType", si.GetCPUType()),
+                            () => Node.SetData("COMP-CPUCores", si.GetCPUCores().ToString()),
+                            () => Node.SetData("COMP-CPUThreads", si.GetCPUThreads().ToString()),
+                            () => Node.SetData("COMP-CPUBits", si.GetCPUBits().ToString()),
+                            () => Node.SetData("COMP-MoboBrand", si.GetMoboBrand()),
+                            () => Node.SetData("COMP-MoboModel", si.GetMoboModel()),
+                            () => Node.SetData("COMP-BIOSVersion", si.GetBIOSVersion()),
+                            () => Node.SetData("COMP-RAMSize", si.GetMemorySize().ToString()),
+                            () => Node.SetData("COMP-GPUModel", si.GetGPUDescription()),
+                            () => Node.SetData("COMP-GPUCount", si.GetGPUCount().ToString()),
+                            () => Node.SetData("COMP-GPUTotalMemory", si.GetTotalGPUMemory().ToString()),
+                            () => Node.SetData("COMP-DisplayPrimaryHeight", si.GetPrimaryDisplayHeight().ToString()),
+                            () => Node.SetData("COMP-DisplayPrimaryWidth", si.GetPrimaryDisplayWidth().ToString()),
+                            () => Node.SetData("COMP-DisplayTotalWidth", si.GetTotalDisplayWidth().ToString()),
+                            () => Node.SetData("COMP-DisplayTotalHeight", si.GetTotalDisplayHeight().ToString()),
+                            () => Node.SetData("COMP-HDDSize", si.GetTotalHDDSize().ToString()),
+                            () => Node.SetData("COMP-HDDFree", si.GetTotalHDDFree().ToString()),
+                            () => Node.SetData("COMP-HDDCount", si.GetHDDCount().ToString()),
+                            () => Node.SetData("COMP-NICSpeed", si.GetNetworkSpeed().ToString()),
+                            () => Node.SetData("COMP-SoundCard", si.GetSoundcardName())
+                        );
                         cachedResponse = new NetworkRequest { Data = Serialize(this) };
                         cacheTime = now;
                     }

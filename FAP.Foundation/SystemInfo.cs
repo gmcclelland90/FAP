@@ -188,7 +188,18 @@ namespace Fap.Foundation
                 }
                 return total;
             }
-            catch { return 0; }
+            catch
+            {
+                try
+                {
+                    // Fallback approximation
+                    return GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+                }
+                catch
+                {
+                    return 0;
+                }
+            }
         }
 
         public string GetGPUDescription()
@@ -294,7 +305,22 @@ namespace Fap.Foundation
                 }
                 return total;
             }
-            catch { return 0; }
+            catch
+            {
+                try
+                {
+                    long total = 0;
+                    foreach (var d in System.IO.DriveInfo.GetDrives())
+                    {
+                        if (d.DriveType == System.IO.DriveType.Fixed && d.IsReady)
+                        {
+                            total += d.TotalSize;
+                        }
+                    }
+                    return total;
+                }
+                catch { return 0; }
+            }
         }
 
         public long GetTotalHDDFree()
@@ -311,7 +337,22 @@ namespace Fap.Foundation
                 }
                 return total;
             }
-            catch { return 0; }
+            catch
+            {
+                try
+                {
+                    long total = 0;
+                    foreach (var d in System.IO.DriveInfo.GetDrives())
+                    {
+                        if (d.DriveType == System.IO.DriveType.Fixed && d.IsReady)
+                        {
+                            total += d.AvailableFreeSpace;
+                        }
+                    }
+                    return total;
+                }
+                catch { return 0; }
+            }
         }
 
         public int GetHDDCount()
@@ -324,7 +365,22 @@ namespace Fap.Foundation
                 foreach (ManagementObject _ in collection) { count++; }
                 return count;
             }
-            catch { return 0; }
+            catch
+            {
+                try
+                {
+                    int count = 0;
+                    foreach (var d in System.IO.DriveInfo.GetDrives())
+                    {
+                        if (d.DriveType == System.IO.DriveType.Fixed && d.IsReady)
+                        {
+                            count++;
+                        }
+                    }
+                    return count;
+                }
+                catch { return 0; }
+            }
         }
 
 

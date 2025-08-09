@@ -38,6 +38,7 @@
                     <GridViewColumn Header="Nickname" DisplayMemberBinding="{Binding Nickname}" />
                     <GridViewColumn Header="Address" DisplayMemberBinding="{Binding Location}" />
                     <GridViewColumn Header="Status" DisplayMemberBinding="{Binding Status}" />
+                    <GridViewColumn Header="Latency (ms)" DisplayMemberBinding="{Binding LatencyMs}" />
                     <GridViewColumn Header="Score" DisplayMemberBinding="{Binding Score}" />
                     <GridViewColumn Header="CPU MHz" DisplayMemberBinding="{Binding CPUSpeed}" />
                     <GridViewColumn Header="CPU Type" DisplayMemberBinding="{Binding CPUType}" />

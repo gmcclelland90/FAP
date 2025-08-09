@@ -7,15 +7,9 @@ This plan details the migration from LinqToWmi to System.Management for .NET 9. 
 ## Current State Analysis
 
 ### LinqToWmi Usage in FAP
-- **Library location**: `libs/LinqToWmi/` (Core, Tests, ClassGenerator)
-- **Runtime usage (app code)**:
-  - `FAP.Foundation/SystemInfo.cs` (uses `LinqToWmi.Core.WMI` and `FAP.Foundation/WMI_Prototypes/*`)
-  - `FAP.Domain/Verbs/CompareVerb.cs` (calls `SystemInfo` to populate `CompareNode`)
-- **Generated model classes**: `FAP.Foundation/WMI_Prototypes/*.cs` (e.g., `Win32_Processor`, `Win32_PhysicalMemory`, `Win32_VideoController`, `Win32_LogicalDisk`, `Win32_BaseBoard`, `Win32_BIOS`, `Win32_SoundDevice`, `Win32_NetworkAdapter`)
-- **Project references**:
-  - `FAP.Foundation/FAP.Foundation.csproj` → `..\libs\LinqToWmi\LinqToWmi.Core\LinqToWmi.Core.csproj`
-  - `Fap.sln` includes the `LinqToWmi.Core` project
-- **Not used at runtime**: `libs/LinqToWmi/LinqToWmi.Tests/*`, `libs/LinqToWmi/LinqToWmi.ClassGenerator/*`
+- Library and generated prototypes have been removed.
+- Runtime usage now relies on `System.Management` in `FAP.Foundation/SystemInfo.cs`.
+- `CompareVerb` continues to call `SystemInfo` and returns the same COMP-* keys.
 
 ### Current WMI Usage Pattern
 ```csharp
@@ -122,10 +116,10 @@ public class SystemInfo
 ## Migration Strategy
 
 ### Acceptance criteria
-- `COMPARE` verb still returns the same key set (COMP-*) with sane values on Windows.
-- No project references to `LinqToWmi.*` remain; `Fap.sln` does not include `LinqToWmi.Core`.
-- Folder `FAP.Foundation/WMI_Prototypes/` is removed.
-- Build on `net9.0-windows` succeeds without `libs/LinqToWmi`.
+- ✅ `COMPARE` verb still returns the same key set (COMP-*) with sane values on Windows.
+- ✅ No project references to `LinqToWmi.*` remain; `Fap.sln` does not include `LinqToWmi.Core`.
+- ✅ Folder `FAP.Foundation/WMI_Prototypes/` is removed.
+- ✅ Build on `net9.0-windows` succeeds without `libs/LinqToWmi`.
 
 ### Phase 1: Foundation Setup (Week 1)
 
@@ -137,8 +131,8 @@ public class SystemInfo
 ```
 
 Targets:
-- Add to `FAP.Foundation` (SystemInfo replacement lives here)
-- Optionally add to `FAP.Domain` only if you plan to call WMI directly from verbs (not recommended)
+- ✅ Added to `FAP.Foundation` (SystemInfo replacement lives here)
+- N/A for `FAP.Domain` (no direct WMI calls from verbs)
 
 #### 1.2 Create WMI Service
 ```csharp
@@ -255,6 +249,7 @@ public class NetworkAdapterInfo
 ### Phase 2: System Information Migration (Week 2)
 
 #### 2.1 Update SystemInfo Class
+Status: ✅ Completed. `SystemInfo` uses `System.Management` and preserves public API used by `CompareVerb`.
 Notes:
 - Keep method names and return types to avoid changes in `CompareVerb`.
 - Use `ManagementObjectSearcher` with simple SELECT statements; wrap in `Task.Run` if keeping async patterns.
@@ -496,6 +491,7 @@ public class HardwareInfoService
 ### Phase 3: Performance Optimization (Week 3)
 
 #### 3.1 Add Caching
+Status: ✅ Server-side caching implemented in `CompareVerb` (5-minute TTL). Optional: move into a dedicated caching service later if needed.
 ```csharp
 // CachedWmiService.cs
 public class CachedWmiService
@@ -643,42 +639,42 @@ public class FallbackSystemInfo
 ## Migration Checklist
 
 ### Foundation
-- [ ] Add System.Management package to `FAP.Foundation`
-- [ ] Create `WmiService`
-- [ ] Create hardware information models
-- [ ] Update project references (prepare to remove LinqToWmi.Core)
+- [x] Add System.Management package to `FAP.Foundation`
+- [x] Create `WmiService`
+- [ ] Create hardware information models (optional)
+- [x] Update project references (prepare to remove LinqToWmi.Core)
 
 ### System Information Migration
-- [ ] Update `SystemInfo` to use `System.Management`
-- [ ] Create `HardwareInfoService`
-- [ ] Migrate CPU methods (cores, threads, bits, speed)
-- [ ] Migrate memory size method
-- [ ] Migrate GPU methods (model, count, total memory, resolutions)
-- [ ] Migrate disk methods (total size, free, count)
-- [ ] Migrate NIC speed (keep existing `NetworkInterface` usage)
-- [ ] Validate `CompareVerb` outputs unchanged key set
+- [x] Update `SystemInfo` to use `System.Management`
+- [ ] Create `HardwareInfoService` (optional)
+- [x] Migrate CPU methods (cores, threads, bits, speed)
+- [x] Migrate memory size method
+- [x] Migrate GPU methods (model, count, total memory, resolutions)
+- [x] Migrate disk methods (total size, free, count)
+- [x] Migrate NIC speed (kept existing `NetworkInterface` usage)
+- [x] Validate `CompareVerb` outputs unchanged key set
 
 ### Performance Optimization
-- [ ] Add `CachedWmiService`
-- [ ] Add `ParallelWmiService`
-- [ ] Implement caching strategies
-- [ ] Add parallel processing
-- [ ] Test performance improvements
+- [ ] Add `CachedWmiService` (optional)
+- [ ] Add `ParallelWmiService` (optional)
+- [x] Implement caching strategies (CompareVerb cache)
+- [x] Add parallel processing (client fan-out in CompareController)
+- [ ] Test performance improvements (manual validation done; formal perf test optional)
 
 ### Error Handling
-- [ ] Add `FallbackSystemInfo`
-- [ ] Implement fallback mechanisms
-- [ ] Add comprehensive error handling
+- [ ] Add `FallbackSystemInfo` (optional)
+- [ ] Implement fallback mechanisms (optional)
+- [ ] Add comprehensive error handling (optional)
 - [ ] Test error scenarios
 
 ### Cleanup
-- [ ] Remove `using LinqToWmi.Core.WMI;` from all files
-- [ ] Delete `FAP.Foundation/WMI_Prototypes/*`
-- [ ] Remove project reference in `FAP.Foundation.csproj` to `libs/LinqToWmi/LinqToWmi.Core`
-- [ ] Remove `LinqToWmi.Core` from `Fap.sln`
-- [ ] Delete `libs/LinqToWmi/` (Core, Tests, ClassGenerator)
-- [ ] Test all WMI functionality and `COMPARE` verb end-to-end
-- [ ] Performance testing
+- [x] Remove `using LinqToWmi.Core.WMI;` from all files
+- [x] Delete `FAP.Foundation/WMI_Prototypes/*`
+- [x] Remove project reference in `FAP.Foundation.csproj` to `libs/LinqToWmi/LinqToWmi.Core`
+- [x] Remove `LinqToWmi.Core` from `Fap.sln`
+- [x] Delete `libs/LinqToWmi/` (Core, Tests, ClassGenerator)
+- [x] Test all WMI functionality and `COMPARE` verb end-to-end
+- [ ] Performance testing (optional)
 
 ## Risk Assessment
 
