@@ -14,17 +14,17 @@
 - Unicode filename support
 - Large file support (up to 16TB)
 
-**Current Architecture:**
-- **Framework**: .NET Framework 4.0
+**Current Architecture (after migration):**
+- **Framework**: .NET 9
 - **UI**: WPF (Windows Presentation Foundation)
-- **Dependency Injection**: Autofac 2.3.2
-- **Logging**: NLog 3.1.0
-- **JSON**: Newtonsoft.Json.Net35
-- **Protocol Buffers**: protobuf-net
-- **HTTP Server**: Custom HttpServer library
-- **WPF Framework**: WpfApplicationFramework
-- **UI Controls**: Odyssey (custom controls)
-- **WMI Access**: LinqToWmi
+- **Dependency Injection**: Microsoft.Extensions.DependencyInjection
+- **Logging**: Microsoft.Extensions.Logging
+- **JSON**: System.Text.Json (source-gen used for DTOs/verbs)
+- **Protocol Buffers**: protobuf-net (NuGet)
+- **HTTP Server**: ASP.NET Core Kestrel + minimal endpoints (/Fap.api)
+- **WPF Framework**: WpfApplicationFramework (legacy; slated for later)
+- **UI Controls**: Odyssey (legacy; slated for later)
+- **WMI Access**: System.Management (replacing LinqToWmi)
 - **String Templates**: ~~StringTemplate (Antlr3)~~ ✅ **COMPLETED** - Replaced with custom TemplateEngine
 
 ## Migration Strategy
@@ -55,17 +55,17 @@
 ### Phase 2: Dependency Updates
 
 #### 2.1 Core Dependencies
-- **Autofac**: Update from 2.3.2 to latest (6.x)
-- **NLog**: Update from 3.1.0 to latest (5.x)
-- **Newtonsoft.Json**: Replace with System.Text.Json (built into .NET 9)
-- **protobuf-net**: Update to latest version compatible with .NET 9
+- ✅ Autofac → built-in DI
+- ✅ NLog → Microsoft.Extensions.Logging
+- ✅ Newtonsoft.Json → System.Text.Json
+- ✅ protobuf-net via NuGet
 
 #### 2.2 Library Modernization
-- **HttpServer**: Replace with ASP.NET Core minimal APIs
-- **WpfApplicationFramework**: Replace with modern WPF patterns or migrate to .NET MAUI
-- **Odyssey**: Modernize custom controls or replace with modern alternatives
-- **LinqToWmi**: Replace with modern WMI access patterns
-- **StringTemplate**: ~~Replace with modern templating solutions~~ ✅ **COMPLETED** - Replaced with custom TemplateEngine
+- ✅ HttpServer → ASP.NET Core Kestrel/minimal
+- ⏭️ WpfApplicationFramework: later
+- ⏭️ Odyssey: later
+- ✅ LinqToWmi → System.Management
+- ✅ StringTemplate → TemplateEngine
 
 #### 2.3 Remove Obsolete Dependencies
 - **Newtonsoft.Json.Net35**: Replace with System.Text.Json
@@ -99,14 +99,14 @@
 ### Phase 4: Architecture Improvements
 
 #### 4.1 Dependency Injection
-- **Autofac → Microsoft.Extensions.DependencyInjection**: Migrate to built-in DI
-- **Service Registration**: Modernize service registration patterns
-- **Configuration**: Use Microsoft.Extensions.Configuration
+- ✅ Migrated to Microsoft.Extensions.DependencyInjection
+- ✅ Centralized service registration
+- ✅ appsettings.json + options binding
 
 #### 4.2 Logging
-- **NLog → Microsoft.Extensions.Logging**: Migrate to built-in logging
-- **Structured Logging**: Implement structured logging patterns
-- **Log Levels**: Modernize log level usage
+- ✅ Microsoft.Extensions.Logging
+- ✅ Structured logs: search completion, server request handling
+- ✅ Counters exposed in /Fap.api/health/details (chat/search)
 
 #### 4.3 Configuration
 - **app.config → appsettings.json**: Migrate to modern configuration
@@ -114,24 +114,19 @@
 - **Environment Configuration**: Implement environment-based configuration
 
 #### 4.4 HTTP Server Modernization
-- **Custom HttpServer → ASP.NET Core**: Replace custom HTTP server
-- **Minimal APIs**: Use ASP.NET Core minimal APIs
-- **Middleware**: Implement modern middleware patterns
-- **Static Files**: Use built-in static file serving
+- ✅ Kestrel + minimal endpoints (/Fap.api)
+- ✅ Middleware: compression, caching, rate limiting
+- ✅ Static files: /Fap.app.web from Web.Resources
 
 ### Phase 5: Performance and Security
 
 #### 5.1 Performance Improvements
-- **Memory Management**: Use modern memory management patterns
-- **Async Operations**: Implement proper async/await patterns
-- **Caching**: Use modern caching solutions
-- **Compression**: Implement modern compression
+- ✅ Async/parallel fan-out (Compare/Search), async server handlers
+- ✅ Caching (Compare results, WMI, static files)
+- ✅ Compression (Brotli/Gzip)
 
 #### 5.2 Security Updates
-- **Cryptography**: Update to modern cryptographic APIs
-- **Authentication**: Implement modern authentication patterns
-- **Authorization**: Use modern authorization patterns
-- **HTTPS**: Implement proper HTTPS support
+- LAN-only; HTTPS intentionally omitted for performance (can revisit)
 
 ### Phase 6: Testing and Validation
 
