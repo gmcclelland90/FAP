@@ -641,12 +641,12 @@ public class FallbackSystemInfo
 ### Foundation
 - [x] Add System.Management package to `FAP.Foundation`
 - [x] Create `WmiService`
-- [ ] Create hardware information models (optional)
+- [x] Create hardware information models (optional)
 - [x] Update project references (prepare to remove LinqToWmi.Core)
 
 ### System Information Migration
 - [x] Update `SystemInfo` to use `System.Management`
-- [ ] Create `HardwareInfoService` (optional)
+- [x] Create `HardwareInfoService` (optional)
 - [x] Migrate CPU methods (cores, threads, bits, speed)
 - [x] Migrate memory size method
 - [x] Migrate GPU methods (model, count, total memory, resolutions)
@@ -655,15 +655,15 @@ public class FallbackSystemInfo
 - [x] Validate `CompareVerb` outputs unchanged key set
 
 ### Performance Optimization
-- [ ] Add `CachedWmiService` (optional)
-- [ ] Add `ParallelWmiService` (optional)
+- [x] Add `CachedWmiService` (optional)
+- [x] Add `ParallelWmiService` (optional)
 - [x] Implement caching strategies (CompareVerb cache)
-- [x] Add parallel processing (client fan-out in CompareController)
+- [x] Add parallel processing (client fan-out in CompareController; server-side WMI gathering in CompareVerb)
 - [ ] Test performance improvements (manual validation done; formal perf test optional)
 
 ### Error Handling
 - [ ] Add `FallbackSystemInfo` (optional)
-- [ ] Implement fallback mechanisms (optional)
+- [x] Implement fallback mechanisms (implemented inside `SystemInfo` for memory, disk totals/free/count, CPU bits)
 - [ ] Add comprehensive error handling (optional)
 - [ ] Test error scenarios
 

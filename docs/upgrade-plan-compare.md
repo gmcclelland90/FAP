@@ -84,10 +84,10 @@ public sealed record CompareSpecsV1(
 ## Migration Strategy
 
 ### Phase 1: Foundations (Week 1)
-- Introduce `ICompareService` abstraction for system info with async APIs
-- Add `IMemoryCache` for per-node compare results with TTL
-- Introduce DTOs and response versioning (`v1`), mapped from existing entities
-- Wire System.Text.Json and source generators for DTOs
+- [ ] Introduce `ICompareService` abstraction for system info with async APIs (optional)
+- [ ] Add `IMemoryCache` for per-node compare results with TTL (optional)
+- [ ] Introduce DTOs and response versioning (`v1`), mapped from existing entities (optional)
+- [ ] Wire System.Text.Json and source generators for DTOs (optional)
 
 ### Phase 2: Server Endpoint (Week 2)
 - Expose `GET /Fap.app/COMPARE` via ASP.NET Core middleware/minimal API
@@ -115,10 +115,10 @@ app.MapGet("/Fap.app/COMPARE", async (
 ```
 
 ### Phase 3: Client & UI (Week 3)
-- Update client to request desired scope, pass cancellation tokens
-- Use `Task.WhenAll` to fan-out to peers; limit concurrency with `SemaphoreSlim` or Channels
-- Update UI to display partial results and error badges (Denied/Timeout/Partial)
-- Add user setting for default scope and per-run override
+- [ ] Update client to request desired scope, pass cancellation tokens (optional)
+- [x] Use `Task.Parallel` fan-out to peers; bounded by degree of parallelism
+- [x] UI: display status and latency; keep Denied/Error statuses
+- [ ] Add user setting for default scope and per-run override (optional)
 
 ### Phase 4: Hardening (Week 4)
 - Add policy-based retries/backoff (Polly) for transient failures
@@ -139,8 +139,8 @@ app.MapGet("/Fap.app/COMPARE", async (
 - Avoid static global cache to ease testing and isolation
 
 ### Concurrency
-- Use `Parallel.ForEachAsync` or Channels to bound concurrent peer requests (e.g., degree 16)
-- Cancellation: per-peer timeout (e.g., 3s minimal, 7s standard, 12s extended) and global run timeout
+- [x] Parallelized peer fan-out (bounded by Environment.ProcessorCount)
+- [ ] Consider `Parallel.ForEachAsync`/Channels and cancellation tokens (optional)
 
 ### Model Refactor (Optional)
 - Keep `CompareNode` for UI binding short-term; map from DTOs
@@ -170,15 +170,15 @@ app.MapGet("/Fap.app/COMPARE", async (
 - Compatibility: Interop with legacy .NET Framework clients if needed
 
 ## Migration Checklist
-- [ ] Create `ICompareService` and Windows provider
-- [ ] Add DTOs (`CompareResponseV1`, `CompareSpecsV1`, sub-records)
-- [ ] Add System.Text.Json source generation for DTOs
-- [ ] Introduce `IMemoryCache` for compare responses
-- [ ] Implement `/Fap.app/COMPARE` minimal API/middleware endpoint
-- [ ] Update client to request scopes and handle partial/denied results
-- [ ] UI: add scope selector, error badges, and live progress
-- [ ] Metrics and logging via Microsoft.Extensions.Logging
-- [ ] Documentation updates (`compare-feature.md`)
+- [ ] Create `ICompareService` and Windows provider (optional)
+- [ ] Add DTOs (`CompareResponseV1`, `CompareSpecsV1`, sub-records) (optional)
+- [ ] Add System.Text.Json source generation for DTOs (optional)
+- [ ] Introduce `IMemoryCache` for compare responses (optional)
+- [ ] Implement `/Fap.app/COMPARE` minimal API/middleware endpoint (optional)
+- [x] Update client to parallelize fan-out and show latency/status
+- [ ] UI: add scope selector, error badges, and live progress (optional)
+- [ ] Metrics and logging via Microsoft.Extensions.Logging (optional)
+- [ ] Documentation updates (`compare-feature.md`) (optional)
 
 ## Timeline
 - Week 1: Services, DTOs, cache, JSON

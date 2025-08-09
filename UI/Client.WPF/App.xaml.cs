@@ -263,6 +263,12 @@ namespace Fap.Presentation
             services.AddSingleton<ServerUploadLimiterService>();
             services.AddSingleton<OverlordManagerService>();
             services.AddSingleton<UpdateCheckerService>();
+
+            // WMI and hardware info services
+            services.AddMemoryCache();
+            services.AddSingleton<WmiService>();
+            services.AddSingleton<HardwareInfoService>();
+            services.AddSingleton<ParallelWmiService>();
         }
 
         private void RegisterNetworkServices(IServiceCollection services)

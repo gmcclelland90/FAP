@@ -99,6 +99,12 @@ namespace Server.Console
                  services.AddSingleton<ServerUploadLimiterService>();
                  services.AddSingleton<OverlordManagerService>();
 
+                  // WMI and hardware info services
+                  services.AddMemoryCache();
+                  services.AddSingleton<Fap.Foundation.WmiService>();
+                  services.AddSingleton<Fap.Foundation.HardwareInfoService>();
+                  services.AddSingleton<Fap.Foundation.ParallelWmiService>();
+
                  // Register network services
                  services.AddSingleton<MulticastClientService>();
                  services.AddSingleton<MulticastServerService>();
