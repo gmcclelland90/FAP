@@ -76,46 +76,62 @@ namespace FAP.Domain.Handlers
             logger.LogTrace("Client rx: {Verb} p: {Param} source: {Source} overlord: {Overlord}", req.Verb, req.Param, req.SourceID,
                          req.OverlordID);
             logger.LogDebug("FAPClientHandler.HandleAsync: Processing verb: {Verb}", req.Verb);
+            bool handled = false;
             switch (req.Verb)
             {
                 case "BROWSE":
                     logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleBrowse");
-                    return HandleBrowse(e, req);
+                    handled = HandleBrowse(e, req);
+                    break;
                 case "UPDATE":
                     logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleUpdate");
-                    return HandleUpdate(e, req);
+                    handled = HandleUpdate(e, req);
+                    break;
                 case "INFO":
                     logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleInfoAsync");
-                    return await HandleInfoAsync(e);
+                    handled = await HandleInfoAsync(e);
+                    break;
                 case "NOOP":
                     logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleNOOP");
-                    return HandleNOOP(e, req);
+                    handled = HandleNOOP(e, req);
+                    break;
                 case "GET":
                     logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleGet");
-                    return HandleGet(e, req);
+                    handled = HandleGet(e, req);
+                    break;
                 case "DISCONNECT":
                     logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleDisconnect");
-                    return HandleDisconnect(e);
+                    handled = HandleDisconnect(e);
+                    break;
                 case "CHAT":
                     logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleChat");
-                    return HandleChat(e, req);
+                    handled = HandleChat(e, req);
+                    break;
                 case "COMPARE":
                     logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleCompareAsync");
-                    return await HandleCompareAsync(e, req);
+                    handled = await HandleCompareAsync(e, req);
+                    break;
                 case "SEARCH":
                     logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleSearch");
-                    return HandleSearch(e, req);
+                    handled = HandleSearch(e, req);
+                    break;
                 case "CONVERSTATION":
                     logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleConversation");
-                    return HandleConversation(e, req);
+                    handled = HandleConversation(e, req);
+                    break;
                 case "ADDDOWNLOAD":
                     logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleAddDownload");
-                    return HandleAddDownload(e, req);
+                    handled = HandleAddDownload(e, req);
+                    break;
                 default:
                     logger.LogDebug("FAPClientHandler.HandleAsync: Unknown verb: {Verb}", req.Verb);
                     break;
             }
-            return false;
+            if (handled)
+            {
+                e.IsHandled = true;
+            }
+            return handled;
         }
 
         #endregion
@@ -236,6 +252,7 @@ namespace FAP.Domain.Handlers
                 verb.ProcessRequest(req);
                 if (chatController.HandleMessage(verb.SourceID, verb.Nickname, verb.Message))
                 {
+                    FAP.Shared.FapMetrics.Inc(ref FAP.Shared.FapMetrics.ConversationDelivered);
                     SendOk(e);
                     return true;
                 }
@@ -294,6 +311,7 @@ namespace FAP.Domain.Handlers
             var verb = new ChatVerb();
             verb.ReceiveResponse(req);
             model.Messages.AddRotate(verb.Nickname + ":" + verb.Message, 50);
+            FAP.Shared.FapMetrics.Inc(ref FAP.Shared.FapMetrics.ClientChatReceived);
             SendOk(e);
             SafeObservingCollectionManager.UpdateNowAsync();
             return true;

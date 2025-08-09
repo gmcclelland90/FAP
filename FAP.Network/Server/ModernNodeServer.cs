@@ -132,6 +132,14 @@ namespace FAP.Network.Server
                                         activeRequests = _activeRequests,
                                         time = DateTimeOffset.UtcNow,
                                         rateLimit429 = new { interactive = i429, downloads = d429, @default = r429 },
+                                        chat = new {
+                                            received = FAP.Shared.FapMetrics.Read(ref FAP.Shared.FapMetrics.ChatReceived),
+                                            forwarded = FAP.Shared.FapMetrics.Read(ref FAP.Shared.FapMetrics.ChatForwarded),
+                                            failures = FAP.Shared.FapMetrics.Read(ref FAP.Shared.FapMetrics.ChatFailures),
+                                            clientReceived = FAP.Shared.FapMetrics.Read(ref FAP.Shared.FapMetrics.ClientChatReceived),
+                                            conversationSent = FAP.Shared.FapMetrics.Read(ref FAP.Shared.FapMetrics.ConversationSent),
+                                            conversationDelivered = FAP.Shared.FapMetrics.Read(ref FAP.Shared.FapMetrics.ConversationDelivered)
+                                        },
                                         timingsMs = new
                                         {
                                             interactive = new { count = ir, total = it, avg = ir > 0 ? (double)it / ir : 0.0 },
@@ -393,7 +401,7 @@ namespace FAP.Network.Server
                 else if (request.Method == HttpMethods.Get && request.Path.HasValue && request.Path.Value!.StartsWith("/Fap.app.web/"))
                 {
                     // If static files didn't serve (icon or dynamic), forward to subscribers (ModernHTTPHandler)
-                    if (OnRequestAsync != null)
+                if (OnRequestAsync != null)
                         await OnRequestAsync(this, requestArgs);
                     else
                         OnRequest?.Invoke(this, requestArgs);
@@ -410,7 +418,7 @@ namespace FAP.Network.Server
                 {
                     // Let ModernHTTPHandler process legacy dynamic pages (index/template etc.) via the event
                     if (OnRequestAsync != null)
-                        await OnRequestAsync(this, requestArgs);
+                    await OnRequestAsync(this, requestArgs);
                     else
                         OnRequest?.Invoke(this, requestArgs);
 
@@ -428,7 +436,7 @@ namespace FAP.Network.Server
                     if (OnRequestAsync != null)
                         await OnRequestAsync(this, requestArgs);
                     else
-                        OnRequest?.Invoke(this, requestArgs);
+                    OnRequest?.Invoke(this, requestArgs);
 
                     if (!requestArgs.IsHandled && !context.Response.HasStarted)
                     {

@@ -177,17 +177,20 @@ namespace FAP.Domain.Handlers
 
         private void SendToStandardClients(NetworkRequest r)
         {
-            logger.LogDebug("SendToStandardClients: Sending to {Count} standard clients", connectedClientNodes.ToList().Where(c => c.Node.NodeType == ClientType.Client).Count());
-            foreach (ClientStream peer in connectedClientNodes.ToList().Where(c => c.Node.NodeType == ClientType.Client)
-                )
+            var targets = connectedClientNodes.ToList().Where(c => c.Node.NodeType == ClientType.Client).ToList();
+            logger.LogDebug("CHAT forward: to {Count} clients", targets.Count);
+            foreach (ClientStream peer in targets)
                 peer.AddMessage(r);
+            FAP.Shared.FapMetrics.Add(ref FAP.Shared.FapMetrics.ChatForwarded, targets.Count);
         }
 
         private void SendToOverlordClients(NetworkRequest r)
         {
-            foreach (
-                ClientStream peer in connectedClientNodes.ToList().Where(c => c.Node.NodeType == ClientType.Overlord))
+            var targets = connectedClientNodes.ToList().Where(c => c.Node.NodeType == ClientType.Overlord).ToList();
+            logger.LogDebug("CHAT forward: to {Count} overlords", targets.Count);
+            foreach (ClientStream peer in targets)
                 peer.AddMessage(r);
+            FAP.Shared.FapMetrics.Add(ref FAP.Shared.FapMetrics.ChatForwarded, targets.Count);
         }
 
         private void SendToOverlordServers(NetworkRequest r)
@@ -658,6 +661,7 @@ namespace FAP.Domain.Handlers
 
         private bool HandleChat(NetworkRequest r, FAP.Network.Server.RequestEventArgs e)
         {
+            FAP.Shared.FapMetrics.Inc(ref FAP.Shared.FapMetrics.ChatReceived);
             //If an overlord id is set then this has come from an external overlord
             if (string.IsNullOrEmpty(r.OverlordID))
             {

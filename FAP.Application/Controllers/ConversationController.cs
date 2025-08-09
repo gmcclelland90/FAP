@@ -63,7 +63,7 @@ namespace FAP.Application.Controllers
             }
         }
 
-        private void SendMessage()
+        private async void SendMessage()
         {
             if (viewModel?.Conversation?.OtherParty == null)
             {
@@ -83,16 +83,18 @@ namespace FAP.Application.Controllers
                 var message = $"You: {viewModel.CurrentChatMessage}";
                 viewModel.Conversation.Messages.Add(message);
                 
-                // Send the message via network
-                var chatVerb = new ChatVerb();
-                chatVerb.Message = viewModel.CurrentChatMessage;
-                chatVerb.Nickname = model.Nickname;
-                chatVerb.SourceID = model.LocalNode.ID;
+                // Send the direct conversation message via network (1:1)
+                var convoVerb = new ConversationVerb();
+                convoVerb.Message = viewModel.CurrentChatMessage;
+                convoVerb.Nickname = model.Nickname;
+                // SourceID is stamped by transport headers
                 
                 var client = new ModernHttpClient(model.LocalNode, serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<FAP.Domain.Net.ModernHttpClient>>());
-                if (client.ExecuteAsync(chatVerb, viewModel.Conversation.OtherParty).Result)
+                var ok = await client.ExecuteAsync(convoVerb, viewModel.Conversation.OtherParty);
+                if (ok)
                 {
                     logger.LogDebug("Message sent to {Nickname}: {Message}", viewModel.Conversation.OtherParty.Nickname, viewModel.CurrentChatMessage);
+                    FAP.Shared.FapMetrics.Inc(ref FAP.Shared.FapMetrics.ConversationSent);
                 }
                 else
                 {
