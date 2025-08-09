@@ -10,10 +10,12 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using FAP.Network.Entities;
+using Microsoft.Extensions.FileProviders;
 
 namespace FAP.Network.Server
 {
@@ -48,9 +50,32 @@ namespace FAP.Network.Server
                 _host = Host.CreateDefaultBuilder()
                     .ConfigureWebHostDefaults(webBuilder =>
                     {
-                        webBuilder.UseUrls($"http://{address}:{port}");
+                        webBuilder.UseKestrel(k =>
+                        {
+                            // Listen on provided address/port and enable HTTP/1.1 + HTTP/2 + HTTP/3
+                            k.Listen(address, port, lo =>
+                            {
+                                lo.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
+                            });
+                            k.AddServerHeader = false;
+                        });
                         webBuilder.Configure(app =>
                         {
+                            // Performance middleware
+                            app.UseResponseCompression();
+                            app.UseResponseCaching();
+
+                            // Serve legacy web resources at /Fap.app.web
+                            var staticRoot = Path.Combine(AppContext.BaseDirectory, "Web.Resources");
+                            if (Directory.Exists(staticRoot))
+                            {
+                                app.UseStaticFiles(new StaticFileOptions
+                                {
+                                    FileProvider = new PhysicalFileProvider(staticRoot),
+                                    RequestPath = "/Fap.app.web"
+                                });
+                            }
+
                             app.UseRouting();
                             app.UseEndpoints(endpoints =>
                             {
@@ -62,6 +87,11 @@ namespace FAP.Network.Server
                     .ConfigureServices(services =>
                     {
                         services.AddSingleton(_serviceProvider);
+                        services.AddResponseCompression(o =>
+                        {
+                            o.EnableForHttps = true;
+                        });
+                        services.AddResponseCaching();
                     })
                     .Build();
 
