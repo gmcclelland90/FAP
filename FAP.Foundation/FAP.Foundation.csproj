@@ -19,7 +19,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\libs\LinqToWmi\LinqToWmi.Core\LinqToWmi.Core.csproj" />
     <ProjectReference Include="..\libs\WpfApplicationFramework\WpfApplicationFramework\WpfApplicationFramework\WpfApplicationFramework.csproj" />
   </ItemGroup>
 

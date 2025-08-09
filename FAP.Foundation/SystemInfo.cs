@@ -21,7 +21,6 @@ using System.Text;
 using Microsoft.Win32;
 using System.Management;
 using System.Net.NetworkInformation;
-using Fap.Foundation.WMI_Prototypes;
 using Fap.Foundation;
 
 namespace Fap.Foundation
