@@ -455,7 +455,6 @@ public class FapWebHost
 - File download path performance
   - [x] Enable range requests for large file downloads handled in `ModernHTTPHandler` (range-aware streaming)
   - [x] Add HEAD, ETag, If-Range handling for downloads
-  - [ ] Consider mapping direct downloads to static-file pipeline where feasible to leverage kernel sendfile
 
 - Observability
   - [x] Add `/health/details` with uptime and activeRequests counters

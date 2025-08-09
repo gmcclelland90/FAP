@@ -114,11 +114,27 @@ namespace FAP.Network.Server
                                 });
                                 endpoints.MapGet("/health/details", async context =>
                                 {
+                                    long ir = System.Threading.Interlocked.Read(ref _interactiveRequests);
+                                    long it = System.Threading.Interlocked.Read(ref _interactiveTotalMs);
+                                    long dr = System.Threading.Interlocked.Read(ref _downloadsRequests);
+                                    long dt = System.Threading.Interlocked.Read(ref _downloadsTotalMs);
+                                    long rr = System.Threading.Interlocked.Read(ref _defaultRequests);
+                                    long rt = System.Threading.Interlocked.Read(ref _defaultTotalMs);
+                                    long i429 = System.Threading.Interlocked.Read(ref _interactive429);
+                                    long d429 = System.Threading.Interlocked.Read(ref _downloads429);
+                                    long r429 = System.Threading.Interlocked.Read(ref _default429);
                                     var payload = new
                                     {
                                         uptimeMs = _uptime.ElapsedMilliseconds,
                                         activeRequests = _activeRequests,
-                                        time = DateTimeOffset.UtcNow
+                                        time = DateTimeOffset.UtcNow,
+                                        rateLimit429 = new { interactive = i429, downloads = d429, @default = r429 },
+                                        timingsMs = new
+                                        {
+                                            interactive = new { count = ir, total = it, avg = ir > 0 ? (double)it / ir : 0.0 },
+                                            downloads = new { count = dr, total = dt, avg = dr > 0 ? (double)dt / dr : 0.0 },
+                                            @default = new { count = rr, total = rt, avg = rr > 0 ? (double)rt / rr : 0.0 }
+                                        }
                                     };
                                     context.Response.ContentType = "application/json";
                                     await context.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(payload));
@@ -162,6 +178,23 @@ namespace FAP.Network.Server
                         services.AddRateLimiter(options =>
                         {
                             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+                            options.OnRejected = (context, token) =>
+                            {
+                                var path = context.HttpContext?.Request?.Path.Value ?? string.Empty;
+                                if (path.StartsWith("/Fap.app/", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    System.Threading.Interlocked.Increment(ref _interactive429);
+                                }
+                                else if (path.StartsWith("/Fap.app.web/", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    System.Threading.Interlocked.Increment(ref _downloads429);
+                                }
+                                else
+                                {
+                                    System.Threading.Interlocked.Increment(ref _default429);
+                                }
+                                return ValueTask.CompletedTask;
+                            };
                             // default for general endpoints
                             options.AddFixedWindowLimiter("default", o =>
                             {
@@ -217,6 +250,16 @@ namespace FAP.Network.Server
 
         private static long _activeRequests = 0;
         private static readonly Stopwatch _uptime = Stopwatch.StartNew();
+        // Per-route metrics
+        private static long _interactiveRequests = 0;
+        private static long _interactiveTotalMs = 0;
+        private static long _downloadsRequests = 0;
+        private static long _downloadsTotalMs = 0;
+        private static long _defaultRequests = 0;
+        private static long _defaultTotalMs = 0;
+        private static long _interactive429 = 0;
+        private static long _downloads429 = 0;
+        private static long _default429 = 0;
 
         private async Task HandleRequest(HttpContext context)
         {
@@ -226,6 +269,8 @@ namespace FAP.Network.Server
                 var request = context.Request;
                 var response = context.Response;
                 var sw = Stopwatch.StartNew();
+                string category = request.Path.HasValue && request.Path.Value!.StartsWith("/Fap.app/") ? "interactive"
+                                  : (request.Path.HasValue && request.Path.Value!.StartsWith("/Fap.app.web/") ? "downloads" : "default");
                 using var scope = _logger.BeginScope(new Dictionary<string, object>
                 {
                     ["RequestId"] = context.TraceIdentifier,
@@ -330,7 +375,23 @@ namespace FAP.Network.Server
                 }
 
                 sw.Stop();
-                _logger.LogDebug("Handled {Method} {Path} -> {StatusCode} in {ElapsedMs} ms", request.Method, request.Path, response.StatusCode, sw.ElapsedMilliseconds);
+                var elapsed = sw.ElapsedMilliseconds;
+                switch (category)
+                {
+                    case "interactive":
+                        System.Threading.Interlocked.Increment(ref _interactiveRequests);
+                        System.Threading.Interlocked.Add(ref _interactiveTotalMs, elapsed);
+                        break;
+                    case "downloads":
+                        System.Threading.Interlocked.Increment(ref _downloadsRequests);
+                        System.Threading.Interlocked.Add(ref _downloadsTotalMs, elapsed);
+                        break;
+                    default:
+                        System.Threading.Interlocked.Increment(ref _defaultRequests);
+                        System.Threading.Interlocked.Add(ref _defaultTotalMs, elapsed);
+                        break;
+                }
+                _logger.LogDebug("Handled {Method} {Path} -> {StatusCode} in {ElapsedMs} ms", request.Method, request.Path, response.StatusCode, elapsed);
             }
             catch (Exception ex)
             {
