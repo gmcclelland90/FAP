@@ -265,7 +265,7 @@ namespace FAP.Domain.Handlers
 
         private async Task<bool> HandleSearchAsync(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
         {
-            //We dont do this on a server..
+            FAP.Shared.FapMetrics.Inc(ref FAP.Shared.FapMetrics.SearchRequested);
             var verb = new SearchVerb(shareInfoService);
             NetworkRequest result = verb.ProcessRequest(req);
             byte[] data = Encoding.UTF8.GetBytes(result.Data);
@@ -275,6 +275,7 @@ namespace FAP.Domain.Handlers
             await e.Context.Stream.WriteAsync(data, 0, data.Length);
             await e.Context.Stream.FlushAsync();
             data = null!;
+            FAP.Shared.FapMetrics.Inc(ref FAP.Shared.FapMetrics.SearchCompleted);
             return true;
         }
 

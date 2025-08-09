@@ -140,6 +140,11 @@ namespace FAP.Network.Server
                                             conversationSent = FAP.Shared.FapMetrics.Read(ref FAP.Shared.FapMetrics.ConversationSent),
                                             conversationDelivered = FAP.Shared.FapMetrics.Read(ref FAP.Shared.FapMetrics.ConversationDelivered)
                                         },
+                                        search = new {
+                                            requested = FAP.Shared.FapMetrics.Read(ref FAP.Shared.FapMetrics.SearchRequested),
+                                            completed = FAP.Shared.FapMetrics.Read(ref FAP.Shared.FapMetrics.SearchCompleted),
+                                            failures = FAP.Shared.FapMetrics.Read(ref FAP.Shared.FapMetrics.SearchFailures)
+                                        },
                                         timingsMs = new
                                         {
                                             interactive = new { count = ir, total = it, avg = ir > 0 ? (double)it / ir : 0.0 },

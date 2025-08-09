@@ -629,7 +629,7 @@ namespace FAP.Domain.Handlers
 
         private bool HandleSearch(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
         {
-            //We dont do this on a server..
+            FAP.Shared.FapMetrics.Inc(ref FAP.Shared.FapMetrics.SearchRequested);
             var verb = new SearchVerb(null);
             NetworkRequest result = verb.ProcessRequest(req);
             byte[] data = Encoding.UTF8.GetBytes(result.Data);
@@ -639,6 +639,7 @@ namespace FAP.Domain.Handlers
             e.Context.Stream.Write(data, 0, data.Length);
             e.Context.Stream.Flush();
             data = null;
+            FAP.Shared.FapMetrics.Inc(ref FAP.Shared.FapMetrics.SearchCompleted);
             return true;
         }
 

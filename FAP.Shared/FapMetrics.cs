@@ -12,6 +12,11 @@ namespace FAP.Shared
         public static long ConversationSent;      // Client: 1:1 sent
         public static long ConversationDelivered; // Client: 1:1 delivered/handled
 
+        // Search counters
+        public static long SearchRequested;       // Server/Client: SEARCH received
+        public static long SearchCompleted;       // Server/Client: SEARCH completed successfully
+        public static long SearchFailures;        // Server/Client: SEARCH processing failures
+
         public static void Inc(ref long counter) => Interlocked.Increment(ref counter);
         public static void Add(ref long counter, long value) => Interlocked.Add(ref counter, value);
         public static long Read(ref long counter) => Interlocked.Read(ref counter);
