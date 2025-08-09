@@ -37,9 +37,6 @@ using Fap.Foundation.Services;
 using FAP.Network;
 using FAP.Shared.Entities;
 using FAP.Network.Services;
-using HttpServer;
-using HttpServer.Headers;
-using HttpServer.Messages;
 using Microsoft.Extensions.Logging;
 
 namespace FAP.Domain.Handlers

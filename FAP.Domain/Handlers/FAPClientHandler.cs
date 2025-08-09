@@ -28,8 +28,7 @@ using FAP.Domain.Verbs;
 using Fap.Foundation;
 using FAP.Network;
 using FAP.Shared.Entities;
-using HttpServer;
-using HttpServer.Messages;
+// Legacy HttpServer usings removed
 using Microsoft.Extensions.Logging;
 
 namespace FAP.Domain.Handlers

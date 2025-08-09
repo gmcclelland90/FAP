@@ -23,8 +23,7 @@ using System.Linq;
 using System.Text;
 using FAP.Network.Entities;
 using FAP.Network.Server;
-using HttpServer;
-using HttpServer.Headers;
+// Legacy HttpServer references removed
 using Microsoft.Extensions.Logging;
 
 namespace FAP.Network
@@ -57,57 +56,7 @@ namespace FAP.Network
             return result;
         }
 
-        public static NetworkRequest Decode(IRequest r)
-        {
-            var req = new NetworkRequest();
-            if (!r.Uri.AbsolutePath.StartsWith(preample))
-                throw new Exception("Malformed url");
-            req.Verb = r.Uri.AbsolutePath.Substring(preample.Length);
-
-            IParameter param = r.Parameters.Where(p => p.Name == "p").FirstOrDefault();
-            if (null != param)
-            {
-                req.Param = Encoding.UTF8.GetString(Convert.FromBase64String(param.Value.Replace('_', '+')));
-            }
-            if (r.Method == "POST")
-            {
-                req.Data = GetPostString(r);
-            }
-
-            var headers = r.Headers as HeaderCollection;
-            if (null != headers)
-            {
-                foreach (IHeader  h in headers)
-                {
-                    var header = h as StringHeader;
-                    if (null != header)
-                    {
-                        switch (header.Name.ToUpper())
-                        {
-                            case "FAP-AUTH":
-                                req.AuthKey = header.Value;
-                                break;
-                            case "FAP-SOURCE":
-                                req.SourceID = header.Value;
-                                break;
-                            case "FAP-OVERLORD":
-                                req.OverlordID = header.Value;
-                                break;
-                        }
-                    }
-                }
-            }
-            return req;
-        }
-
-
-        public static string GetPostString(IRequest e)
-        {
-            using (var reader = new StreamReader(e.Body, Encoding.UTF8))
-            {
-                return reader.ReadToEnd();
-            }
-        }
+        // Legacy Decode(IRequest) and GetPostString(IRequest) removed
 
         public static async Task<NetworkRequest> DecodeModernAsync(ModernHttpRequest r)
         {
