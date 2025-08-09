@@ -32,6 +32,12 @@ namespace FAP.Domain.Verbs
         private static long cacheTime;
         private readonly Model model;
 
+        // Parameterless constructor for JSON deserialization
+        public CompareVerb()
+        {
+            model = null!; // not used on the deserialized instance
+        }
+
         public CompareVerb(Model m)
         {
             model = m;

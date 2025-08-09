@@ -338,26 +338,26 @@ public class StreamingJsonService
 ## Migration Checklist
 
 ### Foundation
-- [ ] Add System.Text.Json configuration (Indented/Compact options)
-- [ ] Update BaseEntity persistence to System.Text.Json
-- [ ] Update project references
-- [ ] Remove Newtonsoft.Json packages (after entity/service migration)
+- [x] Add System.Text.Json configuration (Indented/Compact options)
+- [x] Update BaseEntity persistence to System.Text.Json
+- [x] Update project references
+- [x] Remove Newtonsoft.Json packages (after entity/service migration)
 
 ### Entity Migration
-- [ ] Replace `using Newtonsoft.Json` with `using System.Text.Json.Serialization`
-- [ ] Update Model entity
-- [ ] Update NetworkRequest entity
-- [ ] Update DownloadRequest entity
-- [ ] Update Share entity
-- [ ] Update Node entity
-- [ ] Update Overlord entity
-- [ ] Update SearchResult entity
+- [x] Replace `using Newtonsoft.Json` with `using System.Text.Json.Serialization`
+- [x] Update Model entity
+- [ ] Update NetworkRequest entity (verify if persisted/serialized; adjust if needed)
+- [ ] Update DownloadRequest entity (verify usage; likely attributes only)
+- [ ] Update Share entity (verify usage; likely attributes only)
+- [ ] Update Node entity (verify usage; likely attributes only)
+- [ ] Update Overlord entity (attributes swapped)
+- [ ] Update SearchResult entity (attributes swapped)
 
 ### Service Migration
-- [ ] Update BaseVerb for System.Text.Json
+- [x] Update BaseVerb for System.Text.Json
 - [ ] Update TemplateEngine
-- [ ] Update configuration persistence
-- [ ] Update protocol serialization
+- [x] Update configuration persistence (Model, BaseEntity, DownloadQueue)
+- [x] Update protocol serialization (verbs use System.Text.Json)
 - [ ] Test serialization/deserialization
 
 ### Performance Optimization

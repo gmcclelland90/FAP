@@ -289,6 +289,7 @@ namespace FAP.Domain.Entities
         }
 
         [DataMember(Name = "Node")]
+        [JsonPropertyName("Node")]
         public SafeDictionary<string, string> Data
         {
             get { return data; }

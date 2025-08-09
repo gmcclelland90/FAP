@@ -12,6 +12,12 @@ namespace FAP.Domain.Verbs
         private readonly ShareInfoService shareInfoService;
         private List<SearchResult> results = new List<SearchResult>();
 
+        // Parameterless constructor for JSON deserialization
+        public SearchVerb()
+        {
+            shareInfoService = null!; // not used on the deserialized instance
+        }
+
         public SearchVerb(ShareInfoService s)
         {
             shareInfoService = s;

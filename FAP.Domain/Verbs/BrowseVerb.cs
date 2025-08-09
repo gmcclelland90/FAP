@@ -12,6 +12,13 @@ namespace FAP.Domain.Verbs
     {
         private readonly ShareInfoService _infoService;
 
+        // Parameterless constructor for JSON deserialization
+        public BrowseVerb()
+        {
+            Results = new List<BrowsingFile>();
+            _infoService = null!; // not used on the deserialized instance
+        }
+
         public BrowseVerb(ShareInfoService i)
         {
             _infoService = i;
