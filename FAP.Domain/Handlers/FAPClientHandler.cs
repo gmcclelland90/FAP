@@ -139,6 +139,7 @@ namespace FAP.Domain.Handlers
                 {
                     if (File.Exists(possiblePath))
                     {
+                        // Keep session for progress accounting; uploader is deprecated
                         var ffu = new FAPFileUploader(bufferService, serverUploadLimiterService, Microsoft.Extensions.Logging.Abstractions.NullLogger<FAPFileUploader>.Instance);
                         var session = new TransferSession(ffu);
                         model.TransferSessions.Add(session);
@@ -153,8 +154,7 @@ namespace FAP.Domain.Handlers
                             using (
                                 FileStream fs = File.Open(possiblePath, FileMode.Open, FileAccess.Read, FileShare.Read))
                             {
-                                // TODO: Implement modern upload functionality
-                                // ffu.DoUpload(e.Context, fs, userName, possiblePath);
+                                // TODO: Implement modern upload functionality (streaming handled by ModernHTTPHandler for now)
                                 logger.LogInformation("Upload requested for {Path} by {User}", possiblePath, userName);
                             }
 
