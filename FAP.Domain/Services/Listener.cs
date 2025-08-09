@@ -61,18 +61,19 @@ namespace FAP.Domain.Services
             listener = new ModernNodeServer(serviceProvider, serviceProvider.GetRequiredService<ILogger<ModernNodeServer>>());
             listener.OnRequestAsync += listener_OnRequestAsync;
 
+            // Determine initial bind address and port once, then retry by incrementing port when needed
+            var listenOptions = serviceProvider.GetService<Microsoft.Extensions.Options.IOptions<FAP.Network.Server.FapListenOptions>>()?.Value;
+            var listenAddress = listenOptions?.Address;
+            var ip = !string.IsNullOrWhiteSpace(listenAddress) ? IPAddress.Parse(listenAddress) : IPAddress.Parse(model.LocalNode.Host);
+            int port = (!isServer && listenOptions?.Port != null) ? listenOptions!.Port!.Value : inport;
+
             bool trybind = true;
-            int port = inport;
             do
             {
                 try
                 {
-                    // Prefer configured listen address/port if provided; fall back to model
-                    var listenOptions = serviceProvider.GetService<Microsoft.Extensions.Options.IOptions<FAP.Network.Server.FapListenOptions>>()?.Value;
-                    var listenAddress = listenOptions?.Address;
-                    var listenPort = listenOptions?.Port ?? port;
-                    var ip = !string.IsNullOrWhiteSpace(listenAddress) ? IPAddress.Parse(listenAddress) : IPAddress.Parse(model.LocalNode.Host);
-                    listener.Start(ip, listenPort);
+                    logger.LogInformation("Attempting to bind HTTP listener on {Address}:{Port} (isServer={IsServer})", ip, port, isServer);
+                    listener.Start(ip, port);
                     trybind = false;
                     if (isServer)
                     {
@@ -110,12 +111,13 @@ namespace FAP.Domain.Services
                     else
                     {
                         logger.LogWarning(ex, "Failed to bind to port {Port}, trying next port", port);
-                        //Try again
+                        // Try next port for client listener
                         port++;
                         if (inport + 100 < port)
                         {
                             throw new Exception("Could not bind listener");
                         }
+                        logger.LogInformation("Retrying bind on {Address}:{Port}", ip, port);
                     }
                 }
             } while (trybind);

@@ -112,10 +112,10 @@ namespace FAP.Network.Server
                                     context.Response.ContentType = "text/plain";
                                     await context.Response.WriteAsync("OK");
                                 });
-                                endpoints.MapGet("/{**path}", HandleRequest)
+                                // Consolidated routing
+                                endpoints.MapMethods("/Fap.app/{**path}", new[] { "GET", "POST" }, HandleRequest)
                                          .RequireRateLimiting("default");
-                                endpoints.MapPost("/{**path}", HandleRequest)
-                                         .RequireRateLimiting("default");
+                                endpoints.MapMethods("/{**path}", new[] { "GET", "POST" }, HandleRequest);
                             });
                         });
                     })
@@ -192,39 +192,78 @@ namespace FAP.Network.Server
                     ["Path"] = request.Path.ToString()
                 });
 
-                // Check User-Agent to determine if this is a FAP request
-                string userAgent = request.Headers["User-Agent"].FirstOrDefault() ?? string.Empty;
-                bool isFapRequest = userAgent.StartsWith("FAP");
-
-                // Create request event args with context
                 var modernContext = new ModernHttpContext(context);
-                var requestArgs = new RequestEventArgs(new ModernHttpRequest(request), new ModernHttpResponse(response), modernContext);
+                var modernRequest = new ModernHttpRequest(request);
+                var modernResponse = new ModernHttpResponse(response);
+                var requestArgs = new RequestEventArgs(modernRequest, modernResponse, modernContext);
 
-                // Determine request type
-                RequestType requestType = isFapRequest ? RequestType.FAP : RequestType.HTTP;
-
-                _logger.LogDebug("Incoming {Method} {Path} (Type={RequestType}) UA={UserAgent}", request.Method, request.Path, requestType, userAgent);
-
-                // Invoke the OnRequest event (async if available, sync as fallback)
-                if (OnRequestAsync != null)
+                bool isFapPath = request.Path.HasValue && request.Path.Value!.StartsWith("/Fap.app/");
+                if (isFapPath)
                 {
-                    await OnRequestAsync(this, requestArgs);
+                    // FAP protocol request: forward to subscribers (ListenerService) and exit
+                    if (OnRequestAsync != null)
+                        await OnRequestAsync(this, requestArgs);
+                    else
+                        OnRequest?.Invoke(this, requestArgs);
+
+                    if (!requestArgs.IsHandled)
+                    {
+                        _logger.LogWarning("Unhandled FAP request {Method} {Path}", request.Method, request.Path);
+                        if (!context.Response.HasStarted)
+                        {
+                            response.StatusCode = StatusCodes.Status404NotFound;
+                            response.ContentLength = null; // avoid mismatch if a subscriber set Content-Length
+                            response.ContentType = "text/plain";
+                            await response.WriteAsync("Not Found");
+                        }
+                    }
+                }
+                else if (request.Method == HttpMethods.Get && request.Path.HasValue && request.Path.Value!.StartsWith("/Fap.app.web/"))
+                {
+                    // If static files didn't serve (icon or dynamic), forward to subscribers (ModernHTTPHandler)
+                    if (OnRequestAsync != null)
+                        await OnRequestAsync(this, requestArgs);
+                    else
+                        OnRequest?.Invoke(this, requestArgs);
+
+                    if (!requestArgs.IsHandled && !context.Response.HasStarted)
+                    {
+                        response.StatusCode = StatusCodes.Status404NotFound;
+                        response.ContentLength = null;
+                        response.ContentType = "text/plain";
+                        await response.WriteAsync("Not Found");
+                    }
+                }
+                else if (request.Method == HttpMethods.Get)
+                {
+                    // Let ModernHTTPHandler process legacy dynamic pages (index/template etc.) via the event
+                    if (OnRequestAsync != null)
+                        await OnRequestAsync(this, requestArgs);
+                    else
+                        OnRequest?.Invoke(this, requestArgs);
+
+                    if (!requestArgs.IsHandled && !context.Response.HasStarted)
+                    {
+                        response.StatusCode = StatusCodes.Status404NotFound;
+                        response.ContentLength = null;
+                        response.ContentType = "text/plain";
+                        await response.WriteAsync("Not Found");
+                    }
                 }
                 else
                 {
-                    OnRequest?.Invoke(this, requestArgs);
-                }
+                    // Fallback: hand to subscribers
+                    if (OnRequestAsync != null)
+                        await OnRequestAsync(this, requestArgs);
+                    else
+                        OnRequest?.Invoke(this, requestArgs);
 
-                if (!requestArgs.IsHandled)
-                {
-                    _logger.LogWarning("Unhandled request {Method} {Path}", request.Method, request.Path);
-                    // Only set status code if response hasn't started yet
-                    if (!context.Response.HasStarted)
+                    if (!requestArgs.IsHandled && !context.Response.HasStarted)
                     {
-                        response.StatusCode = 500;
-                        string errorMessage = "Handler error";
-                        response.ContentLength = System.Text.Encoding.UTF8.GetByteCount(errorMessage);
-                        await response.WriteAsync(errorMessage);
+                        response.StatusCode = StatusCodes.Status404NotFound;
+                        response.ContentLength = null;
+                        response.ContentType = "text/plain";
+                        await response.WriteAsync("Not Found");
                     }
                 }
 
@@ -237,9 +276,10 @@ namespace FAP.Network.Server
                 // Only set status code if response hasn't started yet
                 if (!context.Response.HasStarted)
                 {
-                    context.Response.StatusCode = 500;
-                    string errorMessage = "Internal server error";
-                    context.Response.ContentLength = System.Text.Encoding.UTF8.GetByteCount(errorMessage);
+                    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                    const string errorMessage = "Internal server error";
+                    // Do not set ContentLength to avoid mismatches if any filters wrote headers
+                    context.Response.ContentType = "text/plain";
                     await context.Response.WriteAsync(errorMessage);
                 }
             }
