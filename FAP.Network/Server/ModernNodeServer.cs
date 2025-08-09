@@ -112,10 +112,24 @@ namespace FAP.Network.Server
                                     context.Response.ContentType = "text/plain";
                                     await context.Response.WriteAsync("OK");
                                 });
+                                endpoints.MapGet("/health/details", async context =>
+                                {
+                                    var payload = new
+                                    {
+                                        uptimeMs = _uptime.ElapsedMilliseconds,
+                                        activeRequests = _activeRequests,
+                                        time = DateTimeOffset.UtcNow
+                                    };
+                                    context.Response.ContentType = "application/json";
+                                    await context.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(payload));
+                                });
                                 // Consolidated routing
                                 endpoints.MapMethods("/Fap.app/{**path}", new[] { "GET", "POST" }, HandleRequest)
+                                         .RequireRateLimiting("interactive");
+                                endpoints.MapGet("/Fap.app.web/{**path}", HandleRequest)
+                                         .RequireRateLimiting("downloads");
+                                endpoints.MapMethods("/{**path}", new[] { "GET", "POST" }, HandleRequest)
                                          .RequireRateLimiting("default");
-                                endpoints.MapMethods("/{**path}", new[] { "GET", "POST" }, HandleRequest);
                             });
                         });
                     })
@@ -127,6 +141,12 @@ namespace FAP.Network.Server
                         services.AddResponseCompression(o =>
                         {
                             o.EnableForHttps = true;
+                            // Focus compression on text types for CPU efficiency on LAN
+                            o.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[]
+                            {
+                                "image/svg+xml",
+                                "application/json"
+                            });
                             o.Providers.Add<BrotliCompressionProvider>();
                             o.Providers.Add<GzipCompressionProvider>();
                         });
@@ -142,10 +162,27 @@ namespace FAP.Network.Server
                         services.AddRateLimiter(options =>
                         {
                             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+                            // default for general endpoints
                             options.AddFixedWindowLimiter("default", o =>
                             {
                                 o.Window = TimeSpan.FromSeconds(1);
                                 o.PermitLimit = 200; // tune for LAN
+                                o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+                                o.QueueLimit = 0;
+                            });
+                            // More generous for downloads
+                            options.AddFixedWindowLimiter("downloads", o =>
+                            {
+                                o.Window = TimeSpan.FromSeconds(1);
+                                o.PermitLimit = 400; // allow more parallel GETs
+                                o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+                                o.QueueLimit = 0;
+                            });
+                            // Tighter for chat/search to protect UI responsiveness
+                            options.AddFixedWindowLimiter("interactive", o =>
+                            {
+                                o.Window = TimeSpan.FromSeconds(1);
+                                o.PermitLimit = 100;
                                 o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
                                 o.QueueLimit = 0;
                             });
@@ -178,10 +215,14 @@ namespace FAP.Network.Server
             }
         }
 
+        private static long _activeRequests = 0;
+        private static readonly Stopwatch _uptime = Stopwatch.StartNew();
+
         private async Task HandleRequest(HttpContext context)
         {
             try
             {
+                System.Threading.Interlocked.Increment(ref _activeRequests);
                 var request = context.Request;
                 var response = context.Response;
                 var sw = Stopwatch.StartNew();
@@ -303,6 +344,10 @@ namespace FAP.Network.Server
                     context.Response.ContentType = "text/plain";
                     await context.Response.WriteAsync(errorMessage);
                 }
+            }
+            finally
+            {
+                System.Threading.Interlocked.Decrement(ref _activeRequests);
             }
         }
 
