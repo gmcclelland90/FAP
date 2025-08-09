@@ -18,6 +18,10 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using FAP.Network.Entities;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.AspNetCore.ResponseCompression;
+using System.IO.Compression;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Configuration;
 
 namespace FAP.Network.Server
 {
@@ -52,21 +56,37 @@ namespace FAP.Network.Server
                 _host = Host.CreateDefaultBuilder()
                     .ConfigureWebHostDefaults(webBuilder =>
                     {
-                        webBuilder.UseKestrel(k =>
+                        webBuilder.UseKestrel((context, k) =>
                         {
                             // Listen on provided address/port and enable HTTP/1.1 + HTTP/2 + HTTP/3
                             k.Listen(address, port, lo =>
                             {
                                 lo.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
                             });
+
+                            // Apply Kestrel limits from configuration if present
+                            var limits = context.Configuration.GetSection("Fap:Web:KestrelLimits");
+                            var maxConn = limits.GetValue<int?>("MaxConcurrentConnections");
+                            if (maxConn.HasValue) k.Limits.MaxConcurrentConnections = maxConn.Value;
+                            var maxBody = limits.GetValue<long?>("MaxRequestBodySize");
+                            if (maxBody.HasValue) k.Limits.MaxRequestBodySize = maxBody.Value;
+                            var keepAlive = limits.GetValue<TimeSpan?>("KeepAliveTimeout");
+                            if (keepAlive.HasValue) k.Limits.KeepAliveTimeout = keepAlive.Value;
+                            var reqHdrs = limits.GetValue<TimeSpan?>("RequestHeadersTimeout");
+                            if (reqHdrs.HasValue) k.Limits.RequestHeadersTimeout = reqHdrs.Value;
+
                             k.AddServerHeader = false;
                         });
                         webBuilder.Configure(app =>
                         {
-                            // Performance middleware
-                            app.UseResponseCompression();
-                            app.UseResponseCaching();
-                            app.UseRateLimiter();
+                            // Performance middleware (toggle via options)
+                            var webOptions = app.ApplicationServices.GetService<IOptions<FapWebOptions>>()?.Value ?? new FapWebOptions();
+                            if (webOptions.EnableCompression)
+                                app.UseResponseCompression();
+                            if (webOptions.EnableCaching)
+                                app.UseResponseCaching();
+                            if (webOptions.EnableRateLimiting)
+                                app.UseRateLimiter();
 
                             // Serve legacy web resources at /Fap.app.web
                             var staticRoot = Path.Combine(AppContext.BaseDirectory, "Web.Resources");
@@ -78,8 +98,8 @@ namespace FAP.Network.Server
                                     RequestPath = "/Fap.app.web",
                                     OnPrepareResponse = ctx =>
                                     {
-                                        // Cache static assets for a day
-                                        ctx.Context.Response.Headers["Cache-Control"] = "public,max-age=86400";
+                                        int maxAge = Math.Max(0, (app.ApplicationServices.GetService<IOptions<FapWebOptions>>()?.Value.StaticFilesCacheSeconds) ?? 86400);
+                                        ctx.Context.Response.Headers["Cache-Control"] = $"public,max-age={maxAge}";
                                     }
                                 });
                             }
@@ -87,6 +107,11 @@ namespace FAP.Network.Server
                             app.UseRouting();
                             app.UseEndpoints(endpoints =>
                             {
+                                endpoints.MapGet("/health", async context =>
+                                {
+                                    context.Response.ContentType = "text/plain";
+                                    await context.Response.WriteAsync("OK");
+                                });
                                 endpoints.MapGet("/{**path}", HandleRequest)
                                          .RequireRateLimiting("default");
                                 endpoints.MapPost("/{**path}", HandleRequest)
@@ -97,9 +122,21 @@ namespace FAP.Network.Server
                     .ConfigureServices(services =>
                     {
                         services.AddSingleton(_serviceProvider);
+                        services.Configure<FapListenOptions>(_ => { });
+                        services.Configure<FapWebOptions>(_ => { });
                         services.AddResponseCompression(o =>
                         {
                             o.EnableForHttps = true;
+                            o.Providers.Add<BrotliCompressionProvider>();
+                            o.Providers.Add<GzipCompressionProvider>();
+                        });
+                        services.Configure<BrotliCompressionProviderOptions>(options =>
+                        {
+                            options.Level = CompressionLevel.Fastest;
+                        });
+                        services.Configure<GzipCompressionProviderOptions>(options =>
+                        {
+                            options.Level = CompressionLevel.Fastest;
                         });
                         services.AddResponseCaching();
                         services.AddRateLimiter(options =>

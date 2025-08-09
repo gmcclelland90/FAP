@@ -129,16 +129,7 @@ public static class FapWebHost
 ### Phase 1: Foundation Setup (Week 1)
 
 #### 1.1 Add ASP.NET Core Packages
-```xml
-<ItemGroup>
-  <PackageReference Include="Microsoft.AspNetCore.App" />
-  <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" Version="9.0.0" />
-  <PackageReference Include="Microsoft.AspNetCore.StaticFiles" Version="9.0.0" />
-  <PackageReference Include="Microsoft.AspNetCore.ResponseCompression" Version="9.0.0" />
-  <PackageReference Include="Microsoft.AspNetCore.ResponseCaching" Version="9.0.0" />
-  <PackageReference Include="Microsoft.AspNetCore.RateLimiting" Version="9.0.0" />
-</ItemGroup>
-```
+Note: Not required. We rely on the shared framework (`Microsoft.AspNetCore.App`) in .NET 9; no extra packages needed for Kestrel, StaticFiles, Compression, Caching, or RateLimiting.
 
 #### 1.2 Create FAP Protocol Middleware
 ```csharp
@@ -415,11 +406,11 @@ public class FapWebHost
 ## Migration Checklist
 
 ### Foundation
-- [ ] Add ASP.NET Core packages
-- [ ] Create FapProtocolMiddleware
-- [ ] Create WebInterfaceMiddleware
-- [ ] Update NodeServer to use Kestrel
-- [ ] Configure Kestrel for FAP ports
+- [x] Add ASP.NET Core packages (N/A in .NET 9 shared framework)
+- [ ] Create FapProtocolMiddleware (optional; using endpoint handlers/ModernHTTPHandler for now)
+- [ ] Create WebInterfaceMiddleware (optional; using endpoint handlers/ModernHTTPHandler for now)
+- [x] Update NodeServer to use Kestrel
+- [x] Configure Kestrel for FAP ports
 
 ### Protocol Migration
 - [ ] Migrate FAP protocol handling
@@ -429,24 +420,25 @@ public class FapWebHost
 - [ ] Test protocol compatibility
 
 ### Web Interface Compatibility
-- [ ] Serve static files from `Web.Resources` via `UseStaticFiles`
+- [x] Serve static files from `Web.Resources` via `UseStaticFiles`
 - [x] Keep `TemplateEngine` and `ModernHTTPHandler` for directory pages
 - [x] Map `/Fap.app.web/icon/{ext}` and cache/generate icons (via ModernHTTPHandler)
-- [ ] Add caching headers for static content
+- [x] Add caching headers for static content
 - [ ] Validate web interface functionality
 
 ### Configuration
-- [ ] Configure Kestrel performance settings (HTTP/1.1/2/3)
-- [ ] Add response compression
-- [ ] Add response caching
-- [ ] Disable server header
+- [x] Configure Kestrel performance settings (HTTP/1.1/2/3)
+- [x] Add response compression
+- [x] Add response caching
+- [x] Add rate limiting policy (fixed window)
+- [x] Disable server header
 - [ ] Test performance improvements
 
 ### Cleanup
 - [x] Remove custom HttpServer projects and references
 - [x] Remove `using HttpServer.*` and legacy wrappers
-- [ ] Remove `libs/HttpServer/` folder (safe to delete)
-- [ ] Update project dependencies
+- [x] Remove `libs/HttpServer/` folder
+- [ ] Update project dependencies (as needed)
 - [ ] Test all HTTP functionality
 - [ ] Performance testing
 

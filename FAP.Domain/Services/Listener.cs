@@ -67,7 +67,12 @@ namespace FAP.Domain.Services
             {
                 try
                 {
-                    listener.Start(IPAddress.Parse(model.LocalNode.Host), port);
+                    // Prefer configured listen address/port if provided; fall back to model
+                    var listenOptions = serviceProvider.GetService<Microsoft.Extensions.Options.IOptions<FAP.Network.Server.FapListenOptions>>()?.Value;
+                    var listenAddress = listenOptions?.Address;
+                    var listenPort = listenOptions?.Port ?? port;
+                    var ip = !string.IsNullOrWhiteSpace(listenAddress) ? IPAddress.Parse(listenAddress) : IPAddress.Parse(model.LocalNode.Host);
+                    listener.Start(ip, listenPort);
                     trybind = false;
                     if (isServer)
                     {

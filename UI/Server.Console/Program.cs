@@ -73,6 +73,9 @@ namespace Server.Console
             try
              {
                  var builder = Host.CreateApplicationBuilder();
+                 // Bind FAP web options from configuration if present
+                 builder.Services.Configure<FAP.Network.Server.FapWebOptions>(builder.Configuration.GetSection("Fap:Web"));
+                 builder.Services.Configure<FAP.Network.Server.FapListenOptions>(builder.Configuration.GetSection("Fap:Web:Listen"));
 
                  // Logging: MEL + optional NLog bridge during migration
                  builder.Logging.ClearProviders();
