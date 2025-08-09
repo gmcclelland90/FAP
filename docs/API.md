@@ -9,7 +9,7 @@ All endpoints are HTTP over LAN (no TLS). Responses are JSON unless noted.
     - 200 text/plain `OK`
   - GET `/Fap.api/health/details`
     - 200 application/json
-    - Body: `{ uptimeMs, activeRequests, time, rateLimit429: { interactive, downloads, default }, timingsMs: { interactive: { count,total,avg }, downloads: {...}, default: {...} } }`
+    - Body: `{ uptimeMs, activeRequests, time, rateLimit429: { interactive, downloads, default }, timingsMs: { interactive: { count,total,avg }, downloads: {...}, default: {...} }, chat: { received, forwarded, failures, clientReceived, conversationSent, conversationDelivered }, search: { requested, completed, failures } }`
 
 - Compare
   - GET `/Fap.api/compare/v1`

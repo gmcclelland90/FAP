@@ -12,7 +12,7 @@ The Compare feature collects system specifications from peers to provide a quick
 
 ### Protocol Flow
 1. Local client enumerates known peers from `Model.Network.Nodes`
-2. For each peer, it executes `CompareVerb` using the client (`FAP.Domain.Net.Client.Execute`)
+2. For each peer, it executes `CompareVerb` using the modern HTTP client (`FAP.Domain.Net.ModernHttpClient`)
 3. The remote handler invokes `CompareVerb.ProcessRequest` which gathers and returns specs
 4. The local client parses the response via `CompareVerb.ReceiveResponse` and updates the UI
 
@@ -30,7 +30,7 @@ The Compare feature collects system specifications from peers to provide a quick
   - Updates `CompareViewModel` with status and results
 
 ### Data Collected
-Collected via `Fap.Foundation.SystemInfo` in `CompareVerb.ProcessRequest` and mapped into `CompareNode`:
+Collected via `HardwareInfoService` (with fallbacks to `SystemInfo`) in `CompareVerb.ProcessRequest` and mapped into `CompareNode`:
 - CPU: `CPUSpeed`, `CPUType`, `CPUCores`, `CPUThreads`, `CPUBits`
 - Motherboard/BIOS: `MoboBrand`, `MoboModel`, `BIOSVersion`
 - Memory: `RAMSize`
@@ -54,6 +54,7 @@ Collected via `Fap.Foundation.SystemInfo` in `CompareVerb.ProcessRequest` and ma
 
 ## HTTP Details
 - Method: `GET /Fap.app/COMPARE`
+- Hosting: ASP.NET Core Kestrel; requests are decoded centrally and dispatched to handlers
 - Headers: typical FAP headers as applicable (`FAP-AUTH`, `FAP-SOURCE`)
 - Request body: none
 - Response: JSON serialized `CompareVerb` with `Allowed` and `Node`

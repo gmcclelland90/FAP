@@ -257,19 +257,7 @@ public class BrowseVerb : BaseVerb, IVerb
 
 ### HTTP Integration
 
-The `HTTPHandler` provides web-based file browsing:
-
-```csharp
-// Web interface file serving
-if (infoService.ToLocalPath(path, out possiblePaths))
-{
-    foreach (string possiblePath in possiblePaths)
-    {
-        if (File.Exists(possiblePath))
-            return SendFile(e, possiblePath, path);
-    }
-}
-```
+The web interface is served by ASP.NET Core static files and a modern HTTP handler (`ModernHTTPHandler`) that supports range requests, HEAD, and ETag/If-None-Match/If-Range for efficient downloads and caching.
 
 ## Performance Optimizations
 

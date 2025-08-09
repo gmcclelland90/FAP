@@ -103,6 +103,6 @@ Used for LAN discovery, not transported over HTTP.
 ## Implementation Notes
 - All verbs implement `FAP.Domain/Verbs/IVerb`
 - Encoding/decoding and header extraction are handled by `FAP.Network/Multiplexor`
-- HTTP server dispatches requests to FAP handlers based on `User-Agent` beginning with `FAP`
+- Requests are routed by ASP.NET Core Kestrel; decoding occurs centrally in the server and is forwarded to FAP handlers (no User-Agent dependency)
 
 

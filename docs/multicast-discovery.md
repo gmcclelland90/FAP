@@ -381,15 +381,11 @@ catch (SocketException ex)
 - **Response Times**: Time to discover new peers
 
 ### Debugging Tools
+Use structured logging to capture multicast events and discovery:
 ```csharp
-// Enable detailed logging
-logger.Debug("Received multicast: {0}", cmd);
-
-// Monitor peer discovery
-logger.Info("Discovered peer: {0} at {1}", peer.OverlordID, peer.Address);
-
-// Track announcement frequency
-logger.Trace("Sending announcement: {0}", announcement);
+logger.LogDebug("Received multicast: {Cmd}", cmd);
+logger.LogInformation("Discovered peer: {OverlordId} at {Address}", peer.OverlordID, peer.Address);
+logger.LogTrace("Sending announcement: {Announcement}", announcement);
 ```
 
 ## Configuration

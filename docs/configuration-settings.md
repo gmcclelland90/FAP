@@ -209,7 +209,8 @@ public class BaseEntity : INotifyPropertyChanged
         if (!Directory.Exists(DATA_FOLDER))
             Directory.CreateDirectory(DATA_FOLDER);
         
-        string obj = JsonConvert.SerializeObject(o, f);
+        // Uses System.Text.Json in current implementation
+        string obj = System.Text.Json.JsonSerializer.Serialize(o, new System.Text.Json.JsonSerializerOptions { WriteIndented = (f == Formatting.Indented) });
         File.WriteAllText(DATA_FOLDER + fileName, obj);
         File.WriteAllText(DATA_FOLDER + fileName + BACKUP_EXT, obj);
     }
@@ -219,14 +220,14 @@ public class BaseEntity : INotifyPropertyChanged
         try
         {
             if (File.Exists(DATA_FOLDER + fileName))
-                return JsonConvert.DeserializeObject<T>(File.ReadAllText(DATA_FOLDER + fileName));
+                return System.Text.Json.JsonSerializer.Deserialize<T>(File.ReadAllText(DATA_FOLDER + fileName));
         }
         catch { }
         
         try
         {
             if (File.Exists(DATA_FOLDER + fileName + BACKUP_EXT))
-                return JsonConvert.DeserializeObject<T>(File.ReadAllText(DATA_FOLDER + fileName + BACKUP_EXT));
+                return System.Text.Json.JsonSerializer.Deserialize<T>(File.ReadAllText(DATA_FOLDER + fileName + BACKUP_EXT));
         }
         catch { }
         
@@ -281,7 +282,7 @@ public void Load()
         }
         catch (Exception e)
         {
-            LogManager.GetLogger("faplog").Warn("Failed to read config", e);
+            // logger.LogWarning(e, "Failed to read config");
         }
     }
 }

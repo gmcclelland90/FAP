@@ -30,7 +30,7 @@ The FAP user interface is built using the Model-View-ViewModel (MVVM) pattern wi
 ┌─────────────────────────────────────┐
 │         ApplicationCore             │  ← Main Application
 ├─────────────────────────────────────┤
-│         Container (Autofac)        │  ← DI Container
+│     Built-in DI Container          │  ← Microsoft.Extensions.DependencyInjection
 ├─────────────────────────────────────┤
 │         Controllers                 │  ← Business Logic
 ├─────────────────────────────────────┤
@@ -69,30 +69,19 @@ public class ApplicationCore
 }
 ```
 
-### Dependency Injection Modules
+### Dependency Injection Registration
 
 #### ApplicationModule
 
 Registers application-level components:
 
 ```csharp
-public class ApplicationModule : Module
-{
-    protected override void Load(ContainerBuilder builder)
-    {
-        builder.RegisterType<ConversationController>()
-               .As<IConversationController>()
-               .SingleInstance();
-        builder.RegisterType<PopupWindowController>()
-               .SingleInstance();
-        builder.RegisterType<ConnectionController>()
-               .SingleInstance();
-        builder.RegisterType<WatchdogController>()
-               .SingleInstance();
-        builder.RegisterType<ApplicationCore>()
-               .SingleInstance();
-    }
-}
+// Registration occurs during App startup using IServiceCollection
+services.AddSingleton<IConversationController, ConversationController>();
+services.AddSingleton<PopupWindowController>();
+services.AddSingleton<ConnectionController>();
+services.AddSingleton<WatchdogController>();
+services.AddSingleton<ApplicationCore>();
 ```
 
 #### GUIModule
@@ -100,20 +89,14 @@ public class ApplicationModule : Module
 Registers WPF UI components:
 
 ```csharp
-public class GUIModule : Module
-{
-    protected override void Load(ContainerBuilder builder)
-    {
-        builder.RegisterType<MainWindow>().As<IMainWindow>();
-        builder.RegisterType<MessageBox>().As<IMessageBoxView>();
-        builder.RegisterType<DownloadQueue>().As<IDownloadQueue>();
-        builder.RegisterType<SettingsPanel>().As<ISettingsView>();
-        builder.RegisterType<TabWindow>().As<IPopupWindow>();
-        builder.RegisterType<BrowsePanel>().As<IBrowserView>();
-        builder.RegisterType<Conversation>().As<IConverstationView>();
-        // Register other UI components...
-    }
-}
+// UI registrations in IServiceCollection
+services.AddTransient<IMainWindow, MainWindow>();
+services.AddTransient<IMessageBoxView, MessageBox>();
+services.AddTransient<IDownloadQueue, DownloadQueue>();
+services.AddTransient<ISettingsView, SettingsPanel>();
+services.AddTransient<IPopupWindow, TabWindow>();
+services.AddTransient<IBrowserView, BrowsePanel>();
+services.AddTransient<IConverstationView, Conversation>();
 ```
 
 ## View Layer
@@ -666,7 +649,7 @@ private void Application_DispatcherUnhandledException(object sender, DispatcherU
     }
     else
     {
-        LogManager.GetLogger("faplog").Fatal("Unhandled exception", e.Exception);
+        // logger.LogCritical(e.Exception, "Unhandled exception");
         e.Handled = true;
     }
 }

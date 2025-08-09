@@ -96,7 +96,7 @@ private bool Connect(Domain.Entities.Network net, DetectedNode n)
 {
     try
     {
-        LogManager.GetLogger("faplog").Info("Client connecting to {0}", n.Address);
+        // logger.LogInformation("Client connecting to {Address}", n.Address);
         net.State = ConnectionState.Connecting;
 
         var verb = new ConnectVerb();
@@ -104,7 +104,8 @@ private bool Connect(Domain.Entities.Network net, DetectedNode n)
         verb.Address = model.LocalNode.Location;
         verb.Secret = IDService.CreateID();
         
-        var client = new Client(model.LocalNode);
+        // Modern HTTP client for verbs
+        var client = new ModernHttpClient(model.LocalNode);
         
         net.Overlord = new Node();
         net.Overlord.Location = n.Address;
@@ -114,7 +115,7 @@ private bool Connect(Domain.Entities.Network net, DetectedNode n)
         {
             net.State = ConnectionState.Connected;
             net.Overlord.ID = verb.OverlordID;
-            LogManager.GetLogger("faplog").Info("Client connected");
+            // logger.LogInformation("Client connected");
             return true;
         }
         else
@@ -290,7 +291,7 @@ if (DateTime.Now - lastHealthCheck > TimeSpan.FromMinutes(5))
 {
     // Send NOOP to verify connection
     var verb = new NoopVerb();
-    var client = new Client(model.LocalNode);
+    var client = new ModernHttpClient(model.LocalNode);
     if (!client.Execute(verb, model.Network.Overlord))
     {
         // Connection lost, trigger reconnection
@@ -423,9 +424,7 @@ private void SendToOverlordServers(NetworkRequest r)
 public static int UPLINK_TIMEOUT = 60000;        // 1 minute
 public static int DOWNLOAD_RETRY_TIME = 120000;  // 2 minutes
 
-// Connection limits
-ServicePointManager.DefaultConnectionLimit = 100;
-ServicePointManager.Expect100Continue = false;
+// Connection limits/timeouts are configured via ASP.NET Core Kestrel (appsettings.json)
 ```
 
 ### Retry Configuration

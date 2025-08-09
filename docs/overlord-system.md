@@ -139,11 +139,11 @@ public class OverlordManagerService
    ```
 
 3. **Service Initialization**
-   ```
-   - Start HTTP server
-   - Initialize FAPServerHandler
-   - Begin multicast announcements
-   ```
+```
+- Start ASP.NET Core Kestrel server
+- Initialize FAPServerHandler
+- Begin multicast announcements
+```
 
 ## Overlord Communication
 

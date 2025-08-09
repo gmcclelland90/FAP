@@ -62,12 +62,11 @@ This document explains message flow, data structures, handlers, and UI behavior 
 
 ### Message Flow
 1. User types a message in a conversation popup and clicks Send
-2. `ConversationController.SendChatMessage` enqueues `SendMessageAsync`
-3. `SendMessageAsync` builds `ConversationVerb` with local nickname/ID, clears input, and executes the verb to the target `Node`
-4. Receiver processes `CONVERSTATION`, controller finds/creates a `Conversation` for the sender, and appends the message
+2. `ConversationController` asynchronously sends a `ConversationVerb` via `ModernHttpClient`
+3. Receiver processes `CONVERSTATION`, controller finds/creates a `Conversation` for the sender, and appends the message
 
 ## Data & Serialization
-- JSON: Newtonsoft.Json currently in verbs; future plan is System.Text.Json per upgrade plan
+- JSON: System.Text.Json (source-generated context)
 - Headers: `FAP-SOURCE` maps to `SourceID` in conversation handling
 - Message format: minimal fields (nickname, message, source)
 

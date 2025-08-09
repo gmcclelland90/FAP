@@ -4,62 +4,23 @@
 
 FAP uses HTTP/1.1 as its transport layer, essentially "hitching a ride" on HTTP infrastructure. This clever design allows FAP to leverage existing HTTP infrastructure while adding custom application-layer functionality through the FAP protocol. The system uses a single HTTP server that handles both FAP protocol requests and standard web interface requests, distinguished by URL paths.
 
+### Current implementation (ASP.NET Core)
+- Hosting: ASP.NET Core Kestrel
+- Routing: `/Fap.app/VERB` (FAP), `/Fap.app.web/...` (web UI), `/Fap.api/...` (typed API)
+- Decoding: FAP requests are decoded once in the ASP.NET Core pipeline and forwarded to handlers
+- Client: `ModernHttpClient` (HttpClient) with per-request timeouts
+- JSON: System.Text.Json
+
 ## HTTP Server Architecture
 
-### NodeServer
-The `NodeServer` class provides a unified HTTP server implementation that handles both FAP protocol requests and standard HTTP requests on the same port. This "HTTP hitchhiking" approach allows FAP to leverage existing HTTP infrastructure while maintaining its custom protocol functionality.
-
-```csharp
-public class NodeServer
-{
-    private HttpListener listener;
-    public event Request OnRequest;
-
-    public void Start(IPAddress a, int port)
-    {
-        listener = HttpListener.Create(a, port);
-        listener.RequestReceived += listener_RequestReceived;
-        listener.Start(1000);
-    }
-
-    private void listener_RequestReceived(object sender, RequestEventArgs e)
-    {
-        e.IsHandled = true;
-        e.Response.Reason = string.Empty;
-        
-        // Determine request type based on User-Agent
-        string userAgent = string.Empty;
-        IHeader uahead = e.Request.Headers
-            .Where(h => string.Equals("User-Agent", h.Name, StringComparison.OrdinalIgnoreCase))
-            .FirstOrDefault();
-        if (null != uahead)
-            userAgent = uahead.HeaderValue;
-
-        // Route to appropriate handler
-        if (userAgent.StartsWith("FAP"))
-        {
-            if (OnRequest(RequestType.FAP, e))
-                return;
-        }
-        if (OnRequest(RequestType.HTTP, e))
-            return;
-            
-        e.Response.Reason = "Handler error";
-        e.Response.Status = HttpStatusCode.InternalServerError;
-    }
-}
-```
+### ModernNodeServer (ASP.NET Core Kestrel)
+Kestrel serves FAP protocol, web UI, and typed API on the same port. Requests are routed by URL path; FAP requests are decoded centrally and forwarded to handlers. Middleware includes response compression, response caching, and rate limiting.
 
 ### Request Type Detection
-The server distinguishes between FAP protocol requests and standard HTTP requests based on URL paths and User-Agent headers:
-
-```csharp
-public enum RequestType
-{
-    FAP,    // FAP protocol requests (/Fap.app/VERB)
-    HTTP    // Standard HTTP requests (web interface /Fap.app.web/)
-}
-```
+Path-based routing only:
+- `/Fap.app/` → FAP protocol
+- `/Fap.app.web/` → web UI
+- `/Fap.api/` → typed API
 
 ## URL Routing
 
@@ -79,7 +40,7 @@ Examples:
 - `http://192.168.1.100:30/Fap.app/CHAT`
 
 ### Web Interface URLs
-Standard HTTP requests serve the web interface:
+Standard HTTP requests serve the web interface via ASP.NET Core static files and the modern handler:
 
 ```
 http://host:port/Fap.app.web/
@@ -98,7 +59,7 @@ FAP uses standard HTTP headers for basic communication:
 ```http
 GET /Fap.app/CONNECT HTTP/1.1
 Host: 192.168.1.100:8080
-User-Agent: FAP Beat 7.5ish
+User-Agent: FAP Client
 Content-Type: application/json
 Content-Length: 1024
 ```
@@ -113,171 +74,17 @@ FAP-OVERLORD: overlord456
 ```
 
 ### Header Processing
-```csharp
-public static NetworkRequest Decode(IRequest r)
-{
-    var req = new NetworkRequest();
-    
-    // Extract FAP headers
-    var headers = r.Headers as HeaderCollection;
-    if (null != headers)
-    {
-        foreach (IHeader h in headers)
-        {
-            var header = h as StringHeader;
-            if (null != header)
-            {
-                switch (header.Name.ToUpper())
-                {
-                    case "FAP-AUTH":
-                        req.AuthKey = header.Value;
-                        break;
-                    case "FAP-SOURCE":
-                        req.SourceID = header.Value;
-                        break;
-                    case "FAP-OVERLORD":
-                        req.OverlordID = header.Value;
-                        break;
-                }
-            }
-        }
-    }
-    
-    return req;
-}
-```
+In the current system, header extraction and verb decoding happen centrally in the ASP.NET Core pipeline; the decoded `NetworkRequest` is attached to the request context for downstream handlers.
 
 ## HTTP Client Implementation
 
-### Client Class
-The `Client` class handles HTTP client communication:
-
-```csharp
-public class Client
-{
-    public bool DoRequest(string url, NetworkRequest input, out NetworkRequest result, int timeout)
-    {
-        result = new NetworkRequest();
-
-        try
-        {
-            var req = (HttpWebRequest)WebRequest.Create(
-                Multiplexor.Encode(url, input.Verb, input.Param));
-            req.Timeout = timeout;
-
-            // Add standard headers
-            req.UserAgent = Model.AppVersion;
-            
-            // Add FAP headers
-            if (!string.IsNullOrEmpty(input.AuthKey))
-                req.Headers.Add("FAP-AUTH", input.AuthKey);
-            if (!string.IsNullOrEmpty(input.SourceID))
-                req.Headers.Add("FAP-SOURCE", input.SourceID);
-            if (!string.IsNullOrEmpty(input.OverlordID))
-                req.Headers.Add("FAP-OVERLORD", input.OverlordID);
-
-            // Handle POST vs GET
-            if (string.IsNullOrEmpty(input.Data))
-            {
-                req.Method = "GET";
-                req.ContentLength = 0;
-            }
-            else
-            {
-                req.ContentType = "application/json";
-                req.Method = "POST";
-                byte[] bytes = Encoding.UTF8.GetBytes(input.Data);
-                req.ContentLength = bytes.Length;
-                Stream os = req.GetRequestStream();
-                os.Write(bytes, 0, bytes.Length);
-                os.Flush();
-            }
-
-            // Get response
-            var resp = (HttpWebResponse)req.GetResponse();
-            if (resp.ContentLength > 0)
-            {
-                using (Stream s = resp.GetResponseStream())
-                {
-                    using (var sr = new StreamReader(s, Encoding.UTF8))
-                    {
-                        result.Data = sr.ReadToEnd().Trim();
-                    }
-                }
-            }
-
-            // Extract response headers
-            foreach (string header in resp.Headers.AllKeys)
-            {
-                switch (header)
-                {
-                    case "FAP-AUTH":
-                        result.AuthKey = resp.Headers[header];
-                        break;
-                    case "FAP-SOURCE":
-                        result.SourceID = resp.Headers[header];
-                        break;
-                    case "FAP-OVERLORD":
-                        result.OverlordID = resp.Headers[header];
-                        break;
-                }
-            }
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-}
-```
+### ModernHttpClient (HttpClient)
+Client operations use `HttpClient` with per-request timeouts. FAP headers are attached and requests are encoded via `Multiplexor.Encode(url, verb, param)`.
 
 ## Web Interface Integration
 
-### HTTPHandler
-The `HTTPHandler` class serves the web interface for file browsing:
-
-```csharp
-public class HTTPHandler
-{
-    private const string WEB_PREFIX = "/Fap.app.web/";
-    private const string WEB_ICON_PREFIX = "/Fap.app.web/icon/";
-
-    public bool Handle(string req, RequestEventArgs e)
-    {
-        e.Response.Status = HttpStatusCode.OK;
-        string path = Utility.DecodeURL(e.Request.Uri.AbsolutePath);
-        byte[] data = null;
-
-        // Handle icon requests
-        if (path.StartsWith(WEB_ICON_PREFIX))
-        {
-            string ext = path.Substring(path.LastIndexOf("/") + 1);
-            return SendIcon(e, ext);
-        }
-
-        // Handle file downloads
-        if (infoService.ToLocalPath(path, out possiblePaths))
-        {
-            foreach (string possiblePath in possiblePaths)
-            {
-                if (File.Exists(possiblePath))
-                    return SendFile(e, possiblePath, path);
-            }
-        }
-
-        // Handle directory browsing
-        List<BrowsingFile> results;
-        if (infoService.GetPath(path, false, true, out results))
-        {
-            // Generate HTML page with file listing
-            return SendDirectoryListing(e, path, results);
-        }
-
-        return false;
-    }
-}
-```
+### ModernHTTPHandler
+The modern HTTP handler provides dynamic content for browsing, implements range requests and conditional headers (ETag/If-None-Match/If-Range), and cooperates with ASP.NET Core static files middleware for `/Fap.app.web/*`.
 
 ### Template Engine
 The web interface uses a template engine for dynamic content:
@@ -310,36 +117,7 @@ The web interface uses a template engine for dynamic content:
 ```
 
 ## Content Types
-
-### MIME Type Mapping
-```csharp
-private void AddDefaultMimeTypes()
-{
-    contentTypes.Add("html", new ContentTypeHeader("text/html"));
-    contentTypes.Add("css", new ContentTypeHeader("text/css"));
-    contentTypes.Add("js", new ContentTypeHeader("application/javascript"));
-    contentTypes.Add("png", new ContentTypeHeader("image/png"));
-    contentTypes.Add("jpg", new ContentTypeHeader("image/jpeg"));
-    contentTypes.Add("ico", new ContentTypeHeader("image/x-icon"));
-    contentTypes.Add("json", new ContentTypeHeader("application/json"));
-}
-```
-
-### File Type Detection
-```csharp
-private ContentTypeHeader GetContentType(string path)
-{
-    string ext = Path.GetExtension(path).ToLower();
-    if (ext.StartsWith("."))
-        ext = ext.Substring(1);
-        
-    ContentTypeHeader contentType;
-    if (contentTypes.TryGetValue(ext, out contentType))
-        return contentType;
-        
-    return new ContentTypeHeader("application/octet-stream");
-}
-```
+Handled by ASP.NET Core static files; override with `StaticFileOptions` if needed.
 
 ## Error Handling
 
@@ -364,11 +142,7 @@ FAP uses standard HTTP status codes:
 ## Performance Optimization
 
 ### Connection Management
-```csharp
-// Configure HTTP connection settings
-ServicePointManager.Expect100Continue = false;
-ServicePointManager.DefaultConnectionLimit = 100;
-```
+Connection settings are configured through Kestrel in `appsettings.json`.
 
 ### Keep-Alive Support
 - **Connection Reuse**: Keep HTTP connections alive for multiple requests
@@ -376,10 +150,7 @@ ServicePointManager.DefaultConnectionLimit = 100;
 - **Resource Management**: Efficient connection pooling
 
 ### Compression
-```csharp
-// Enable gzip compression for large responses
-req.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
-```
+Response compression (Brotli/Gzip) is enabled via middleware.
 
 ## Security Considerations
 
@@ -389,68 +160,15 @@ req.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.De
 - **Simple Authentication**: Basic secret-based authentication
 
 ### Input Validation
-```csharp
-// Validate URL paths
-if (!path.StartsWith("/Fap.app/") && !path.StartsWith("/Fap.app.web/"))
-{
-    e.Response.Status = HttpStatusCode.NotFound;
-    return false;
-}
-
-// Sanitize file paths
-if (path.Contains(".."))
-{
-    e.Response.Status = HttpStatusCode.BadRequest;
-    return false;
-}
-```
+Validate paths in handlers and return appropriate status codes. Dynamic pages set `Cache-Control: no-store`; file responses support range and conditional headers.
 
 ## Configuration
-
-### Server Settings
-```csharp
-// HTTP server configuration
-listener.Start(1000);  // Backlog size
-
-// Client configuration
-req.Timeout = 30000;   // 30 second timeout
-req.UserAgent = "FAP Beat 7.5ish";
-```
-
-### Port Management
-```csharp
-// Dynamic port allocation
-bool trybind = true;
-int port = inport;
-do
-{
-    try
-    {
-        listener.Start(IPAddress.Parse(model.LocalNode.Host), port);
-        trybind = false;
-    }
-    catch
-    {
-        port++;
-        if (inport + 100 < port)
-            throw new Exception("Could not bind listener");
-    }
-} while (trybind);
-```
+Server listen address/port, Kestrel limits, compression, caching, and rate limiting are configured via `appsettings.json` (e.g., `Fap:Listen`, `Fap:Web`).
 
 ## Monitoring and Debugging
 
 ### HTTP Logging
-```csharp
-// Log HTTP requests
-logger.Debug("HTTP {0} {1}", e.Request.Method, e.Request.Uri.AbsolutePath);
-
-// Log response times
-var stopwatch = Stopwatch.StartNew();
-// ... handle request ...
-stopwatch.Stop();
-logger.Debug("Request completed in {0}ms", stopwatch.ElapsedMilliseconds);
-```
+Use `ILogger` for structured logs. Health details and counters are exposed at `/Fap.api/health/details`.
 
 ### Performance Metrics
 - **Request Rate**: Requests per second

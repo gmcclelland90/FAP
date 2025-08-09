@@ -10,7 +10,7 @@ The File Acceleration Protocol (FAP) is a custom application-layer protocol that
 ┌─────────────────────────────────────┐
 │           FAP Protocol              │  ← Application Layer
 ├─────────────────────────────────────┤
-│           HTTP/1.1                  │  ← Transport Layer
+│      ASP.NET Core (HTTP/1.1)       │  ← Transport Layer (Kestrel)
 ├─────────────────────────────────────┤
 │              TCP                    │  ← Network Layer
 ├─────────────────────────────────────┤
@@ -38,7 +38,7 @@ http://192.168.1.100:30/Fap.app/CHAT
 ## HTTP Headers
 
 ### Standard Headers
-- **User-Agent**: `FAP Beat 7.5ish`
+- **User-Agent**: Client version string
 - **Content-Type**: `application/json` (for POST requests)
 - **Content-Length**: Size of request body
 
@@ -51,7 +51,7 @@ http://192.168.1.100:30/Fap.app/CHAT
 ```http
 GET /Fap.app/CONNECT HTTP/1.1
 Host: 192.168.1.100:8080
-User-Agent: FAP Beat 7.5ish
+User-Agent: FAP Client
 FAP-AUTH: abc123def456
 FAP-SOURCE: node123
 FAP-OVERLORD: overlord456
@@ -94,6 +94,8 @@ public static string Encode(string url, string verb, string param)
     return sb.ToString();
 }
 ```
+
+Note: In the current system, requests are hosted on ASP.NET Core Kestrel. Decoding occurs centrally once per request and is forwarded to handlers.
 
 ## Protocol Verbs
 
@@ -492,7 +494,5 @@ public interface IVerb
 - **Error Tests**: Test error handling scenarios
 
 ### Debugging
-- **Logging**: Comprehensive protocol logging
-- **Tracing**: Detailed request/response tracing
-- **Monitoring**: Real-time protocol metrics
-- **Analysis**: Protocol analysis tools 
+- **Logging**: Microsoft.Extensions.Logging with structured events
+- **Metrics**: Health JSON at `/Fap.api/health/details` (counters, timings)

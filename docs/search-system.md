@@ -7,7 +7,8 @@ The search system lets a client query another peer for files and folders matchin
 - Verb: `FAP.Domain/Verbs/SearchVerb`
 - Entity: `FAP.Domain/Entities/SearchResult`
 - Service: `FAP.Domain/Services/ShareInfoService` (index building and searching)
-- Handlers: `FAP.Domain/Handlers/FAPClientHandler.HandleSearch`, `FAP.Domain/Handlers/FAPServerHandler.HandleSearch`
+- Transport/Hosting: ASP.NET Core Kestrel via `/Fap.app/SEARCH`
+- Handlers: `FAP.Domain/Handlers/FAPClientHandler.HandleSearch` (client role), `FAP.Domain/Handlers/FAPServerHandler.HandleSearch` (server/overlord role)
 
 ## Indexing
 - On each peer, `ShareInfoService` maintains a cache of share metadata under `%LOCALAPPDATA%/FAP/ShareInfo/`
@@ -16,7 +17,7 @@ The search system lets a client query another peer for files and folders matchin
 
 ## Query Flow
 1. Client constructs `SearchVerb` with pattern and filters
-2. Client sends `SEARCH` to a peer via HTTP `/Fap.app/SEARCH`
+2. Client sends `SEARCH` to a peer via HTTP `/Fap.app/SEARCH` (decoded centrally in `ModernNodeServer`)
 3. Remote handler deserializes `SearchVerb` and calls `ShareInfoService.Search`
 4. Results are returned as JSON and deserialized into `SearchVerb.Results`
 
@@ -44,6 +45,7 @@ The search system lets a client query another peer for files and folders matchin
 - Searching uses in-memory cached directory trees; avoids full filesystem scans for most queries
 - Recursion short-circuits once the result limit is reached
 - Case-insensitive `IndexOf` over segments for simple and fast matching
+- Request path is asynchronous; fan-out to multiple peers is parallelized with bounded degree; per-peer timeouts apply
 
 ## Security
 - Search operates only within declared shares of the remote peer

@@ -80,13 +80,12 @@ FAP Verbs:
 └── NOOP       (Keep-alive)
 ```
 
-### Transport Layer (HTTP/1.1)
-- **HTTP Hitchhiking**: FAP "hitches a ride" on HTTP using custom URL paths
-- **Standard HTTP**: Uses conventional web protocols and infrastructure
+### Transport Layer (ASP.NET Core HTTP)
+- **Kestrel Hosting**: ASP.NET Core Kestrel serves protocol, web UI, and typed API
 - **Custom Headers**: FAP-specific metadata via HTTP headers
 - **POST/GET Methods**: RESTful communication patterns
-- **JSON Payloads**: Structured data exchange
-- **URL-Based Separation**: `/Fap.app/` for protocol, `/Fap.app.web/` for web interface
+- **JSON Payloads**: System.Text.Json
+- **URL-Based Separation**: `/Fap.app/` for protocol, `/Fap.app.web/` for web interface; `/Fap.api/` for typed endpoints
 
 ### Network Layer (IP)
 - **TCP**: Reliable HTTP communication
@@ -134,8 +133,8 @@ Client A → HTTP Request → Overlord → Client B
 - **FAPClientHandler**: Processes client requests
 
 ### Transport Layer
-- **NodeServer**: Unified HTTP server implementation
-- **Client**: HTTP client implementation
+- **ModernNodeServer**: ASP.NET Core Kestrel hosting and routing
+- **ModernHttpClient**: Verb execution via HttpClient
 - **Multiplexor**: Protocol encoding/decoding
 - **Request Routing**: URL-based routing to FAP vs web handlers
 
@@ -181,17 +180,15 @@ Client A → HTTP Request → Overlord → Client B
 - **URL Paths**: `/Fap.app/` (protocol), `/Fap.app.web/` (web interface)
 
 ### Performance Tuning
-- **Connection Limits**: 100 concurrent connections per overlord
-- **Buffer Sizes**: 50KB receive/send buffers
-- **Timeout Values**: 30-second default timeouts
-- **Retry Logic**: Exponential backoff for failed connections
+- **Kestrel Limits**: configured via appsettings (MaxConcurrentConnections, KeepAliveTimeout)
+- **Compression/Caching**: enabled via middleware
+- **Timeout Values**: per-call timeouts in client fan-out
 
 ## Monitoring and Debugging
 
 ### Logging
-- **NLog Integration**: Comprehensive logging system
-- **Trace Levels**: Detailed protocol debugging
-- **Performance Metrics**: Transfer speeds and connection stats
+- **Microsoft.Extensions.Logging**: structured logs
+- **Health Details**: `/Fap.api/health/details` JSON exposes counters and timings
 
 ### Diagnostics
 - **Network State**: Connection status monitoring

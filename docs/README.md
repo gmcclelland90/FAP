@@ -12,7 +12,7 @@ Welcome to the comprehensive documentation for the File Acceleration Protocol (F
 ### Implementation Details
 - [Multicast Discovery](multicast-discovery.md) - Peer discovery and announcement mechanisms
 - [Connection Management](connection-management.md) - Client-server connection handling
-- [HTTP Integration](http-integration.md) - How FAP integrates with HTTP
+- [HTTP Integration](http-integration.md) - Kestrel hosting, routing, and typed API
 
 ### Core Systems
 - [File System & Sharing System](file-system-sharing.md) - Share management, file system abstraction, and virtual directories
@@ -24,6 +24,7 @@ Welcome to the comprehensive documentation for the File Acceleration Protocol (F
 - [Network Components](network-components.md) - Detailed breakdown of network-related classes
 - [Protocol Verbs](protocol-verbs.md) - Complete list and specification of FAP verbs
 - [Web Interface](web-interface.md) - HTTP-based web interface for file browsing
+- [HTTP API](API.md) - Typed API endpoints under `/Fap.api`
 
 ## Quick Start
 
@@ -55,7 +56,7 @@ The system uses a hierarchical architecture where:
 
 ```
 Application Layer: FAP Protocol (Custom verbs)
-Transport Layer:   HTTP/1.1
+Transport Layer:   ASP.NET Core (HTTP/1.1) via Kestrel
 Network Layer:     IP (TCP/UDP)
 Link Layer:        Ethernet
 ```

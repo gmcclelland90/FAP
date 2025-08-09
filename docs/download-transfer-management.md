@@ -254,48 +254,9 @@ public class ServerUploadToken
 
 ### Upload Workers
 
-#### FAPFileUploader
+#### Transfer Tracking
 
-Handles FAP protocol uploads:
-
-```csharp
-public class FAPFileUploader : ITransferWorker
-{
-    private readonly ServerUploadLimiterService uploadLimiter;
-    private readonly BufferService bufferService;
-    
-    public void DoUpload(IHttpContext context, Stream stream, string user, string url)
-    {
-        // 1. Request upload token
-        token = uploadLimiter.RequestUploadToken(context.RemoteEndPoint.Address.ToString());
-        
-        // 2. Wait for available slot
-        while (token.GlobalQueuePosition > 0)
-        {
-            token.WaitTimeout();
-        }
-        
-        // 3. Stream file data
-        // 4. Update progress
-        // 5. Free token
-    }
-}
-```
-
-#### HTTPFileUploader
-
-Handles HTTP protocol uploads:
-
-```csharp
-public class HTTPFileUploader : ITransferWorker
-{
-    public void DoUpload(IHttpContext context, Stream stream, string user, string url)
-    {
-        // Similar to FAP uploader but for HTTP requests
-        // Handles range requests and standard HTTP streaming
-    }
-}
-```
+Uploads/downloads are tracked via lightweight session objects (`LightweightTransferWorker`) and server-side range support is implemented in the HTTP handler for downloads. Legacy uploader classes have been removed.
 
 ## Transfer Logging
 
@@ -484,13 +445,7 @@ currentItem.NextTryTime = Environment.TickCount + Model.DOWNLOAD_RETRY_TIME;
 ### Queue Position Updates
 
 ```csharp
-// Upload queue position
-if (QueuePosition > 0)
-{
-    status = string.Format("{0} - Queue Position {1}", user, QueuePosition);
-    SendChunkedData(context, Encoding.ASCII.GetBytes(QueuePosition.ToString() + '|'));
-    token.WaitTimeout();
-}
+// Example: bounded upload queue status (if applicable)
 ```
 
 ### Resource Cleanup
