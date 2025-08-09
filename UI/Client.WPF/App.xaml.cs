@@ -267,7 +267,7 @@ namespace Fap.Presentation
             // WMI and hardware info services
             services.AddMemoryCache();
             services.AddSingleton<WmiService>();
-            services.AddSingleton<HardwareInfoService>();
+            services.AddSingleton<IHardwareInfoService, HardwareInfoService>();
             services.AddSingleton<ParallelWmiService>();
         }
 

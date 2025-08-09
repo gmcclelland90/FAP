@@ -8,7 +8,18 @@ using Microsoft.Extensions.Logging;
 
 namespace Fap.Foundation
 {
-    public class HardwareInfoService
+    public interface IHardwareInfoService
+    {
+        Task<SystemSpecification> GetSystemSpecificationAsync();
+        Task<ProcessorInfo?> GetProcessorInfoAsync();
+        Task<IReadOnlyList<MemoryInfo>> GetMemoryInfoAsync();
+        Task<IReadOnlyList<VideoControllerInfo>> GetVideoControllersAsync();
+        Task<IReadOnlyList<DiskInfo>> GetDiskInfoAsync();
+        Task<IReadOnlyList<NetworkAdapterInfo>> GetNetworkAdaptersAsync();
+        Task<string?> GetPrimarySoundDeviceAsync();
+    }
+
+    public class HardwareInfoService : IHardwareInfoService
     {
         private static readonly TimeSpan DefaultTtl = TimeSpan.FromMinutes(5);
 

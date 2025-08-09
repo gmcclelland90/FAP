@@ -102,7 +102,7 @@ namespace Server.Console
                   // WMI and hardware info services
                   services.AddMemoryCache();
                   services.AddSingleton<Fap.Foundation.WmiService>();
-                  services.AddSingleton<Fap.Foundation.HardwareInfoService>();
+                  services.AddSingleton<Fap.Foundation.IHardwareInfoService, Fap.Foundation.HardwareInfoService>();
                   services.AddSingleton<Fap.Foundation.ParallelWmiService>();
 
                  // Register network services

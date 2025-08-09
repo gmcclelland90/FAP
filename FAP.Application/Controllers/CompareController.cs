@@ -23,6 +23,7 @@ using System.Linq;
 using System.Threading;
 using System.Waf.Applications;
 using System.Waf.Applications.Services;
+using System.Collections.Concurrent;
 using FAP.Application.ViewModels;
 using FAP.Domain.Entities;
 using FAP.Domain;
@@ -37,6 +38,8 @@ namespace FAP.Application.Controllers
 {
     public class CompareController : AsyncControllerBase
     {
+        private static readonly ConcurrentDictionary<string, (CompareNode node, DateTime ts)> recentCache = new();
+        private static readonly TimeSpan cacheTtl = TimeSpan.FromSeconds(60);
         private readonly IServiceProvider serviceProvider;
         private readonly Microsoft.Extensions.Logging.ILogger<CompareController> logger;
         private readonly Model model;
@@ -101,6 +104,16 @@ namespace FAP.Application.Controllers
                         try
                         {
                             var peerStart = DateTime.UtcNow;
+                            var cacheKey = string.IsNullOrWhiteSpace(peer.Location) ? (peer.Host ?? peer.Nickname ?? Guid.NewGuid().ToString()) : peer.Location;
+                            if (recentCache.TryGetValue(cacheKey, out var cached) && (DateTime.UtcNow - cached.ts) < cacheTtl)
+                            {
+                                var cachedNode = cached.node;
+                                cachedNode.Nickname = string.IsNullOrEmpty(peer.Nickname) ? peer.Host : peer.Nickname;
+                                cachedNode.Status = cachedNode.Status; // trigger change stamp
+                                cachedNode.LatencyMs = 0;
+                                viewModel.Data.Add(cachedNode);
+                                return;
+                            }
                             var client = new Client(model.LocalNode);
                             var verb = new CompareVerb();
                             var ok = client.Execute(verb, peer, 7000);
@@ -123,6 +136,7 @@ namespace FAP.Application.Controllers
                             result.Status = verb.Allowed ? "OK" : "Denied";
                             result.LatencyMs = (long)(DateTime.UtcNow - peerStart).TotalMilliseconds;
                             viewModel.Data.Add(result);
+                            recentCache[cacheKey] = (result, DateTime.UtcNow);
                         }
                         catch (Exception ex)
                         {
@@ -139,7 +153,7 @@ namespace FAP.Application.Controllers
                         }
                     });
                     var totalMs = (long)(DateTime.UtcNow - startedAt).TotalMilliseconds;
-                    viewModel.Status = $"Complete in {totalMs} ms";
+                    viewModel.Status = viewModel.Data.Count == 0 ? "No responses" : $"Complete in {totalMs} ms";
                 }
                 finally
                 {

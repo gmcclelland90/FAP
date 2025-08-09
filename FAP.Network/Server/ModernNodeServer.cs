@@ -21,6 +21,9 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.AspNetCore.ResponseCompression;
 using System.IO.Compression;
 using Microsoft.Extensions.Options;
+using Fap.Foundation;
+using FAP.Shared;
+using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 
 namespace FAP.Network.Server
@@ -107,12 +110,12 @@ namespace FAP.Network.Server
                             app.UseRouting();
                             app.UseEndpoints(endpoints =>
                             {
-                                endpoints.MapGet("/health", async context =>
+                                endpoints.MapGet("/Fap.api/health", async context =>
                                 {
                                     context.Response.ContentType = "text/plain";
                                     await context.Response.WriteAsync("OK");
-                                });
-                                endpoints.MapGet("/health/details", async context =>
+                                }).RequireRateLimiting("interactive");
+                                endpoints.MapGet("/Fap.api/health/details", async context =>
                                 {
                                     long ir = System.Threading.Interlocked.Read(ref _interactiveRequests);
                                     long it = System.Threading.Interlocked.Read(ref _interactiveTotalMs);
@@ -138,7 +141,7 @@ namespace FAP.Network.Server
                                     };
                                     context.Response.ContentType = "application/json";
                                     await context.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(payload));
-                                });
+                                }).RequireRateLimiting("interactive");
                                 // Consolidated routing
                                 endpoints.MapMethods("/Fap.app/{**path}", new[] { "GET", "POST" }, HandleRequest)
                                          .RequireRateLimiting("interactive");
@@ -146,6 +149,68 @@ namespace FAP.Network.Server
                                          .RequireRateLimiting("downloads");
                                 endpoints.MapMethods("/{**path}", new[] { "GET", "POST" }, HandleRequest)
                                          .RequireRateLimiting("default");
+
+                                // Optional minimal API: typed COMPARE response endpoint
+                                // Typed API (doesn't interfere with legacy /Fap.app/COMPARE)
+                                endpoints.MapGet("/Fap.api/compare/v1", async context =>
+                                {
+                                    try
+                                    {
+                                        // scope/maxAge (optional, future): var scope = context.Request.Query["scope"].ToString();
+                                        var hw = new HardwareInfoService(new WmiService());
+                                        var sys = new SystemInfo();
+                                        var cpuTask = hw.GetProcessorInfoAsync();
+                                        var memTask = hw.GetMemoryInfoAsync();
+                                        var gpuTask = hw.GetVideoControllersAsync();
+                                        var diskTask = hw.GetDiskInfoAsync();
+                                        var nicTask = hw.GetNetworkAdaptersAsync();
+                                        var soundTask = hw.GetPrimarySoundDeviceAsync();
+                                        await Task.WhenAll(cpuTask, memTask, gpuTask, diskTask, nicTask, soundTask);
+
+                                        var cpu = cpuTask.Result;
+                                        var memBytes = memTask.Result.Sum(m => m.Capacity);
+                                        var gpus = gpuTask.Result;
+                                        var firstGpu = gpus.FirstOrDefault();
+                                        long gpuMem = 0; foreach (var g in gpus) { if (long.TryParse(g.AdapterRAM, out var v)) gpuMem += v; }
+                                        var disks = diskTask.Result;
+                                        long dTotal = 0, dFree = 0; int dCount = 0; foreach (var d in disks) { dTotal += d.Size; dFree += d.FreeSpace; dCount++; }
+                                        var nics = nicTask.Result; long link = 0; foreach (var n in nics) link = Math.Max(link, n.Speed);
+                                        var sound = soundTask.Result;
+
+                                        // Basic score: reuse existing calculation indirectly is non-trivial here; set to 0 for typed view
+                                        var specs = new CompareSpecsV1(
+                                            Cpu: new CpuInfoV1(
+                                                Model: cpu?.Name ?? sys.GetCPUType(),
+                                                Cores: cpu?.NumberOfCores != 0 ? cpu!.NumberOfCores : sys.GetCPUCores(),
+                                                Threads: cpu?.NumberOfLogicalProcessors != 0 ? cpu!.NumberOfLogicalProcessors : sys.GetCPUThreads(),
+                                                Bits: sys.GetCPUBits(),
+                                                MaxClockMhz: cpu?.MaxClockSpeed != 0 ? cpu!.MaxClockSpeed : sys.GetCPUSpeed()
+                                            ),
+                                            Memory: new MemoryInfoV1(memBytes != 0 ? memBytes : sys.GetMemorySize()),
+                                            Gpu: string.IsNullOrEmpty(firstGpu?.Name) ? null : new GpuInfoV1(firstGpu!.Name, gpuMem, gpus.Count),
+                                            Display: new DisplayInfoV1(sys.GetPrimaryDisplayWidth(), sys.GetPrimaryDisplayHeight(), sys.GetTotalDisplayWidth(), sys.GetTotalDisplayHeight()),
+                                            Storage: new StorageInfoV1(dTotal != 0 ? dTotal : sys.GetTotalHDDSize(), dFree != 0 ? dFree : sys.GetTotalHDDFree(), dCount != 0 ? dCount : sys.GetHDDCount()),
+                                            Network: new NetworkInfoV1(link != 0 ? link : sys.GetNetworkSpeed()),
+                                            Audio: string.IsNullOrEmpty(sound) ? null : new AudioInfoV1(sound),
+                                            Score: 0
+                                        );
+                                        var dto = new CompareResponseV1(
+                                            Allowed: true,
+                                            DenyReason: null,
+                                            Nickname: Environment.MachineName,
+                                            Location: $"http://{context.Request.Host}",
+                                            Specs: specs
+                                        );
+                                        context.Response.ContentType = "application/json";
+                                        await context.Response.WriteAsync(JsonSerializer.Serialize(dto, CompareJsonContext.Default.CompareResponseV1));
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        var logger = context.RequestServices.GetService<Microsoft.Extensions.Logging.ILogger<ModernNodeServer>>();
+                                        logger?.LogError(ex, "Error on typed COMPARE endpoint");
+                                        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                                    }
+                                }).RequireRateLimiting("interactive");
                             });
                         });
                     })
