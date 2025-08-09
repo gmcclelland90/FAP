@@ -486,14 +486,104 @@ namespace FAP.Domain.Handlers
                 using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
                     e.Response.Headers["Last-Modified"] = modified.ToString("R");
-                    e.Response.Headers["Content-Length"] = fs.Length.ToString();
-                    // Stream file to response to minimize memory usage
-                    var buffer = new byte[64 * 1024];
-                    int bytesRead;
-                    while ((bytesRead = await fs.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                    e.Response.Headers["Accept-Ranges"] = "bytes";
+
+                    long totalLength = fs.Length;
+                    long start = 0;
+                    long end = totalLength - 1;
+                    bool isRange = false;
+
+                    var rangeHeader = e.Request.Headers["Range"];
+                    if (!string.IsNullOrEmpty(rangeHeader))
                     {
-                        await e.Response.Body.WriteAsync(buffer, 0, bytesRead);
+                        // Expected formats:
+                        // bytes=start-end | bytes=start- | bytes=-suffix
+                        // Only single-range supported
+                        var value = rangeHeader.ToString().Trim();
+                        if (value.StartsWith("bytes=", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var spec = value.Substring(6).Trim();
+                            var parts = spec.Split('-', 2);
+                            if (parts.Length == 2)
+                            {
+                                if (long.TryParse(parts[0], out var parsedStart))
+                                {
+                                    start = parsedStart;
+                                    if (parts[1].Length > 0 && long.TryParse(parts[1], out var parsedEnd))
+                                    {
+                                        end = parsedEnd;
+                                    }
+                                    else
+                                    {
+                                        end = totalLength - 1;
+                                    }
+                                }
+                                else if (parts[0].Length == 0 && long.TryParse(parts[1], out var suffix))
+                                {
+                                    // bytes=-N
+                                    if (suffix <= 0)
+                                    {
+                                        start = 0;
+                                        end = totalLength - 1;
+                                    }
+                                    else
+                                    {
+                                        start = Math.Max(0, totalLength - suffix);
+                                        end = totalLength - 1;
+                                    }
+                                }
+
+                                // Validate range
+                                if (start < 0 || start >= totalLength)
+                                {
+                                    // 416 Range Not Satisfiable
+                                    e.Response.StatusCode = 416;
+                                    e.Response.Headers["Content-Range"] = $"bytes */{totalLength}";
+                                    e.IsHandled = true;
+                                    return true;
+                                }
+                                if (end < start || end >= totalLength)
+                                {
+                                    end = totalLength - 1;
+                                }
+
+                                isRange = true;
+                            }
+                        }
                     }
+
+                    if (isRange)
+                    {
+                        long length = end - start + 1;
+                        e.Response.StatusCode = 206; // Partial Content
+                        e.Response.Headers["Content-Range"] = $"bytes {start}-{end}/{totalLength}";
+                        e.Response.Headers["Content-Length"] = length.ToString();
+
+                        fs.Position = start;
+                        var remaining = length;
+                        var buffer = new byte[64 * 1024];
+                        while (remaining > 0)
+                        {
+                            int toRead = (int)Math.Min(buffer.Length, remaining);
+                            int bytesRead = await fs.ReadAsync(buffer, 0, toRead);
+                            if (bytesRead <= 0) break;
+                            await e.Response.Body.WriteAsync(buffer, 0, bytesRead);
+                            remaining -= bytesRead;
+                        }
+                    }
+                    else
+                    {
+                        e.Response.StatusCode = 200;
+                        e.Response.Headers["Content-Length"] = totalLength.ToString();
+                        // Stream full file
+                        var buffer = new byte[64 * 1024];
+                        int bytesRead;
+                        while ((bytesRead = await fs.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                        {
+                            await e.Response.Body.WriteAsync(buffer, 0, bytesRead);
+                        }
+                    }
+
                     e.IsHandled = true;
                     return true;
                 }
