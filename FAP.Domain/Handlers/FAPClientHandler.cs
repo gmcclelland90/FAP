@@ -139,9 +139,9 @@ namespace FAP.Domain.Handlers
                 {
                     if (File.Exists(possiblePath))
                     {
-                        // Keep session for progress accounting; uploader is deprecated
-                        var ffu = new FAPFileUploader(bufferService, serverUploadLimiterService, Microsoft.Extensions.Logging.Abstractions.NullLogger<FAPFileUploader>.Instance);
-                        var session = new TransferSession(ffu);
+                        // Lightweight session for progress accounting
+                        var worker = new LightweightTransferWorker();
+                        var session = new TransferSession(worker);
                         model.TransferSessions.Add(session);
                         try
                         {
@@ -154,12 +154,15 @@ namespace FAP.Domain.Handlers
                             using (
                                 FileStream fs = File.Open(possiblePath, FileMode.Open, FileAccess.Read, FileShare.Read))
                             {
-                                // TODO: Implement modern upload functionality (streaming handled by ModernHTTPHandler for now)
+                                // Record initial session metadata (actual streaming handled elsewhere)
+                                worker.Length = fs.Length;
+                                worker.Position = 0;
+                                worker.Status = "Uploading";
                                 logger.LogInformation("Upload requested for {Path} by {User}", possiblePath, userName);
                             }
 
                             //Add log of upload
-                            double seconds = (DateTime.Now - ffu.TransferStart).TotalSeconds;
+                            double seconds = (DateTime.Now - worker.TransferStart).TotalSeconds;
                             var txlog = new TransferLog();
                             txlog.Nickname = userName;
                             txlog.Completed = DateTime.Now;
@@ -172,7 +175,7 @@ namespace FAP.Domain.Handlers
                                     txlog.Path = txlog.Path.Substring(1);
                             }
 
-                            txlog.Size = ffu.Length - ffu.ResumePoint;
+                            txlog.Size = worker.Length - worker.ResumePoint;
                             if (txlog.Size < 0)
                                 txlog.Size = 0;
                             if (0 != seconds)

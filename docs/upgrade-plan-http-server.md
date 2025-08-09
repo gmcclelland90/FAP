@@ -420,17 +420,20 @@ public class FapWebHost
 - [ ] Test protocol compatibility
 
 ### Web Interface Compatibility
-- [x] Serve static files from `Web.Resources` via `UseStaticFiles`
-- [x] Keep `TemplateEngine` and `ModernHTTPHandler` for directory pages
-- [x] Map `/Fap.app.web/icon/{ext}` and cache/generate icons (via ModernHTTPHandler)
-- [x] Add caching headers for static content
-- [ ] Validate web interface functionality
+ - [x] Serve static files from `Web.Resources` via `UseStaticFiles`
+ - [x] Keep `TemplateEngine` and `ModernHTTPHandler` for directory pages
+ - [x] Map `/Fap.app.web/icon/{ext}` and cache/generate icons (via ModernHTTPHandler)
+ - [x] Add caching headers for static content
+ - [x] Add ETag for icons and long-lived cache (30 days)
+ - [x] Stream file responses to reduce memory usage
+ - [x] Validate web interface functionality
 
 ### Configuration
 - [x] Configure Kestrel performance settings (HTTP/1.1/2/3)
 - [x] Add response compression
 - [x] Add response caching
 - [x] Add rate limiting policy (fixed window)
+- [x] Per-route policies: interactive (`/Fap.app/*`), downloads (`/Fap.app.web/*`), default
 - [x] Disable server header
 - [ ] Test performance improvements
 
@@ -438,9 +441,28 @@ public class FapWebHost
 - [x] Remove custom HttpServer projects and references
 - [x] Remove `using HttpServer.*` and legacy wrappers
 - [x] Remove `libs/HttpServer/` folder
+- [x] Remove legacy uploaders: `HTTPFileUploader`, `FAPFileUploader`
 - [ ] Update project dependencies (as needed)
 - [ ] Test all HTTP functionality
 - [ ] Performance testing
+
+## What’s next
+
+- Protocol correctness and tests
+  - [ ] Exercise CONNECT/BROWSE/SEARCH/DOWNLOAD verbs end-to-end (client ↔ server) on LAN
+  - [ ] Ensure no double-read of request bodies (central decode already in place)
+  - [ ] Confirm responses consistently written via `ModernResponseWriter` where applicable
+
+- File download path performance
+  - [ ] Enable range requests for large file downloads handled in `ModernHTTPHandler` (use `SendFileAsync` or range-aware streaming)
+  - [ ] Consider mapping direct downloads to static-file pipeline where feasible to leverage kernel sendfile
+
+- Observability
+  - [ ] Track per-route 429 counts and request timings; expose in `/health/details`
+
+- Performance validation
+  - [ ] Throughput and latency measurements for typical LAN concurrency
+  - [ ] Tune rate limiter permit limits based on observed concurrency
 
 ## Risk Assessment
 
