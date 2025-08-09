@@ -306,7 +306,7 @@ namespace FAP.Domain.Services
 
                             status = $"{currentItem.Nickname} - {currentItem.FileName} - {Utility.FormatBytes(currentItem.Size)}";
 
-                                                    DateTime start = DateTime.Now;
+                                                    var sw = System.Diagnostics.Stopwatch.StartNew();
 
                                                     while (true)
                                                     {
@@ -327,7 +327,8 @@ namespace FAP.Domain.Services
                                                     }
 
                                                     //Add log of transfer
-                                                    double seconds = (DateTime.Now - start).TotalSeconds;
+                                                    sw.Stop();
+                                                    double seconds = sw.Elapsed.TotalSeconds;
                                                     var rxlog = new TransferLog();
                                                     rxlog.Added = currentItem.Added;
                                                     rxlog.Completed = DateTime.Now;
@@ -335,9 +336,12 @@ namespace FAP.Domain.Services
                                                     rxlog.Nickname = currentItem.Nickname;
                                                     rxlog.Path = currentItem.FolderPath;
                                                     rxlog.Size = currentItem.Size - resumePoint;
-                                                    if (0 != seconds)
-                                                        rxlog.Speed = (int) (rxlog.Size/seconds);
+                                                    if (seconds > 0)
+                                                        rxlog.Speed = (int)(rxlog.Size / seconds);
                                                     model.CompletedDownloads.Add(rxlog);
+                                                    logger.LogInformation("Download completed: {File} bytes={Bytes} durationMs={DurationMs} avgKbps={Kbps}",
+                                                        currentItem.FileName, rxlog.Size, sw.ElapsedMilliseconds,
+                                                        seconds > 0 ? (rxlog.Size / 1024.0) / seconds : 0);
                                                 }
                                                 else
                                                 {

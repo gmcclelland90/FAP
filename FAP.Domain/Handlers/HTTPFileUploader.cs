@@ -20,6 +20,8 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Diagnostics;
+using System.Collections.Generic;
 using System.Net;
 using FAP.Domain.Entities;
 using FAP.Domain.Net;
@@ -91,6 +93,15 @@ namespace FAP.Domain.Handlers
             IHeader? rangeHeader =
                 context.Request.Headers.Where(n => n.Name.ToLowerInvariant() == "range").FirstOrDefault();
             ServerUploadToken? token = null;
+            var sw = Stopwatch.StartNew();
+            using var scope = logger.BeginScope(new Dictionary<string, object>
+            {
+                ["Protocol"] = "HTTP",
+                ["User"] = user,
+                ["Url"] = url,
+                ["Size"] = stream.Length
+            });
+            logger.LogInformation("Upload started: {Protocol} {User} {Url} size={Size}", "HTTP", user, url, stream.Length);
             try
             {
                 if (stream.Length > Model.FREE_FILE_LIMIT)
@@ -184,11 +195,17 @@ namespace FAP.Domain.Handlers
             }
             finally
             {
+                sw.Stop();
                 status = $"HTTP ({user}) Upload complete";
                 if (null != token)
                     uploadLimiter.FreeToken(token);
                 isComplete = true;
                 position = length;
+                var bytes = Math.Max(0, length - ResumePoint);
+                var elapsedMs = Math.Max(1, sw.ElapsedMilliseconds);
+                var kbps = (bytes / 1024.0) / (elapsedMs / 1000.0);
+                logger.LogInformation("Upload completed: {Protocol} {User} {Url} bytes={Bytes} durationMs={DurationMs} avgKbps={Kbps}",
+                    "HTTP", user, url, bytes, elapsedMs, kbps);
             }
         }
     }
