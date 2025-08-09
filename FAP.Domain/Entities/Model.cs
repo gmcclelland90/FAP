@@ -335,7 +335,7 @@ namespace FAP.Domain.Entities
         {
             lock (downloadQueue)
             {
-                SafeSave(this, saveLocation, FAP.Domain.JsonConfiguration.IndentedOptions);
+                SafeSave(this, saveLocation, FAP.Domain.FapJsonContext.Default.Model);
             }
         }
 
@@ -347,7 +347,7 @@ namespace FAP.Domain.Entities
                 {
                     if (File.Exists(DATA_FOLDER + saveLocation))
                     {
-                        var saved = SafeLoad<Model>(saveLocation, FAP.Domain.JsonConfiguration.IndentedOptions);
+                        var saved = SafeLoad(saveLocation, FAP.Domain.FapJsonContext.Default.Model);
 
                         Shares.Clear();
                         Shares.AddRange(saved.Shares.OrderBy(s => s.Name).ToList());

@@ -346,31 +346,30 @@ public class StreamingJsonService
 ### Entity Migration
 - [x] Replace `using Newtonsoft.Json` with `using System.Text.Json.Serialization`
 - [x] Update Model entity
-- [ ] Update NetworkRequest entity (verify if persisted/serialized; adjust if needed)
-- [ ] Update DownloadRequest entity (verify usage; likely attributes only)
-- [ ] Update Share entity (verify usage; likely attributes only)
-- [ ] Update Node entity (verify usage; likely attributes only)
-- [ ] Update Overlord entity (attributes swapped)
-- [ ] Update SearchResult entity (attributes swapped)
+- [x] Update NetworkRequest entity (verify if persisted/serialized; adjust if needed)
+- [x] Update DownloadRequest entity (verify usage; likely attributes only)
+- [x] Update Share entity (verify usage; likely attributes only)
+- [x] Update Node entity (verify usage; likely attributes only)
+- [x] Update Overlord entity (attributes swapped)
+- [x] Update SearchResult entity (attributes swapped)
 
 ### Service Migration
 - [x] Update BaseVerb for System.Text.Json
-- [ ] Update TemplateEngine
 - [x] Update configuration persistence (Model, BaseEntity, DownloadQueue)
 - [x] Update protocol serialization (verbs use System.Text.Json)
 - [ ] Test serialization/deserialization
 
 ### Performance Optimization
-- [ ] Add source generator configuration
-- [ ] Implement optimized serialization
-- [ ] Add streaming support for large objects
+- [x] Add source generator configuration
+- [x] Implement optimized serialization
+- [x] Add streaming support for large objects (added `StreamingJsonService`)
 - [ ] Configure performance settings
 - [ ] Test performance improvements
 
 ### Cleanup
-- [ ] Remove Json.NET using statements
-- [ ] Remove Newtonsoft.Json attributes (replace with System.Text.Json)
-- [ ] Update packages.config files
+- [x] Remove Json.NET using statements
+- [x] Remove Newtonsoft.Json attributes (replace with System.Text.Json)
+- [x] Update packages.config files
 - [ ] Test all JSON functionality
 - [ ] Performance testing
 

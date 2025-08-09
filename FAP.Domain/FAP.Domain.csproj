@@ -21,6 +21,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <CompilerVisibleProperty Include="EmitCompilerGeneratedFiles" />
+    <CompilerVisibleProperty Include="CompilerGeneratedFilesOutputPath" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)\generated</CompilerGeneratedFilesOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\FAP.Foundation\FAP.Foundation.csproj" />
     <ProjectReference Include="..\FAP.Network\FAP.Network.csproj" />
     <ProjectReference Include="..\FAP.Shared\FAP.Shared.csproj" />

@@ -40,7 +40,7 @@ namespace FAP.Domain.Entities
         public void Save()
         {
             lock (sync)
-                SafeSave(this, saveLocation, FAP.Domain.JsonConfiguration.CompactOptions);
+                SafeSave(this, saveLocation, FAP.Domain.FapJsonContext.Default.DownloadQueue);
         }
 
         private readonly ILogger<DownloadQueue> logger;
@@ -64,7 +64,7 @@ namespace FAP.Domain.Entities
                     queue.Clear();
                     if (File.Exists(DATA_FOLDER + saveLocation))
                     {
-                        var saved = SafeLoad<DownloadQueue>(saveLocation, FAP.Domain.JsonConfiguration.CompactOptions);
+                        var saved = SafeLoad(saveLocation, FAP.Domain.FapJsonContext.Default.DownloadQueue);
                         queue.AddRange(saved.List.ToList());
                     }
                 }

@@ -25,27 +25,14 @@ namespace FAP.Domain.Verbs
     {
         public static T? Deserialise<T>(string json)
         {
-            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true, PropertyNamingPolicy = null };
-            return JsonSerializer.Deserialize<T>(json, options);
-            /*T obj = Activator.CreateInstance<T>();
-            using (MemoryStream ms = new MemoryStream(Encoding.ASCII.GetBytes(json)))
-            {
-                DataContractJsonSerializer serializer = new DataContractJsonSerializer(obj.GetType());
-                obj = (T)serializer.ReadObject(ms); 
-                return obj;
-            }*/
+            var typeInfo = FAP.Domain.FapJsonContext.Default.GetTypeInfo(typeof(T));
+            return (T?)JsonSerializer.Deserialize(json, typeInfo!);
         }
 
         public static string Serialize<T>(T obj)
         {
-            var options = new JsonSerializerOptions { WriteIndented = false, PropertyNamingPolicy = null, DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull };
-            return JsonSerializer.Serialize(obj, options);
-            /* DataContractJsonSerializer serializer = new DataContractJsonSerializer(obj.GetType());
-             using (MemoryStream ms = new MemoryStream())
-             {
-                 serializer.WriteObject(ms, obj);
-                 //return Encoding.ASCII.GetString(ms.ToArray());
-             }*/
+            var typeInfo = FAP.Domain.FapJsonContext.Default.GetTypeInfo(typeof(T));
+            return JsonSerializer.Serialize(obj, typeInfo!);
         }
     }
 }

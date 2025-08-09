@@ -22,6 +22,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 
 namespace FAP.Domain.Entities
 {
@@ -73,6 +74,42 @@ namespace FAP.Domain.Entities
             {
                 if (File.Exists(DATA_FOLDER + fileName + BACKUP_EXT))
                     return JsonSerializer.Deserialize<T>(File.ReadAllText(DATA_FOLDER + fileName + BACKUP_EXT), options ?? FAP.Domain.JsonConfiguration.IndentedOptions);
+            }
+            catch
+            {
+            }
+            throw new Exception("Unable to read " + fileName);
+        }
+
+        protected void SafeSave<T>(T o, string fileName, JsonTypeInfo<T> typeInfo)
+        {
+            if (string.IsNullOrEmpty(fileName))
+                throw new Exception("Unable to save as no filename was specified.");
+            if (!Directory.Exists(DATA_FOLDER))
+                Directory.CreateDirectory(DATA_FOLDER);
+
+            string obj = JsonSerializer.Serialize(o, typeInfo);
+
+            File.WriteAllText(DATA_FOLDER + fileName, obj);
+            File.WriteAllText(DATA_FOLDER + fileName + BACKUP_EXT, obj);
+            obj = null;
+        }
+
+        protected T? SafeLoad<T>(string fileName, JsonTypeInfo<T> typeInfo)
+        {
+            try
+            {
+                if (File.Exists(DATA_FOLDER + fileName))
+                    return JsonSerializer.Deserialize(File.ReadAllText(DATA_FOLDER + fileName), typeInfo);
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                if (File.Exists(DATA_FOLDER + fileName + BACKUP_EXT))
+                    return JsonSerializer.Deserialize(File.ReadAllText(DATA_FOLDER + fileName + BACKUP_EXT), typeInfo);
             }
             catch
             {
