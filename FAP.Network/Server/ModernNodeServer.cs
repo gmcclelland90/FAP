@@ -11,6 +11,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -64,6 +66,7 @@ namespace FAP.Network.Server
                             // Performance middleware
                             app.UseResponseCompression();
                             app.UseResponseCaching();
+                            app.UseRateLimiter();
 
                             // Serve legacy web resources at /Fap.app.web
                             var staticRoot = Path.Combine(AppContext.BaseDirectory, "Web.Resources");
@@ -72,15 +75,22 @@ namespace FAP.Network.Server
                                 app.UseStaticFiles(new StaticFileOptions
                                 {
                                     FileProvider = new PhysicalFileProvider(staticRoot),
-                                    RequestPath = "/Fap.app.web"
+                                    RequestPath = "/Fap.app.web",
+                                    OnPrepareResponse = ctx =>
+                                    {
+                                        // Cache static assets for a day
+                                        ctx.Context.Response.Headers["Cache-Control"] = "public,max-age=86400";
+                                    }
                                 });
                             }
 
                             app.UseRouting();
                             app.UseEndpoints(endpoints =>
                             {
-                                endpoints.MapGet("/{**path}", HandleRequest);
-                                endpoints.MapPost("/{**path}", HandleRequest);
+                                endpoints.MapGet("/{**path}", HandleRequest)
+                                         .RequireRateLimiting("default");
+                                endpoints.MapPost("/{**path}", HandleRequest)
+                                         .RequireRateLimiting("default");
                             });
                         });
                     })
@@ -92,6 +102,17 @@ namespace FAP.Network.Server
                             o.EnableForHttps = true;
                         });
                         services.AddResponseCaching();
+                        services.AddRateLimiter(options =>
+                        {
+                            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+                            options.AddFixedWindowLimiter("default", o =>
+                            {
+                                o.Window = TimeSpan.FromSeconds(1);
+                                o.PermitLimit = 200; // tune for LAN
+                                o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+                                o.QueueLimit = 0;
+                            });
+                        });
                     })
                     .Build();
 
