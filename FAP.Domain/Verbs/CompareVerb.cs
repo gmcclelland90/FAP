@@ -30,6 +30,7 @@ namespace FAP.Domain.Verbs
         private static readonly object sync = new object();
         private static NetworkRequest cachedResponse = null!;
         private static long cacheTime;
+        private const int CacheTtlMs = 1000 * 300; // 5 minutes
         private readonly Model model;
 
         // Parameterless constructor for JSON deserialization
@@ -60,9 +61,16 @@ namespace FAP.Domain.Verbs
             Allowed = !model.DisableComparision;
             if (Allowed)
             {
+                var now = Environment.TickCount;
+                if (cachedResponse != null && unchecked(now - cacheTime) <= CacheTtlMs)
+                {
+                    return cachedResponse;
+                }
+
                 lock (sync)
                 {
-                    if (null == cachedResponse || Environment.TickCount - cacheTime > 1000*300)
+                    now = Environment.TickCount;
+                    if (cachedResponse == null || unchecked(now - cacheTime) > CacheTtlMs)
                     {
                         var si = new SystemInfo();
                         Node = new CompareNode();
@@ -87,11 +95,11 @@ namespace FAP.Domain.Verbs
                         Node.SetData("COMP-HDDCount", si.GetHDDCount().ToString());
                         Node.SetData("COMP-NICSpeed", si.GetNetworkSpeed().ToString());
                         Node.SetData("COMP-SoundCard", si.GetSoundcardName());
-                        cachedResponse = new NetworkRequest {Data = Serialize(this)};
-                        cacheTime = Environment.TickCount;
+                        cachedResponse = new NetworkRequest { Data = Serialize(this) };
+                        cacheTime = now;
                     }
+                    return cachedResponse;
                 }
-                return cachedResponse;
             }
             else
             {

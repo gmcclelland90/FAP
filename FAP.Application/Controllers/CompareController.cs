@@ -92,11 +92,14 @@ namespace FAP.Application.Controllers
                     // Clear previous results
                     viewModel.Data.Clear();
 
-                    var client = new Client(model.LocalNode);
-                    foreach (var peer in peers)
+                    var maxParallel = Math.Max(2, Environment.ProcessorCount);
+                    var options = new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = maxParallel };
+
+                    System.Threading.Tasks.Parallel.ForEach(peers, options, peer =>
                     {
                         try
                         {
+                            var client = new Client(model.LocalNode);
                             var verb = new CompareVerb();
                             var ok = client.Execute(verb, peer, 7000);
                             if (!ok)
@@ -107,22 +110,14 @@ namespace FAP.Application.Controllers
                                 };
                                 errorNode.Status = "Error";
                                 viewModel.Data.Add(errorNode);
-                                continue;
+                                return;
                             }
 
                             var result = verb.Node ?? new CompareNode();
                             if (string.IsNullOrEmpty(result.Nickname))
                                 result.Nickname = string.IsNullOrEmpty(peer.Nickname) ? peer.Host : peer.Nickname;
 
-                            if (!verb.Allowed)
-                            {
-                                result.Status = "Denied";
-                            }
-                            else
-                            {
-                                result.Status = "OK";
-                            }
-
+                            result.Status = verb.Allowed ? "OK" : "Denied";
                             viewModel.Data.Add(result);
                         }
                         catch (Exception ex)
@@ -135,7 +130,7 @@ namespace FAP.Application.Controllers
                             errorNode.Status = "Error";
                             viewModel.Data.Add(errorNode);
                         }
-                    }
+                    });
                     viewModel.Status = "Complete";
                 }
                 finally
