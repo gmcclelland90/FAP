@@ -49,13 +49,12 @@ namespace Server.Console
                 core.Load(true);
                 core.StartOverlordServer();
                
-                System.Console.WriteLine("Server started");
                 logger?.LogInformation("Server started");
                 System.Console.ReadKey();
             }
             else
             {
-                System.Console.WriteLine("Program composition failed");
+                logger?.LogError("Program composition failed");
                 System.Console.ReadKey();
             }
         }
@@ -65,7 +64,7 @@ namespace Server.Console
             if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add)
             {
                 foreach (var item in e.NewItems)
-                    System.Console.WriteLine(item);
+                    logger?.LogInformation("{Message}", item?.ToString());
             }
         }
 

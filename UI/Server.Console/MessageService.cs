@@ -3,25 +3,32 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Waf.Applications.Services;
+using Microsoft.Extensions.Logging;
 
 namespace Server.Console
 {
     public class MessageService : IMessageService
     {
+        private readonly ILogger<MessageService> logger;
+
+        public MessageService(ILogger<MessageService> logger)
+        {
+            this.logger = logger;
+        }
 
         public void ShowMessage(string message)
         {
-            System.Console.WriteLine(message);
+            logger.LogInformation("{Message}", message);
         }
 
         public void ShowWarning(string message)
         {
-            System.Console.WriteLine("WARNING: " + message);
+            logger.LogWarning("{Message}", message);
         }
 
         public void ShowError(string message)
         {
-           System.Console.WriteLine("ERROR: " + message);
+           logger.LogError("{Message}", message);
         }
     }
 }

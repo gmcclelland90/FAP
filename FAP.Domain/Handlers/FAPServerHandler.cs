@@ -110,6 +110,11 @@ namespace FAP.Domain.Handlers
                 OverlordID = networkReq.OverlordID,
                 AuthKey = networkReq.AuthKey
             };
+            using var scope = logger.BeginScope(new System.Collections.Generic.Dictionary<string, object>
+            {
+                ["Verb"] = req.Verb ?? string.Empty,
+                ["Source"] = req.SourceID ?? string.Empty
+            });
             logger.LogTrace("Server rx: {Verb} p: {Param} source: {Source} overlord: {Overlord}", req.Verb, req.Param, req.SourceID,
                          req.OverlordID);
             logger.LogDebug("HandleAsync: Processing verb: {Verb}", req.Verb);

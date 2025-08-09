@@ -71,6 +71,10 @@ namespace FAP.Domain.Handlers
         public bool Handle(string req, RequestEventArgs e)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
+            using var scope = logger.BeginScope(new System.Collections.Generic.Dictionary<string, object>
+            {
+                ["Path"] = e.Request.Uri.AbsolutePath
+            });
             logger.LogDebug("HTTPHandler.Handle: Processing request for path: {Path}", e.Request.Uri.AbsolutePath);
             
             e.Response.Status = HttpStatusCode.OK;

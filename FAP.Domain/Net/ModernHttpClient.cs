@@ -11,6 +11,7 @@ using FAP.Shared.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace FAP.Domain.Net
 {
@@ -106,6 +107,12 @@ namespace FAP.Domain.Net
             try
             {
                 var requestUrl = Multiplexor.Encode(url, input.Verb, input.Param);
+                string httpMethod = string.IsNullOrEmpty(input.Data) ? "GET" : "POST";
+                using var scope = _logger.BeginScope(new Dictionary<string, object>
+                {
+                    ["Url"] = requestUrl,
+                    ["Method"] = httpMethod
+                });
 
                 using var request = new HttpRequestMessage();
                 request.RequestUri = new Uri(requestUrl);

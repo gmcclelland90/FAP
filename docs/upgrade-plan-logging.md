@@ -358,9 +358,9 @@ _logger.LogInformation("Transfer completed in {Duration}ms", stopwatch.ElapsedMi
 - [x] Migrate HTTPHandler
 
 ### Advanced Features
-- [ ] Implement structured logging
+- [x] Implement structured logging (templates + scopes on HTTP server, FAP server handler, HTTP client, share browsing, HTTP handler)
 - [x] Add log level configuration (appsettings.json in WPF/Server.Console/Client.Console)
-- [ ] Add performance logging
+- [x] Add performance logging (timings added to ModernNodeServer, FAPServerHandler, HTTPHandler, ModernHttpClient)
 - [x] Configure log filtering (Default via appsettings + provider/category filters ready)
 
 ### Cleanup

@@ -180,7 +180,6 @@ namespace Fap.Presentation
             }
             else
             {
-                Console.WriteLine(e.Exception.Message);
                 if (serviceProvider != null)
                 {
                     var logger = serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<App>>();
@@ -201,7 +200,6 @@ namespace Fap.Presentation
             }
             else
             {
-                Console.WriteLine(e.Exception.Message);
                 if (serviceProvider != null)
                 {
                     var logger = serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<App>>();

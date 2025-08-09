@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Diagnostics;
 using System.Linq;
+using System.Collections.Generic;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
@@ -96,6 +97,12 @@ namespace FAP.Network.Server
                 var request = context.Request;
                 var response = context.Response;
                 var sw = Stopwatch.StartNew();
+                using var scope = _logger.BeginScope(new Dictionary<string, object>
+                {
+                    ["RequestId"] = context.TraceIdentifier,
+                    ["Method"] = request.Method,
+                    ["Path"] = request.Path.ToString()
+                });
 
                 // Check User-Agent to determine if this is a FAP request
                 string userAgent = request.Headers["User-Agent"].FirstOrDefault() ?? string.Empty;
