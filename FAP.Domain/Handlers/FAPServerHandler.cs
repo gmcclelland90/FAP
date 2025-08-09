@@ -99,6 +99,7 @@ namespace FAP.Domain.Handlers
 
         public async Task<bool> HandleAsync(FAP.Network.Server.RequestEventArgs e)
         {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             var networkReq = await Multiplexor.DecodeModernAsync(e.Request);
             var req = new FAP.Shared.Entities.NetworkRequest
             {
@@ -153,7 +154,8 @@ namespace FAP.Domain.Handlers
             {
                 e.IsHandled = true;
             }
-            
+            sw.Stop();
+            logger.LogDebug("HandleAsync: {Verb} handled={Handled} in {ElapsedMs} ms", req.Verb, result, sw.ElapsedMilliseconds);
             return result;
         }
 

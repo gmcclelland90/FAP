@@ -93,6 +93,7 @@ namespace FAP.Domain.Services
 
         public Directory RefreshPath(Share share)
         {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             try
             {
                 model.GetAntiShutdownLock();
@@ -119,6 +120,9 @@ namespace FAP.Domain.Services
                     {
                         logger.LogWarning(e, "ShareInfoService.RefreshPath: Failed to save share {Id}", share.ID);
                     }
+                    sw.Stop();
+                    logger.LogDebug("ShareInfoService.RefreshPath: Refreshed {Id}:{Name} in {ElapsedMs} ms (size={Size}, items={ItemCount})",
+                        share.ID, share.Name, sw.ElapsedMilliseconds, rs.Data.Size, rs.Data.ItemCount);
                     return rs.Data;
                 }
             }
