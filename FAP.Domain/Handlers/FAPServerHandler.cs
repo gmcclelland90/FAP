@@ -662,19 +662,72 @@ namespace FAP.Domain.Handlers
         private bool HandleChat(NetworkRequest r, FAP.Network.Server.RequestEventArgs e)
         {
             FAP.Shared.FapMetrics.Inc(ref FAP.Shared.FapMetrics.ChatReceived);
-            //If an overlord id is set then this has come from an external overlord
+            // If OverlordID is empty, this originated locally; stamp and forward to all
             if (string.IsNullOrEmpty(r.OverlordID))
             {
                 r.OverlordID = serverNode.ID;
-                SendToStandardClients(r);
-                SendToOverlordClients(r);
+                _ = ForwardChatAsync(r, includeOverlords: true);
             }
             else
             {
-                SendToStandardClients(r);
+                // From an external overlord: forward to local standard clients only
+                _ = ForwardChatAsync(r, includeOverlords: false);
             }
             SendResponse(e, null);
             return true;
+        }
+
+        private async Task ForwardChatAsync(NetworkRequest r, bool includeOverlords)
+        {
+            try
+            {
+                var peers = connectedClientNodes.ToList();
+                var targets = peers.Where(c => c.Node.NodeType == ClientType.Client).ToList();
+                if (includeOverlords)
+                {
+                    targets.AddRange(peers.Where(c => c.Node.NodeType == ClientType.Overlord));
+                }
+
+                const int maxDegree = 16;
+                var semaphore = new System.Threading.SemaphoreSlim(maxDegree);
+                var tasks = new List<Task>(targets.Count);
+                foreach (var peer in targets)
+                {
+                    await semaphore.WaitAsync().ConfigureAwait(false);
+                    tasks.Add(Task.Run(async () =>
+                    {
+                        try
+                        {
+                            var req = r.Clone();
+                            req.AuthKey = peer.Node.Secret;
+                            var client = new ModernHttpClient(serverNode);
+                            // Fire the request (POST if Data set)
+                            bool ok = await client.ExecuteAsync(req, peer.Node, 5000).ConfigureAwait(false);
+                            if (ok)
+                            {
+                                FAP.Shared.FapMetrics.Inc(ref FAP.Shared.FapMetrics.ChatForwarded);
+                            }
+                            else
+                            {
+                                FAP.Shared.FapMetrics.Inc(ref FAP.Shared.FapMetrics.ChatFailures);
+                            }
+                        }
+                        catch
+                        {
+                            FAP.Shared.FapMetrics.Inc(ref FAP.Shared.FapMetrics.ChatFailures);
+                        }
+                        finally
+                        {
+                            semaphore.Release();
+                        }
+                    }));
+                }
+                await Task.WhenAll(tasks).ConfigureAwait(false);
+            }
+            catch
+            {
+                // swallow; metrics already tracked per-target
+            }
         }
 
         private async Task<bool> HandleConnectAsync(NetworkRequest r, FAP.Network.Server.RequestEventArgs e)

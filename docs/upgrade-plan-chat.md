@@ -44,8 +44,8 @@ Out of scope: new features (presence, typing, persistence) and protocol changes.
 - [ ] Add failure counters and expose via health (partial: counters included in health details)
 
 ### Phase 5: Async/Perf
-- [ ] Make overlord chat forwarding async; avoid blocking on I/O (optional)
-- [ ] Add bounded concurrency on forwarding to prevent thundering herd (optional)
+- [x] Make overlord chat forwarding async; avoid blocking on I/O
+- [x] Add bounded concurrency on forwarding (semaphore-limited fan-out)
 - [x] Keep 1:1 conversation send path async (cancellation token optional)
 
 ## Testing Strategy
