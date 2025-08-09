@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -94,6 +95,7 @@ namespace FAP.Network.Server
             {
                 var request = context.Request;
                 var response = context.Response;
+                var sw = Stopwatch.StartNew();
 
                 // Check User-Agent to determine if this is a FAP request
                 string userAgent = request.Headers["User-Agent"].FirstOrDefault() ?? string.Empty;
@@ -105,6 +107,8 @@ namespace FAP.Network.Server
 
                 // Determine request type
                 RequestType requestType = isFapRequest ? RequestType.FAP : RequestType.HTTP;
+
+                _logger.LogDebug("Incoming {Method} {Path} (Type={RequestType}) UA={UserAgent}", request.Method, request.Path, requestType, userAgent);
 
                 // Invoke the OnRequest event (async if available, sync as fallback)
                 if (OnRequestAsync != null)
@@ -118,6 +122,7 @@ namespace FAP.Network.Server
 
                 if (!requestArgs.IsHandled)
                 {
+                    _logger.LogWarning("Unhandled request {Method} {Path}", request.Method, request.Path);
                     // Only set status code if response hasn't started yet
                     if (!context.Response.HasStarted)
                     {
@@ -127,6 +132,9 @@ namespace FAP.Network.Server
                         await response.WriteAsync(errorMessage);
                     }
                 }
+
+                sw.Stop();
+                _logger.LogDebug("Handled {Method} {Path} -> {StatusCode} in {ElapsedMs} ms", request.Method, request.Path, response.StatusCode, sw.ElapsedMilliseconds);
             }
             catch (Exception ex)
             {

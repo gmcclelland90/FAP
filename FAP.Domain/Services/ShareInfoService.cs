@@ -224,9 +224,8 @@ namespace FAP.Domain.Services
         /// <returns></returns>
         public bool GetPath(string path, bool noCache, bool distinct, out List<BrowsingFile> results)
         {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             results = new List<BrowsingFile>();
-            // TODO: Inject ILogger<ShareInfoService>
-            var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
             logger.LogDebug("GetPath: path='{Path}', noCache={NoCache}, distinct={Distinct}", path, noCache, distinct);
 
             //At the root so just return a list of shares
@@ -410,6 +409,8 @@ namespace FAP.Domain.Services
                             results.Add(search);
                     }
                 }
+                sw.Stop();
+                logger.LogDebug("GetPath: Resolved '{Path}' -> {Count} items in {ElapsedMs} ms (virtual={Virtual})", path, results.Count, sw.ElapsedMilliseconds, isVirtual);
                 return true;
             }
 

@@ -441,7 +441,7 @@ namespace FAP.Application
             {
                 try
                 {
-                    logger.LogDebug("viewShare: Original node - Nickname={Nickname}, Host={Host}, ID={Id}", rc.Nickname, rc.Host, rc.ID);
+                        logger.LogDebug("viewShare: Original node - Nickname={Nickname}, Host={Host}, ID={Id}", rc.Nickname, rc.Host, rc.ID);
                     
                     // Create BrowserController with the specific node
                     var browserViewModel = serviceProvider.GetRequiredService<BrowserViewModel>();
@@ -461,7 +461,7 @@ namespace FAP.Application
                         properNode.SetData(kvp.Key, kvp.Value);
                     }
                     
-                    logger.LogDebug("viewShare: Created proper node - Nickname={Nickname}, Host={Host}, ID={Id}", properNode.Nickname, properNode.Host, properNode.ID);
+                        logger.LogDebug("viewShare: Created proper node - Nickname={Nickname}, Host={Host}, ID={Id}", properNode.Nickname, properNode.Host, properNode.ID);
                     
                     var bc = new BrowserController(browserViewModel, model, properNode, shareInfoService);
                     bc.Initalise();

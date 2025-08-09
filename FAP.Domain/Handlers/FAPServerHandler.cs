@@ -616,7 +616,7 @@ namespace FAP.Domain.Handlers
             var verb = new SearchVerb(null);
             NetworkRequest result = verb.ProcessRequest(req);
             byte[] data = Encoding.UTF8.GetBytes(result.Data);
-            var generator = new ModernResponseWriter();
+            var generator = new ModernResponseWriter(logger);
             e.Response.ContentLength = data.Length;
             generator.SendHeaders(e.Context, e.Response);
             e.Context.Stream.Write(data, 0, data.Length);
@@ -631,7 +631,7 @@ namespace FAP.Domain.Handlers
 
             NetworkRequest result = verb.ProcessRequest(req);
             byte[] data = Encoding.UTF8.GetBytes(result.Data);
-            var generator = new ModernResponseWriter();
+            var generator = new ModernResponseWriter(logger);
             e.Response.ContentLength = data.Length;
             generator.SendHeaders(e.Context, e.Response);
             e.Context.Stream.Write(data, 0, data.Length);
@@ -956,7 +956,7 @@ namespace FAP.Domain.Handlers
                 e.Response.ContentLength = data.Length;
             else
                 e.Response.ContentLength = 0;
-            var generator = new ModernResponseWriter();
+            var generator = new ModernResponseWriter(logger);
             generator.SendHeaders(e.Context, e.Response);
             if (data != null && data.Length > 0)
             {
@@ -975,7 +975,7 @@ namespace FAP.Domain.Handlers
         {
             e.Response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
             e.Response.ContentLength = 0;
-            var generator = new ModernResponseWriter();
+            var generator = new ModernResponseWriter(logger);
             generator.SendHeaders(e.Context, e.Response);
         }
 

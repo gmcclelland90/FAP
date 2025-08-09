@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Text;
 using FAP.Network.Server;
+using Microsoft.Extensions.Logging;
 
 namespace FAP.Domain.Handlers
 {
@@ -10,6 +11,18 @@ namespace FAP.Domain.Handlers
     /// </summary>
     public class ModernResponseWriter
     {
+        private readonly ILogger logger;
+
+        public ModernResponseWriter()
+        {
+            logger = Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
+        }
+
+        public ModernResponseWriter(ILogger logger)
+        {
+            this.logger = logger;
+        }
+
         /// <summary>
         /// Sends headers to the client
         /// </summary>
@@ -37,7 +50,7 @@ namespace FAP.Domain.Handlers
             catch (Exception ex)
             {
                 // Log error but don't throw
-                Console.WriteLine($"Error sending headers: {ex.Message}");
+                logger.LogError(ex, "ModernResponseWriter.SendHeaders: Error sending headers");
             }
         }
 
@@ -62,7 +75,7 @@ namespace FAP.Domain.Handlers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error sending data: {ex.Message}");
+                logger.LogError(ex, "ModernResponseWriter.SendAsync(string): Error sending data");
             }
         }
 
@@ -87,7 +100,7 @@ namespace FAP.Domain.Handlers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error sending data: {ex.Message}");
+                logger.LogError(ex, "ModernResponseWriter.SendAsync(byte[]): Error sending data");
             }
         }
     }

@@ -129,8 +129,7 @@ namespace FAP.Domain.Handlers
                         int QueuePosition = token.GlobalQueuePosition;
                         if (QueuePosition > 0)
                         {
-                            status = string.Format("{0} - {1} - {2} - Queue Position {3}", user, Path.GetFileName(url),
-                                                   Utility.FormatBytes(stream.Length), QueuePosition);
+                            status = $"{user} - {Path.GetFileName(url)} - {Utility.FormatBytes(stream.Length)} - Queue Position {QueuePosition}";
                             SendChunkedData(context, Encoding.ASCII.GetBytes(QueuePosition.ToString() + '|'));
                             token.WaitTimeout();
                         }
@@ -140,8 +139,7 @@ namespace FAP.Domain.Handlers
                 TransferStart = DateTime.Now;
                 //Zero queue flag, data follows
                 SendChunkedData(context, Encoding.ASCII.GetBytes("0|"));
-                status = string.Format("{0} - {1} - {2}", user, Path.GetFileName(url),
-                                       Utility.FormatBytes(stream.Length));
+                status = $"{user} - {Path.GetFileName(url)} - {Utility.FormatBytes(stream.Length)}";
 
                 //Send data
                 MemoryBuffer buffer = bufferService.GetBuffer();
@@ -195,7 +193,7 @@ namespace FAP.Domain.Handlers
             }
             finally
             {
-                status = string.Format("{0} - {1} - Complete", user, Path.GetFileName(url));
+                status = $"{user} - {Path.GetFileName(url)} - Complete";
                 if (null != token)
                     uploadLimiter.FreeToken(token);
                 isComplete = true;

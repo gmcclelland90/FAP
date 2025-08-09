@@ -100,12 +100,12 @@ namespace FAP.Domain.Handlers
                     while (token.GlobalQueuePosition > 0)
                     {
                         context.LastAction = DateTime.Now;
-                        status = string.Format("HTTP ({0}) queued upload in slot {1}", user, token.GlobalQueuePosition);
+                        status = $"HTTP ({user}) queued upload in slot {token.GlobalQueuePosition}";
                         token.WaitTimeout();
                     }
                 }
 
-                status = string.Format("HTTP ({0}) Sending {1}", user, url);
+                status = $"HTTP ({user}) Sending {url}";
                 try
                 {
                     if (null != rangeHeader)
@@ -184,7 +184,7 @@ namespace FAP.Domain.Handlers
             }
             finally
             {
-                status = string.Format("HTTP ({0}) Upload complete", user);
+                status = $"HTTP ({user}) Upload complete";
                 if (null != token)
                     uploadLimiter.FreeToken(token);
                 isComplete = true;

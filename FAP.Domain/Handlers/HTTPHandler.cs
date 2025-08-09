@@ -70,6 +70,7 @@ namespace FAP.Domain.Handlers
 
         public bool Handle(string req, RequestEventArgs e)
         {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             logger.LogDebug("HTTPHandler.Handle: Processing request for path: {Path}", e.Request.Uri.AbsolutePath);
             
             e.Response.Status = HttpStatusCode.OK;
@@ -299,6 +300,9 @@ namespace FAP.Domain.Handlers
             e.Context.Stream.Write(data, 0, data.Length);
             e.Context.Stream.Flush();
             data = null;
+            sw.Stop();
+            logger.LogDebug("HTTPHandler.Handle: Served {Path} -> {Status} in {ElapsedMs} ms (bytes={Bytes})",
+                e.Request.Uri.AbsolutePath, (int)e.Response.Status, sw.ElapsedMilliseconds, e.Response.ContentLength.Value);
             return true;
         }
 

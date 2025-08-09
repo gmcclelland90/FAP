@@ -192,7 +192,7 @@ namespace FAP.Domain.Services
                         {
                             length = currentItem.Size;
                             position = 0;
-                            status = currentItem.Nickname + " - " + currentItem.FileName + " - Connecting..";
+                            status = $"{currentItem.Nickname} - {currentItem.FileName} - Connecting..";
                             currentItem.State = DownloadRequestState.Downloading;
 
                             string mainPath = string.Empty;
@@ -304,8 +304,7 @@ namespace FAP.Domain.Services
                                                             fileStream.Write(buff.Data, 0, buff.DataSize);
                                                     }
 
-                                                    status = currentItem.Nickname + " - " + currentItem.FileName + " - " +
-                                                             Utility.FormatBytes(currentItem.Size);
+                            status = $"{currentItem.Nickname} - {currentItem.FileName} - {Utility.FormatBytes(currentItem.Size)}";
 
                                                     DateTime start = DateTime.Now;
 
@@ -343,8 +342,7 @@ namespace FAP.Domain.Services
                                                 else
                                                 {
                                                     //Queued
-                                                    status = currentItem.Nickname + " - " + currentItem.FileName +
-                                                             " - Queue position " + queuePosition;
+                                                    status = $"{currentItem.Nickname} - {currentItem.FileName} - Queue position {queuePosition}";
                                                 }
                                             }
                                         }
@@ -370,7 +368,7 @@ namespace FAP.Domain.Services
                                     Directory.CreateDirectory(mainFolder);
                                 File.Move(incompletePath, mainPath);
                             }
-                            status = currentItem.Nickname + " - Complete: " + currentItem.FileName;
+                            status = $"{currentItem.Nickname} - Complete: {currentItem.FileName}";
                             resp.Dispose();
                         }
                         catch (Exception ex)

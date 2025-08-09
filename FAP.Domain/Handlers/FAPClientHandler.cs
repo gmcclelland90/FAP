@@ -190,7 +190,7 @@ namespace FAP.Domain.Handlers
             }
 
             e.Response.StatusCode = (int)HttpStatusCode.NotFound;
-            var generator = new ModernResponseWriter();
+            var generator = new ModernResponseWriter(logger);
             generator.SendHeaders(e.Context, e.Response);
             return true;
         }
@@ -211,7 +211,7 @@ namespace FAP.Domain.Handlers
             var verb = new BrowseVerb(shareInfoService);
             NetworkRequest result = verb.ProcessRequest(req);
             byte[] data = Encoding.UTF8.GetBytes(result.Data);
-            var generator = new ModernResponseWriter();
+            var generator = new ModernResponseWriter(logger);
             e.Response.ContentLength = data.Length;
             generator.SendHeaders(e.Context, e.Response);
             await e.Context.Stream.WriteAsync(data, 0, data.Length);
@@ -250,7 +250,7 @@ namespace FAP.Domain.Handlers
             var verb = new SearchVerb(shareInfoService);
             NetworkRequest result = verb.ProcessRequest(req);
             byte[] data = Encoding.UTF8.GetBytes(result.Data);
-            var generator = new ModernResponseWriter();
+            var generator = new ModernResponseWriter(logger);
             e.Response.ContentLength = data.Length;
             generator.SendHeaders(e.Context, e.Response);
             await e.Context.Stream.WriteAsync(data, 0, data.Length);
@@ -271,7 +271,7 @@ namespace FAP.Domain.Handlers
 
             NetworkRequest result = verb.ProcessRequest(req);
             byte[] data = Encoding.UTF8.GetBytes(result.Data);
-            var generator = new ModernResponseWriter();
+            var generator = new ModernResponseWriter(logger);
             e.Response.ContentLength = data.Length;
             generator.SendHeaders(e.Context, e.Response);
             await e.Context.Stream.WriteAsync(data, 0, data.Length);
@@ -366,7 +366,7 @@ namespace FAP.Domain.Handlers
             verb.Node = model.LocalNode;
             NetworkRequest result = verb.CreateRequest();
             byte[] data = Encoding.UTF8.GetBytes(result.Data);
-            var generator = new ModernResponseWriter();
+            var generator = new ModernResponseWriter(logger);
             e.Response.ContentLength = data.Length;
             generator.SendHeaders(e.Context, e.Response);
             await e.Context.Stream.WriteAsync(data, 0, data.Length);
@@ -398,7 +398,7 @@ namespace FAP.Domain.Handlers
         private void SendOk(FAP.Network.Server.RequestEventArgs e)
         {
             e.Response.StatusCode = (int)HttpStatusCode.OK;
-            var generator = new ModernResponseWriter();
+            var generator = new ModernResponseWriter(logger);
             generator.SendHeaders(e.Context, e.Response);
         }
     }

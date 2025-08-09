@@ -130,11 +130,13 @@ namespace FAP.Domain.Net
                 }
 
                 // Make the request
+                var sw = System.Diagnostics.Stopwatch.StartNew();
                 using var response = await _httpClient.SendAsync(request);
+                sw.Stop();
                 
                 if (!response.IsSuccessStatusCode)
                 {
-                    _logger.LogWarning("HTTP request failed with status: {StatusCode}", response.StatusCode);
+                    _logger.LogWarning("HTTP request failed with status: {StatusCode} for {RequestUrl} in {ElapsedMs} ms", response.StatusCode, requestUrl, sw.ElapsedMilliseconds);
                     return false;
                 }
 
@@ -152,6 +154,9 @@ namespace FAP.Domain.Net
                 if (response.Headers.Contains("FAP-OVERLORD"))
                     result.OverlordID = response.Headers.GetValues("FAP-OVERLORD").FirstOrDefault() ?? string.Empty;
 
+                _logger.LogDebug("HTTP {Method} {RequestUrl} -> {StatusCode} in {ElapsedMs} ms (bytes={Bytes})",
+                    request.Method, requestUrl, (int)response.StatusCode, sw.ElapsedMilliseconds,
+                    response.Content.Headers.ContentLength ?? 0);
                 return true;
             }
             catch (Exception ex)

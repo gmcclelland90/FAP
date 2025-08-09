@@ -359,9 +359,9 @@ _logger.LogInformation("Transfer completed in {Duration}ms", stopwatch.ElapsedMi
 
 ### Advanced Features
 - [ ] Implement structured logging
-- [ ] Add log level configuration
+- [x] Add log level configuration (appsettings.json in WPF/Server.Console/Client.Console)
 - [ ] Add performance logging
-- [ ] Configure log filtering
+- [x] Configure log filtering (Default via appsettings + provider/category filters ready)
 
 ### Cleanup
 - [x] Remove NLog packages
