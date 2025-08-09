@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using FAP.Domain.Entities;
 using FAP.Domain.Entities.FileSystem;
 using FAP.Domain.Verbs;
+using FAP.Domain.Verbs.Multicast;
 
 namespace FAP.Domain
 {
@@ -28,6 +29,10 @@ namespace FAP.Domain
     [JsonSerializable(typeof(NoopVerb))]
     [JsonSerializable(typeof(UpdateVerb))]
     [JsonSerializable(typeof(ConversationVerb))]
+    [JsonSerializable(typeof(ConnectVerb))]
+    [JsonSerializable(typeof(AddDownload))]
+    [JsonSerializable(typeof(HelloVerb))]
+    [JsonSerializable(typeof(WhoVerb))]
     public partial class FapJsonContext : JsonSerializerContext
     {
     }

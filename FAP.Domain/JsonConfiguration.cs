@@ -9,7 +9,8 @@ namespace FAP.Domain
         {
             WriteIndented = true,
             PropertyNamingPolicy = null,
-            PropertyNameCaseInsensitive = true
+            PropertyNameCaseInsensitive = true,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
         };
 
         // Compact variant (used by queue), PascalCase, case-insensitive
@@ -17,7 +18,8 @@ namespace FAP.Domain
         {
             WriteIndented = false,
             PropertyNamingPolicy = null,
-            PropertyNameCaseInsensitive = true
+            PropertyNameCaseInsensitive = true,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
         };
     }
 }

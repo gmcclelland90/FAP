@@ -357,21 +357,21 @@ public class StreamingJsonService
 - [x] Update BaseVerb for System.Text.Json
 - [x] Update configuration persistence (Model, BaseEntity, DownloadQueue)
 - [x] Update protocol serialization (verbs use System.Text.Json)
-- [ ] Test serialization/deserialization
+- [x] Test serialization/deserialization (config, queue, verbs)
 
 ### Performance Optimization
 - [x] Add source generator configuration
 - [x] Implement optimized serialization
 - [x] Add streaming support for large objects (added `StreamingJsonService`)
-- [ ] Configure performance settings
-- [ ] Test performance improvements
+- [x] Configure performance settings (ignore nulls; case-insensitive; PascalCase)
+- [x] Test performance improvements (manual smoke; generator path in use)
 
 ### Cleanup
 - [x] Remove Json.NET using statements
 - [x] Remove Newtonsoft.Json attributes (replace with System.Text.Json)
 - [x] Update packages.config files
-- [ ] Test all JSON functionality
-- [ ] Performance testing
+- [x] Test all JSON functionality (roundtrips, backward-compat)
+- [x] Performance testing (informal; no regressions observed)
 
 ## Risk Assessment
 

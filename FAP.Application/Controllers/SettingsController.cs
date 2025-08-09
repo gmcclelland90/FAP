@@ -86,6 +86,7 @@ namespace FAP.Application.Controllers
                     // Read the image file and convert to base64
                     byte[] imageBytes = System.IO.File.ReadAllBytes(selectedFile);
                     string base64Image = Convert.ToBase64String(imageBytes);
+                    // Persist avatar to disk via model setter
                     model.Avatar = base64Image;
                     model.Save();
                     logger.LogDebug("Avatar changed to: {File}", selectedFile);

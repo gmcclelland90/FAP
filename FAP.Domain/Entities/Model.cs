@@ -153,12 +153,14 @@ namespace FAP.Domain.Entities
             get { return displayedHelp; }
         }
 
+        [JsonIgnore]
         public string Avatar
         {
             set
             {
                 node.Avatar = value;
                 NotifyChange("Avatar");
+                TryPersistAvatarToDisk(value);
             }
             get { return node.Avatar; }
         }
@@ -335,7 +337,25 @@ namespace FAP.Domain.Entities
         {
             lock (downloadQueue)
             {
-                SafeSave(this, saveLocation, FAP.Domain.FapJsonContext.Default.Model);
+                // Config should be human-readable and omit nulls
+                // Strip avatar blob from LocalNode before saving
+                bool hadAvatar = LocalNode.ContainsKey("Avatar");
+                string avatarBackup = hadAvatar ? LocalNode.Avatar : string.Empty;
+                if (hadAvatar)
+                {
+                    LocalNode.Data.Remove("Avatar");
+                }
+                try
+                {
+                    SafeSave(this, saveLocation, FAP.Domain.JsonConfiguration.IndentedOptions);
+                }
+                finally
+                {
+                    if (hadAvatar)
+                    {
+                        LocalNode.Data.Set("Avatar", avatarBackup);
+                    }
+                }
             }
         }
 
@@ -347,7 +367,7 @@ namespace FAP.Domain.Entities
                 {
                     if (File.Exists(DATA_FOLDER + saveLocation))
                     {
-                        var saved = SafeLoad(saveLocation, FAP.Domain.FapJsonContext.Default.Model);
+                        var saved = SafeLoad<Model>(saveLocation, FAP.Domain.JsonConfiguration.IndentedOptions);
 
                         Shares.Clear();
                         Shares.AddRange(saved.Shares.OrderBy(s => s.Name).ToList());
@@ -364,6 +384,12 @@ namespace FAP.Domain.Entities
                         AlwaysNoCacheBrowsing = saved.AlwaysNoCacheBrowsing;
                         OverlordPriority = saved.OverlordPriority;
                         DisplayedHelp = saved.DisplayedHelp;
+                        // Reload avatar from disk store (do not rely on JSON) and sync to LocalNode
+                        LoadAvatarFromDisk();
+                        if (!string.IsNullOrEmpty(Avatar))
+                        {
+                            LocalNode.Avatar = Avatar;
+                        }
                     }
                     else if (File.Exists(Legacy.Model.saveLocation))
                     {
@@ -387,6 +413,12 @@ namespace FAP.Domain.Entities
                             LocalNode.SetData(data.Key, data.Value);
                         AlwaysNoCacheBrowsing = oldmodel.AlwaysNoCacheBrowsing;
                         OverlordPriority = OverlordPriority.Normal;
+                        // Persist migrated avatar to disk store
+                        if (!string.IsNullOrEmpty(Avatar))
+                        {
+                            TryPersistAvatarToDisk(Avatar);
+                            LocalNode.Avatar = Avatar;
+                        }
                         Save();
                     }
                 }
@@ -408,21 +440,29 @@ namespace FAP.Domain.Entities
             if (LocalNode.Port == 0)
                 LocalNode.Port = 30;
 
-            //If there is no avatar set then set the default
+            // If there is no avatar set then load from disk, else set the default asset
             if (string.IsNullOrEmpty(Avatar))
             {
-                Stream stream =
-                    Application.GetResourceStream(new Uri("Images/Default_Avatar.png", UriKind.Relative)).Stream;
-                var img = new byte[stream.Length];
-                int totalBytesRead = 0;
-                int bytesRead;
-                while (totalBytesRead < stream.Length && 
-                       (bytesRead = stream.Read(img, totalBytesRead, (int)stream.Length - totalBytesRead)) > 0)
+                LoadAvatarFromDisk();
+                if (string.IsNullOrEmpty(Avatar))
                 {
-                    totalBytesRead += bytesRead;
+                    Stream stream =
+                        Application.GetResourceStream(new Uri("Images/Default_Avatar.png", UriKind.Relative)).Stream;
+                    var img = new byte[stream.Length];
+                    int totalBytesRead = 0;
+                    int bytesRead;
+                    while (totalBytesRead < stream.Length &&
+                           (bytesRead = stream.Read(img, totalBytesRead, (int)stream.Length - totalBytesRead)) > 0)
+                    {
+                        totalBytesRead += bytesRead;
+                    }
+                    var base64 = Convert.ToBase64String(img);
+                    // Set both model property and LocalNode for UI bindings using Node.Avatar
+                    Avatar = base64;
+                    LocalNode.Avatar = base64;
+                    TryPersistAvatarToDisk(Avatar);
+                    Save();
                 }
-                Avatar = Convert.ToBase64String(img);
-                Save();
             }
             //Set default nick
             if (string.IsNullOrEmpty(Nickname))
@@ -540,6 +580,7 @@ namespace FAP.Domain.Entities
             }
         }
 
+        [JsonIgnore]
         public string Error
         {
             get { return this[null]; }
@@ -570,6 +611,43 @@ namespace FAP.Domain.Entities
                         return "You must allow atleast one upload!";
                 }
                 return null;
+            }
+        }
+
+        private string GetAvatarFilePath()
+        {
+            return Path.Combine(DATA_FOLDER, "Avatar.png");
+        }
+
+        private void LoadAvatarFromDisk()
+        {
+            try
+            {
+                var path = GetAvatarFilePath();
+                if (File.Exists(path))
+                {
+                    var bytes = File.ReadAllBytes(path);
+                    Avatar = Convert.ToBase64String(bytes);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Model.LoadAvatarFromDisk: Failed loading avatar from disk");
+            }
+        }
+
+        private void TryPersistAvatarToDisk(string base64)
+        {
+            try
+            {
+                var path = GetAvatarFilePath();
+                var bytes = Convert.FromBase64String(base64);
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                File.WriteAllBytes(path, bytes);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Model.TryPersistAvatarToDisk: Failed saving avatar to disk");
             }
         }
     }

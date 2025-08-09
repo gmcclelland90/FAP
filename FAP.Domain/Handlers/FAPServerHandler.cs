@@ -731,6 +731,7 @@ namespace FAP.Domain.Handlers
                     // Use the model's nickname for self-connections
                     selfNode.Nickname = model.Nickname;
                     selfNode.Description = model.Description;
+                    // Keep runtime Node avatar in sync (config save strips it)
                     selfNode.Avatar = model.Avatar;
                     logger.LogDebug("HandleConnect: Set nickname for self-node {Id}: {Nickname}", selfNode.ID, selfNode.Nickname);
                     

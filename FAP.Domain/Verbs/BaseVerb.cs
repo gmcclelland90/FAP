@@ -26,13 +26,24 @@ namespace FAP.Domain.Verbs
         public static T? Deserialise<T>(string json)
         {
             var typeInfo = FAP.Domain.FapJsonContext.Default.GetTypeInfo(typeof(T));
-            return (T?)JsonSerializer.Deserialize(json, typeInfo!);
+            if (typeInfo is null)
+            {
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true, PropertyNamingPolicy = null };
+                return JsonSerializer.Deserialize<T>(json, options);
+            }
+            return (T?)JsonSerializer.Deserialize(json, typeInfo);
         }
 
         public static string Serialize<T>(T obj)
         {
             var typeInfo = FAP.Domain.FapJsonContext.Default.GetTypeInfo(typeof(T));
-            return JsonSerializer.Serialize(obj, typeInfo!);
+            if (typeInfo is null)
+            {
+                // Fallback to options if T wasn't registered in the context
+                var options = new JsonSerializerOptions { WriteIndented = false, PropertyNamingPolicy = null, DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull };
+                return JsonSerializer.Serialize(obj, options);
+            }
+            return JsonSerializer.Serialize(obj, typeInfo);
         }
     }
 }
