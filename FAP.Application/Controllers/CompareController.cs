@@ -25,7 +25,10 @@ using System.Waf.Applications;
 using System.Waf.Applications.Services;
 using FAP.Application.ViewModels;
 using FAP.Domain.Entities;
+using FAP.Domain;
+using FAP.Domain.Net;
 using FAP.Domain.Services;
+using FAP.Domain.Verbs;
 using Fap.Foundation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -58,20 +61,96 @@ namespace FAP.Application.Controllers
                 viewModel = serviceProvider.GetRequiredService<CompareViewModel>();
                 viewModel.Run = new DelegateCommand(Compare);
                 viewModel.Reset = new DelegateCommand(Reset);
+                viewModel.Data = new SafeObservable<CompareNode>();
+                viewModel.Status = "Idle";
             }
             return viewModel;
         }
 
         private void Compare()
         {
-            // Implementation for compare functionality
             logger.LogDebug("Compare operation started");
+            if (viewModel == null) return;
+            viewModel.EnableRun = false;
+            viewModel.Status = "Collecting...";
+
+            QueueWork(new DelegateCommand(() =>
+            {
+                try
+                {
+                    var peers = model.Network.Nodes
+                        .ToList()
+                        .Where(n => n.NodeType != ClientType.Overlord && n.Online)
+                        .ToList();
+
+                    if (peers.Count == 0)
+                    {
+                        viewModel.Status = "No peers online";
+                        return;
+                    }
+
+                    // Clear previous results
+                    viewModel.Data.Clear();
+
+                    var client = new Client(model.LocalNode);
+                    foreach (var peer in peers)
+                    {
+                        try
+                        {
+                            var verb = new CompareVerb();
+                            var ok = client.Execute(verb, peer, 7000);
+                            if (!ok)
+                            {
+                                var errorNode = new CompareNode
+                                {
+                                    Nickname = string.IsNullOrEmpty(peer.Nickname) ? peer.Host : peer.Nickname
+                                };
+                                errorNode.Status = "Error";
+                                viewModel.Data.Add(errorNode);
+                                continue;
+                            }
+
+                            var result = verb.Node ?? new CompareNode();
+                            if (string.IsNullOrEmpty(result.Nickname))
+                                result.Nickname = string.IsNullOrEmpty(peer.Nickname) ? peer.Host : peer.Nickname;
+
+                            if (!verb.Allowed)
+                            {
+                                result.Status = "Denied";
+                            }
+                            else
+                            {
+                                result.Status = "OK";
+                            }
+
+                            viewModel.Data.Add(result);
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogWarning(ex, "Compare failed for peer {Peer}", peer?.Nickname ?? peer?.Host ?? "unknown");
+                            var errorNode = new CompareNode
+                            {
+                                Nickname = string.IsNullOrEmpty(peer.Nickname) ? peer.Host : peer.Nickname
+                            };
+                            errorNode.Status = "Error";
+                            viewModel.Data.Add(errorNode);
+                        }
+                    }
+                    viewModel.Status = "Complete";
+                }
+                finally
+                {
+                    viewModel.EnableRun = true;
+                }
+            }));
         }
 
         private void Reset()
         {
-            // Implementation for reset functionality
             logger.LogDebug("Reset operation started");
+            if (viewModel == null) return;
+            viewModel.Data?.Clear();
+            viewModel.Status = "Idle";
         }
     }
 }
