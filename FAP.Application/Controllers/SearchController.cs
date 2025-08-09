@@ -102,7 +102,6 @@ namespace FAP.Application.Controllers
         private void Search()
         {
             viewModel.AllowSearch = false;
-            ThreadPool.QueueUserWorkItem(EnableSearch);
             currentResults.Clear();
             currentResults = new SafeObservedCollection<SearchResult>();
             if (null != viewModel.Results)
@@ -127,8 +126,81 @@ namespace FAP.Application.Controllers
                 viewModel.LowerStatusMessage = model.Network.Nodes.Count + " peers remaining..";
                 outstandingrequests = peerlist.Count;
                 startTime = Environment.TickCount;
-                foreach (Node peer in peerlist)
-                    ThreadPool.QueueUserWorkItem(RunAsync, new AsyncSearchParam {Node = peer, Results = currentResults});
+
+                var peersSnapshot = new List<Node>(peerlist);
+                var resultsRef = currentResults;
+
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    var options = new System.Threading.Tasks.ParallelOptions
+                    {
+                        MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount / 2)
+                    };
+                    System.Threading.Tasks.Parallel.ForEach(peersSnapshot, options, peer =>
+                    {
+                        try
+                        {
+                            var client = new Client(model.LocalNode);
+                            var verb = new SearchVerb(null);
+                            verb.SearchString = viewModel.SearchString;
+
+                            switch (viewModel.SizeSearchType)
+                            {
+                                case "Less than":
+                                    verb.SmallerThan = GetSearchSize();
+                                    break;
+                                case "Greater than":
+                                    verb.LargerThan = GetSearchSize();
+                                    break;
+                            }
+
+                            switch (viewModel.ModifiedSearchType)
+                            {
+                                case "Before":
+                                    verb.ModifiedBefore = (DateTime) viewModel.ModifiedDate;
+                                    break;
+                                case "After":
+                                    verb.ModifiedAfter = (DateTime) viewModel.ModifiedDate;
+                                    break;
+                            }
+
+                            // 7s timeout per peer
+                            if (client.Execute(verb, peer, 7000))
+                            {
+                                if (verb.Results != null)
+                                {
+                                    foreach (SearchResult result in verb.Results)
+                                    {
+                                        result.User = peer.Nickname;
+                                        result.ClientID = peer.ID;
+                                    }
+                                    resultsRef.AddRange(verb.Results);
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            lock (sync)
+                            {
+                                if (ReferenceEquals(resultsRef, currentResults))
+                                {
+                                    outstandingrequests--;
+                                    if (outstandingrequests < 1)
+                                    {
+                                        viewModel.UpperStatusMessage = "Search complete in " + (Environment.TickCount - startTime) +
+                                                                       " ms";
+                                        viewModel.LowerStatusMessage = currentResults.Count + " results.";
+                                        viewModel.AllowSearch = true;
+                                    }
+                                    else
+                                    {
+                                        viewModel.LowerStatusMessage = outstandingrequests + " peers remaining..";
+                                    }
+                                }
+                            }
+                        }
+                    });
+                });
             }
         }
 

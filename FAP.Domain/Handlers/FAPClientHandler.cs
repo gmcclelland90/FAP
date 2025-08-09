@@ -274,7 +274,31 @@ namespace FAP.Domain.Handlers
             var sw = System.Diagnostics.Stopwatch.StartNew();
 
             var verb = new SearchVerb(shareInfoService);
-            NetworkRequest result = verb.ProcessRequest(req);
+            // Max-duration guard (7s)
+            NetworkRequest result;
+            try
+            {
+                using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(7));
+                var task = Task.Run(() => verb.ProcessRequest(req), cts.Token);
+                var finished = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(7), cts.Token));
+                if (finished != task)
+                {
+                    FAP.Shared.FapMetrics.Inc(ref FAP.Shared.FapMetrics.SearchFailures);
+                    e.Response.StatusCode = (int)HttpStatusCode.GatewayTimeout;
+                    var generatorTO = new ModernResponseWriter(logger);
+                    generatorTO.SendHeaders(e.Context, e.Response);
+                    return true;
+                }
+                result = task.Result;
+            }
+            catch
+            {
+                FAP.Shared.FapMetrics.Inc(ref FAP.Shared.FapMetrics.SearchFailures);
+                e.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+                var generatorErr = new ModernResponseWriter(logger);
+                generatorErr.SendHeaders(e.Context, e.Response);
+                return true;
+            }
             byte[] data = Encoding.UTF8.GetBytes(result.Data);
             var generator = new ModernResponseWriter(logger);
             e.Response.ContentLength = data.Length;
