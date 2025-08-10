@@ -6,10 +6,6 @@
 [![Server: Kestrel](https://img.shields.io/badge/Server-Kestrel-2E7D32)](docs/http-integration.md)
 [![Language: C#](https://img.shields.io/badge/Language-C%23-239120)](#)
 
-LAN file sharing, chat, search, and system compare — all over plain HTTP. 🌐💬🔎📁
-
-Runtime: .NET 9 • Platform: Windows (WPF client) • Transport: HTTP (LAN)
-
 FAP is an HTTP-based LAN file sharing tool. It includes peer discovery, coordinated servers, chat, one-to-one conversations, system specification comparison, network-wide search, and queued downloads. Files can be browsed and downloaded from the native client or a built-in web interface.
 
 ### Features
