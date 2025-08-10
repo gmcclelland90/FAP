@@ -40,7 +40,7 @@ $timestamp = Get-Date -Format 'yyyyMMdd-HHmm'
 
 # Publish WPF client
 $clientProj = Join-Path $PSScriptRoot 'UI/Client.WPF/Fap.Presentation.csproj'
-$clientOut  = Join-Path $PSScriptRoot "UI/Client.WPF/bin/$Configuration/publish/$Runtime"
+$clientOut  = Join-Path $PSScriptRoot "artifacts/publish/client/$Runtime/$Configuration"
 Publish-Project -Project $clientProj -Output $clientOut
 
 $artifactsDir = Join-Path $PSScriptRoot 'artifacts/release'
@@ -49,7 +49,7 @@ Zip-Output -SourceDir $clientOut -ZipPath $clientZip
 
 if ($IncludeServer) {
   $serverProj = Join-Path $PSScriptRoot 'UI/Server.Console/Server.Console.csproj'
-  $serverOut  = Join-Path $PSScriptRoot "UI/Server.Console/bin/$Configuration/publish/$Runtime"
+  $serverOut  = Join-Path $PSScriptRoot "artifacts/publish/server/$Runtime/$Configuration"
   Publish-Project -Project $serverProj -Output $serverOut
 
   $serverZip = Join-Path $artifactsDir "FAP-Server-$Runtime-$Configuration-$timestamp.zip"
@@ -57,7 +57,8 @@ if ($IncludeServer) {
 }
 
 Write-Host "Done." -ForegroundColor Green
-Write-Host "Client: $clientZip"
+Write-Host "Client publish: $clientOut"
+Write-Host "Client zip: $clientZip"
 if ($IncludeServer) { Write-Host "Server: $serverZip" }
 
 

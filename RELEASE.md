@@ -1,6 +1,6 @@
 ## FAP Release Guide
 
-This repo includes a PowerShell script to publish and package the Windows client (and optionally the server).
+This repo includes a PowerShell script to publish and package the Windows client (and optionally the console server).
 
 ### Requirements
 - PowerShell 7+
@@ -13,7 +13,7 @@ pwsh -File .\build.ps1 -Configuration Release -Runtime win-x64
 ```
 
 Outputs:
-- UI/Client.WPF/bin/Release/publish/win-x64/ (published files)
+- artifacts/publish/client/win-x64/Release/ (published files)
 - artifacts/release/FAP-Client-win-x64-Release-YYYYMMDD-HHMM.zip (packaged zip)
 
 ### Include Server package
@@ -23,7 +23,7 @@ pwsh -File .\build.ps1 -Configuration Release -Runtime win-x64 -IncludeServer
 ```
 
 Additional output:
-- UI/Server.Console/bin/Release/publish/win-x64/
+- artifacts/publish/server/win-x64/Release/
 - artifacts/release/FAP-Server-win-x64-Release-YYYYMMDD-HHMM.zip
 
 ### Notes
