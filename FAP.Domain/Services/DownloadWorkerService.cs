@@ -39,14 +39,15 @@ namespace FAP.Domain.Services
 
         private readonly ILogger<DownloadWorkerService> logger;
 
-        public DownloadWorkerService(Node n, Model m, BufferService b, ILogger<DownloadWorkerService> logger)
+        public DownloadWorkerService(Node n, Model m, BufferService b, ILogger<DownloadWorkerService> logger, HttpClient? httpClient = null)
         {
             remoteNode = n;
             model = m;
             bufferService = b;
             this.logger = logger;
-            httpClient = new HttpClient();
-            httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(Model.AppVersion);
+            this.httpClient = httpClient ?? new HttpClient();
+            if (!this.httpClient.DefaultRequestHeaders.UserAgent.Any())
+                this.httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(Model.AppVersion);
         }
 
         public bool IsQueueFull
@@ -311,8 +312,7 @@ namespace FAP.Domain.Services
                                                     while (true)
                                                     {
                                                         //Receive file
-                                                        int read = responseStream.Read(buffer.Data, 0,
-                                                                                       buffer.Data.Length);
+                                                        int read = await responseStream.ReadAsync(buffer.Data.AsMemory(0, buffer.Data.Length));
                                                         if (read == 0)
                                                         {
                                                             streamIncomplete = false;

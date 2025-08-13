@@ -55,7 +55,7 @@ namespace FAP.Application.Controllers
             if (!run)
             {
                 run = true;
-                ThreadPool.QueueUserWorkItem(processCheck);
+                _ = System.Threading.Tasks.Task.Run(() => processCheckAsync(System.Threading.CancellationToken.None));
             }
         }
 
@@ -64,23 +64,26 @@ namespace FAP.Application.Controllers
             run = false;
         }
 
-        private void processCheck(object o)
+        private async System.Threading.Tasks.Task processCheckAsync(System.Threading.CancellationToken token)
         {
             long runCount = 0;
             int lastRun = Environment.TickCount;
 
-            while (run)
+            while (run && !token.IsCancellationRequested)
             {
                 lastRun = Environment.TickCount;
 
-                //Check to see if we need to launch an overlord
-                // Don't auto-start overlord if we're in dedicated mode (it will be started explicitly)
-                // Also don't start if we already have an overlord running
+                // Only start overlord via watchdog when connected peer count is zero and no overlord active
                 logger.LogDebug("WatchdogController: model.IsDedicated={Dedicated}, overlordLauncherService.IsOverlordActive={Active}", model.IsDedicated, overlordLauncherService.IsOverlordActive);
                 if (!model.IsDedicated && !overlordLauncherService.IsOverlordActive)
                 {
-                    logger.LogDebug("WatchdogController: Starting overlord via watchdog");
-                    overlordLauncherService.StartAndStopIfNeeded();
+                    // Start overlord if there are no available peers and we need a coordinator
+                    var anyPeers = model.Network.Nodes.Any(n => n.NodeType != ClientType.Overlord);
+                    if (!anyPeers)
+                    {
+                        logger.LogInformation("WatchdogController: No peers detected, starting overlord");
+                        overlordLauncherService.StartAndStopIfNeeded();
+                    }
                 }
 
                 //Update node transfer info - Every 4 seconds
@@ -139,7 +142,7 @@ namespace FAP.Application.Controllers
                 //Wait 5 seconds minus the time it took to execute
                 int wait = 5000 - (Environment.TickCount - lastRun);
                 if (wait > 0)
-                    Thread.Sleep(wait);
+                    await System.Threading.Tasks.Task.Delay(wait, token);
                 runCount++;
             }
         }

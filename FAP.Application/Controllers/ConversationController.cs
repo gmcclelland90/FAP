@@ -89,7 +89,9 @@ namespace FAP.Application.Controllers
                 convoVerb.Nickname = model.Nickname;
                 // SourceID is stamped by transport headers
                 
-                var client = new ModernHttpClient(model.LocalNode, serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<FAP.Domain.Net.ModernHttpClient>>());
+                var httpClientFactory = serviceProvider.GetService<System.Net.Http.IHttpClientFactory>();
+                var httpClient = httpClientFactory != null ? httpClientFactory.CreateClient("FapDefault") : new System.Net.Http.HttpClient();
+                var client = new ModernHttpClient(model.LocalNode, serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<FAP.Domain.Net.ModernHttpClient>>(), httpClient);
                 var ok = await client.ExecuteAsync(convoVerb, viewModel.Conversation.OtherParty);
                 if (ok)
                 {

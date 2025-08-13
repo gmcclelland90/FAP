@@ -146,9 +146,8 @@ namespace Fap.Presentation
 
                 if (core.Load(false))
                 {
-
-                    // Run as dedicated overlord server instead of client
-                    core.StartOverlordServer();
+                    // Start the client; allow election/watchdog to start an overlord when needed
+                    core.StartClient();
                     core.StartGUI(!(e.Args.Contains("STARTUP")));
                     //Was a url passed on startup?
                     if (e.Args.Length == 2 && e.Args[0] == "-url")
@@ -229,6 +228,13 @@ namespace Fap.Presentation
                  builder.Logging.SetMinimumLevel(LogLevel.Debug);
 
                  var services = builder.Services;
+
+                 // HttpClient factory
+                 services.AddHttpClient("FapDefault", c =>
+                 {
+                     c.Timeout = TimeSpan.FromSeconds(30);
+                     c.DefaultRequestHeaders.UserAgent.ParseAdd(FAP.Domain.Entities.Model.AppVersion);
+                 });
                  
                  // Register services from all modules
                  RegisterDomainServices(services);
@@ -275,7 +281,7 @@ namespace Fap.Presentation
         {
             services.AddSingleton<MulticastClientService>();
             services.AddSingleton<MulticastServerService>();
-            services.AddSingleton<ModernHTTPHandler>();
+            // ModernHTTPHandler already registered in RegisterDomainServices
         }
 
         private void RegisterApplicationServices(IServiceCollection services)

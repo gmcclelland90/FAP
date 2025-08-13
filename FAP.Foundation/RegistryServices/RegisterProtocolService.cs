@@ -14,7 +14,8 @@ namespace Fap.Foundation.RegistryServices
 
         public bool Register(string protocol, string application, string arguments)
         {
-            return Register(protocol, application, arguments, Registry.LocalMachine);
+            // Default to per-user registration (HKCU) to avoid elevation requirements
+            return Register(protocol, application, arguments, Registry.CurrentUser);
         }
 
         public bool Register(string protocol, string application, string arguments, RegistryKey registry)
@@ -50,7 +51,7 @@ namespace Fap.Foundation.RegistryServices
                 r.SetValue("", application + " " + arguments);
 
 
-                // If 64-bit OS, also register in the 32-bit registry area. 
+                // If 64-bit OS, also register in the 32-bit registry area under the same root.
                 if (registry.OpenSubKey("SOFTWARE\\Wow6432Node\\Classes") != null)
                 {
                     r = registry.OpenSubKey("SOFTWARE\\Wow6432Node\\Classes\\" + protocol, true);
@@ -89,10 +90,7 @@ namespace Fap.Foundation.RegistryServices
                     Registry.CurrentUser.OpenSubKey("Software\\Classes", true).DeleteSubKeyTree(protocol);
                 if (Registry.CurrentUser.OpenSubKey("Software\\Wow6432Node\\Classes\\" + protocol) != null)
                     Registry.CurrentUser.OpenSubKey("Software\\Wow6432Node\\Classes", true).DeleteSubKeyTree(protocol);
-                if (Registry.LocalMachine.OpenSubKey("Software\\Classes\\" + protocol) != null)
-                    Registry.LocalMachine.OpenSubKey("Software\\Classes", true).DeleteSubKeyTree(protocol);
-                if (Registry.LocalMachine.OpenSubKey("Software\\Wow6432Node\\Classes\\" + protocol) != null)
-                    Registry.LocalMachine.OpenSubKey("Software\\Wow6432Node\\Classes", true).DeleteSubKeyTree(protocol);
+                // Do not touch HKLM by default
             }
             catch
             {

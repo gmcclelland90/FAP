@@ -152,7 +152,7 @@ namespace FAP.Application
             trayIcon.ShowIcon = true;
             if (showWindow)
                 ShowMainWindow();
-            ThreadPool.QueueUserWorkItem(MainWindowUpdater);
+            _ = System.Threading.Tasks.Task.Run(() => MainWindowUpdaterAsync(System.Threading.CancellationToken.None));
         }
 
         public bool Load(bool server)
@@ -191,9 +191,9 @@ namespace FAP.Application
                 popupController = serviceProvider.GetRequiredService<IPopupWindowController>();
                 conversationController = (ConversationController) serviceProvider.GetRequiredService<IConversationController>();
                 watchdogController = serviceProvider.GetRequiredService<WatchdogController>();
-                
-                // Set dedicated mode before starting watchdog to prevent it from starting overlords
-                model.IsDedicated = true;
+
+                // Run as a standard client by default; allow watchdog to start an overlord via election
+                model.IsDedicated = false;
                 watchdogController.Start();
 
                 if (!model.DisplayedHelp)
@@ -500,9 +500,9 @@ namespace FAP.Application
         /// <summary>
         /// Bulk update the main UI if updated
         /// </summary>
-        private void MainWindowUpdater(object o)
+        private async System.Threading.Tasks.Task MainWindowUpdaterAsync(System.Threading.CancellationToken token)
         {
-            while (true)
+            while (!token.IsCancellationRequested)
             {
                 MainWindowViewModel window = mainWindowModel;
                 if (null != window)
@@ -660,7 +660,7 @@ namespace FAP.Application
                                                  ));
                 }
                 window = null;
-                Thread.Sleep(333);
+                try { await System.Threading.Tasks.Task.Delay(333, token); } catch { }
             }
         }
 

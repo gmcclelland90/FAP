@@ -263,8 +263,9 @@ namespace FAP.Domain.Handlers
 
         public bool Handle(string path, RequestEventArgs e)
         {
-            // For backward compatibility, use the async version
-            return HandleAsync(path, e).GetAwaiter().GetResult();
+            // Prefer fire-and-forget async path to avoid blocking threads
+            _ = HandleAsync(path, e);
+            return true;
         }
 
         private string GetContentType(string extension)

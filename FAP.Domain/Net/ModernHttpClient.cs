@@ -22,17 +22,19 @@ namespace FAP.Domain.Net
         private readonly INode _callingNode;
         private const int DEFAULT_TIMEOUT = 30000; // 30 seconds
 
-        public ModernHttpClient(INode callingNode, ILogger<ModernHttpClient> logger)
+        public ModernHttpClient(INode callingNode, ILogger<ModernHttpClient> logger, HttpClient httpClient)
         {
             _callingNode = callingNode;
             _logger = logger;
-            _httpClient = new HttpClient();
-            _httpClient.Timeout = TimeSpan.FromMilliseconds(DEFAULT_TIMEOUT);
-            _httpClient.DefaultRequestHeaders.Add("User-Agent", Model.AppVersion);
+            _httpClient = httpClient;
+            if (!_httpClient.DefaultRequestHeaders.UserAgent.Any())
+            {
+                _httpClient.DefaultRequestHeaders.Add("User-Agent", Model.AppVersion);
+            }
         }
 
         public ModernHttpClient(INode callingNode)
-            : this(callingNode, NullLogger<ModernHttpClient>.Instance)
+            : this(callingNode, NullLogger<ModernHttpClient>.Instance, new HttpClient { Timeout = TimeSpan.FromMilliseconds(DEFAULT_TIMEOUT) })
         {
         }
 
