@@ -68,22 +68,9 @@ if ($IncludeServer) { Write-Host "Server: $serverZip" }
 
 if ($RunTests) {
   Write-Host "Running integration tests..." -ForegroundColor Cyan
-  $serverExe = Join-Path $PSScriptRoot "UI/Server.Console/bin/$Configuration/net9.0-windows/win-x64/Server.Console.exe"
-  if (-not (Test-Path $serverExe)) {
-    throw "Server executable not found at $serverExe. Build may have failed."
-  }
-  $env:FAP_SERVER_URL = 'http://127.0.0.1:4040'
-  $args = @('--Fap:Web:Listen:Address','127.0.0.1','--Fap:Web:Listen:Port','4040')
-  $proc = Start-Process -FilePath $serverExe -ArgumentList $args -PassThru
-  try {
-    # Simple wait; server also has internal readiness quickly
-    Start-Sleep -Seconds 3
-    & dotnet test (Join-Path $PSScriptRoot 'tests/FAP.IntegrationTests/FAP.IntegrationTests.csproj') -c $Configuration --no-build --logger 'trx;LogFileName=TestResults.trx' | Out-Host
-    $testCode = $LASTEXITCODE
-  }
-  finally {
-    try { $proc.Kill() } catch {}
-  }
+  # Tests start servers in-process via fixtures; no external process needed
+  & dotnet test (Join-Path $PSScriptRoot 'tests/FAP.IntegrationTests/FAP.IntegrationTests.csproj') -c $Configuration --logger 'trx;LogFileName=TestResults.trx' | Out-Host
+  $testCode = $LASTEXITCODE
   if ($testCode -ne 0) { throw "Integration tests failed with exit code $testCode" }
   Write-Host "Integration tests passed." -ForegroundColor Green
 }
