@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net9.0-windows</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\FAP.Domain\FAP.Domain.csproj" />
+		<ProjectReference Include="..\FAP.Network\FAP.Network.csproj" />
+		<ProjectReference Include="..\FAP.Shared\FAP.Shared.csproj" />
+	</ItemGroup>
+
+</Project>
+

@@ -30,17 +30,17 @@ namespace Server.Console
 
             
             Program p = new Program();
-            p.Run();
+            p.Run(args);
         }
 
         private IServiceProvider serviceProvider;
         private ILogger<Program> logger;
         private Model model;
 
-        private void Run()
+        private void Run(string[] args)
         {
 
-            if(Compose())
+            if(Compose(args))
             {
                 model = serviceProvider.GetRequiredService<Model>();
                 model.Messages.CollectionChanged += new System.Collections.Specialized.NotifyCollectionChangedEventHandler(Messages_CollectionChanged);
@@ -68,11 +68,11 @@ namespace Server.Console
             }
         }
 
-        private bool Compose()
+        private bool Compose(string[] args)
         {
             try
              {
-                 var builder = Host.CreateApplicationBuilder();
+                 var builder = Host.CreateApplicationBuilder(args);
                  // Bind FAP web options from configuration if present
                  builder.Services.Configure<FAP.Network.Server.FapWebOptions>(builder.Configuration.GetSection("Fap:Web"));
                  builder.Services.Configure<FAP.Network.Server.FapListenOptions>(builder.Configuration.GetSection("Fap:Web:Listen"));
@@ -93,6 +93,7 @@ namespace Server.Console
                  services.AddSingleton<ShareInfoService>();
                  services.AddSingleton<ListenerService>();
                  services.AddSingleton<Model>();
+                 services.AddSingleton<UpdateCheckerService>();
                  services.AddSingleton<ModernHTTPHandler>();
                  services.AddSingleton<LANPeerFinderService>();
                  services.AddSingleton<BufferService>();
@@ -114,6 +115,7 @@ namespace Server.Console
                  services.AddSingleton<ConnectionController>();
                  services.AddSingleton<WatchdogController>();
                  services.AddTransient<InterfaceController>();
+                 services.AddTransient<FAP.Application.ViewModels.InterfaceSelectionViewModel>();
                  services.AddSingleton<ApplicationCore>();
 
                  // Register additional services for server

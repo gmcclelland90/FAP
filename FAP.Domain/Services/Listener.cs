@@ -77,7 +77,8 @@ namespace FAP.Domain.Services
                     trybind = false;
                     if (isServer)
                     {
-                        var f = new FAPServerHandler(IPAddress.Parse(model.LocalNode.Host),
+                        // Use the actual bound IP address for the server node, not the prior model value
+                        var f = new FAPServerHandler(ip,
                                                      port,
                                                      model,
                                                      serviceProvider.GetRequiredService<MulticastClientService>(),
@@ -86,6 +87,8 @@ namespace FAP.Domain.Services
                                                       serviceProvider.GetRequiredService<ILogger<FAPServerHandler>>());
                         fap = f;
                         f.Start("Local", "Local");
+                        // Also update model to reflect the bound address so fallbacks use the correct host
+                        try { model.LocalNode.Host = ip.ToString(); } catch { }
                     }
                     else
                     {
@@ -151,7 +154,10 @@ namespace FAP.Domain.Services
             {
                 // HTTP request
                 if (arg.Request.Method == "GET")
-                    http.Handle(arg.Request.Path, arg);
+                {
+                    // Await the async handler to ensure the response is written before returning
+                    await http.HandleAsync(arg.Request.Path, arg);
+                }
             }
             else
             {
