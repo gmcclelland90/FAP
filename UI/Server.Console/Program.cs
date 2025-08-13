@@ -74,8 +74,14 @@ namespace Server.Console
              {
                  var builder = Host.CreateApplicationBuilder(args);
                  // Bind FAP web options from configuration if present
-                 builder.Services.Configure<FAP.Network.Server.FapWebOptions>(builder.Configuration.GetSection("Fap:Web"));
-                 builder.Services.Configure<FAP.Network.Server.FapListenOptions>(builder.Configuration.GetSection("Fap:Web:Listen"));
+                 builder.Services.AddOptions<FAP.Network.Server.FapWebOptions>()
+                     .Bind(builder.Configuration.GetSection("Fap:Web"))
+                     .Validate(o => o != null, "Fap:Web must be configured")
+                     .ValidateOnStart();
+                 builder.Services.AddOptions<FAP.Network.Server.FapListenOptions>()
+                     .Bind(builder.Configuration.GetSection("Fap:Web:Listen"))
+                     .Validate(o => !string.IsNullOrWhiteSpace(o.Address) && o.Port > 0, "Listen Address and Port must be valid")
+                     .ValidateOnStart();
 
                  // Logging: MEL + optional NLog bridge during migration
                  builder.Logging.ClearProviders();
