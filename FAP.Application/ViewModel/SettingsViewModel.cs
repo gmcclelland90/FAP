@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -18,7 +18,6 @@
 #endregion
 
 using System.Reflection;
-using System.Waf.Applications;
 using System.Windows.Input;
 using FAP.Application.Views;
 using FAP.Domain.Entities;
@@ -28,7 +27,7 @@ using System.ComponentModel;
 
 namespace FAP.Application.ViewModels
 {
-    public class SettingsViewModel : ViewModel<ISettingsView>, IDataErrorInfo
+    public class SettingsViewModel : ViewModelBase<ISettingsView>, IDataErrorInfo
     {
         private readonly string startupRegistryPath = "SOFTWARE/Microsoft/Windows/CurrentVersion/Run";
         private ICommand changeAvatar;
@@ -50,7 +49,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 resetInterface = value;
-                RaisePropertyChanged("ResetInterface");
+                OnPropertyChanged("ResetInterface");
             }
         }
 
@@ -60,7 +59,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 editDownloadDir = value;
-                RaisePropertyChanged("EditDownloadDir");
+                OnPropertyChanged("EditDownloadDir");
             }
         }
 
@@ -70,7 +69,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 displayQuickStart = value;
-                RaisePropertyChanged("DisplayQuickStart");
+                OnPropertyChanged("DisplayQuickStart");
             }
         }
 
@@ -80,7 +79,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 changeAvatar = value;
-                RaisePropertyChanged("ChangeAvatar");
+                OnPropertyChanged("ChangeAvatar");
             }
         }
 
@@ -90,7 +89,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 saveCommand = value;
-                RaisePropertyChanged("SaveCommand");
+                OnPropertyChanged("SaveCommand");
             }
         }
 
@@ -100,7 +99,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 cancelCommand = value;
-                RaisePropertyChanged("CancelCommand");
+                OnPropertyChanged("CancelCommand");
             }
         }
 
@@ -110,7 +109,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 model = value;
-                RaisePropertyChanged("Model");
+                OnPropertyChanged("Model");
             }
         }
 
@@ -122,7 +121,7 @@ namespace FAP.Application.ViewModels
                     RegistryHelper.SetRegistryData(Registry.CurrentUser, startupRegistryPath, "FAP", GetStartupCommand());
                 else
                     RegistryHelper.SetRegistryData(Registry.CurrentUser, startupRegistryPath, "FAP", string.Empty);
-                RaisePropertyChanged("RunOnStartUp");
+                OnPropertyChanged("RunOnStartUp");
             }
             get
             {

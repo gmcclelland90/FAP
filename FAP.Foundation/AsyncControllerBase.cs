@@ -1,29 +1,11 @@
-﻿#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
-/**
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or any 
-    later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * */
-#endregion
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.ComponentModel;
-using System.Waf.Applications;
+using System.Windows.Input;
 
 namespace Fap.Foundation
 {
-    public abstract class AsyncControllerBase: Controller
+    public abstract class AsyncControllerBase
     {
         private BackgroundWorker worker = new BackgroundWorker();
         private Queue<AsyncOperation> operations = new Queue<AsyncOperation>();
@@ -45,20 +27,16 @@ namespace Fap.Foundation
         public AsyncControllerBase()
         {
             worker.WorkerSupportsCancellation = true;
-
-            worker.DoWork += new DoWorkEventHandler(worker_DoWork);
-            worker.RunWorkerCompleted += new RunWorkerCompletedEventHandler(worker_RunWorkerCompleted);
+            worker.DoWork += worker_DoWork;
+            worker.RunWorkerCompleted += worker_RunWorkerCompleted;
         }
 
         private void worker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
-            if (null != AsyncControllerJobCompleteHandler)
-                AsyncControllerJobCompleteHandler();
-            bool hasWork = false;
+            AsyncControllerJobCompleteHandler?.Invoke();
             lock (worker)
             {
-                hasWork = operations.Count > 0;
-                if (hasWork && !worker.IsBusy)
+                if (operations.Count > 0 && !worker.IsBusy)
                     worker.RunWorkerAsync();
             }
         }
@@ -79,17 +57,17 @@ namespace Fap.Foundation
             }
         }
 
-        protected void QueueWork(DelegateCommand command)
+        protected void QueueWork(ICommand command)
         {
             QueueWork(command, null);
         }
 
-        protected void QueueWork(DelegateCommand command, Object param)
+        protected void QueueWork(ICommand command, object param)
         {
             QueueWork(command, param, null);
         }
 
-        protected void QueueWork(DelegateCommand command, Object param, DelegateCommand completed)
+        protected void QueueWork(ICommand command, object param, ICommand completed)
         {
             lock (worker)
             {

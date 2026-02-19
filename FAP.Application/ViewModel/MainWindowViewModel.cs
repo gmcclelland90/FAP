@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -17,7 +17,6 @@
 
 #endregion
 
-using System.Waf.Applications;
 using System.Windows.Input;
 using System.Windows.Threading;
 using FAP.Application.Views;
@@ -27,7 +26,7 @@ using Fap.Foundation;
 
 namespace FAP.Application.ViewModels
 {
-    public class MainWindowViewModel : ViewModel<IMainWindow>
+    public class MainWindowViewModel : ViewModelBase<IMainWindow>
     {
         private bool allowClose;
         private string avatar;
@@ -71,7 +70,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 sortType = value;
-                RaisePropertyChanged("PeerSortType");
+                OnPropertyChanged("PeerSortType");
             }
         }
 
@@ -81,7 +80,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 model = value;
-                RaisePropertyChanged("Model");
+                OnPropertyChanged("Model");
             }
         }
 
@@ -93,7 +92,7 @@ namespace FAP.Application.ViewModels
                 if (nodeStatus != value)
                 {
                     nodeStatus = value;
-                    RaisePropertyChanged("NodeStatus");
+                    OnPropertyChanged("NodeStatus");
                 }
             }
         }
@@ -107,7 +106,7 @@ namespace FAP.Application.ViewModels
                 if (networkStats != value)
                 {
                     networkStats = value;
-                    RaisePropertyChanged("CurrentNetworkStatus");
+                    OnPropertyChanged("CurrentNetworkStatus");
                 }
             }
         }
@@ -120,7 +119,7 @@ namespace FAP.Application.ViewModels
                 if (localStats != value)
                 {
                     localStats = value;
-                    RaisePropertyChanged("LocalStats");
+                    OnPropertyChanged("LocalStats");
                 }
             }
         }
@@ -133,7 +132,7 @@ namespace FAP.Application.ViewModels
                 if (globalStats != value)
                 {
                     globalStats = value;
-                    RaisePropertyChanged("GlobalStats");
+                    OnPropertyChanged("GlobalStats");
                 }
             }
         }
@@ -144,7 +143,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 visible = value;
-                RaisePropertyChanged("Visible");
+                OnPropertyChanged("Visible");
             }
         }
 
@@ -154,7 +153,7 @@ namespace FAP.Application.ViewModels
             protected set
             {
                 allowClose = value;
-                RaisePropertyChanged("AllowClose");
+                OnPropertyChanged("AllowClose");
             }
         }
 
@@ -164,7 +163,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 peers = value;
-                RaisePropertyChanged("Peers");
+                OnPropertyChanged("Peers");
             }
         }
 
@@ -174,7 +173,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 node = value;
-                RaisePropertyChanged("Node");
+                OnPropertyChanged("Node");
             }
         }
 
@@ -184,7 +183,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 avatar = value;
-                RaisePropertyChanged("Avatar");
+                OnPropertyChanged("Avatar");
             }
         }
 
@@ -194,7 +193,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 windowTitle = value;
-                RaisePropertyChanged("WindowTitle");
+                OnPropertyChanged("WindowTitle");
             }
         }
 
@@ -204,7 +203,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 networkInfo = value;
-                RaisePropertyChanged("NetworkStatus");
+                OnPropertyChanged("NetworkStatus");
             }
         }
 
@@ -214,7 +213,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 currentChatMessage = value;
-                RaisePropertyChanged("CurrentChatMessage");
+                OnPropertyChanged("CurrentChatMessage");
             }
         }
 
@@ -224,7 +223,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 nickname = value;
-                RaisePropertyChanged("Nickname");
+                OnPropertyChanged("Nickname");
             }
         }
 
@@ -234,7 +233,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 description = value;
-                RaisePropertyChanged("Description");
+                OnPropertyChanged("Description");
             }
         }
 
@@ -244,7 +243,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 sessions = value;
-                RaisePropertyChanged("Sessions");
+                OnPropertyChanged("Sessions");
             }
         }
 
@@ -254,7 +253,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 chatList = value;
-                RaisePropertyChanged("ChatMessages");
+                OnPropertyChanged("ChatMessages");
             }
         }
 
@@ -264,7 +263,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 chat = value;
-                RaisePropertyChanged("Chat");
+                OnPropertyChanged("Chat");
             }
         }
 
@@ -274,7 +273,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 search = value;
-                RaisePropertyChanged("Search");
+                OnPropertyChanged("Search");
             }
         }
 
@@ -284,7 +283,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 openExternal = value;
-                RaisePropertyChanged("OpenExternal");
+                OnPropertyChanged("OpenExternal");
             }
         }
 
@@ -294,7 +293,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 compare = value;
-                RaisePropertyChanged("Compare");
+                OnPropertyChanged("Compare");
             }
         }
 
@@ -304,7 +303,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 userinfo = value;
-                RaisePropertyChanged("UserInfo");
+                OnPropertyChanged("UserInfo");
             }
         }
 
@@ -314,7 +313,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 closing = value;
-                RaisePropertyChanged("Closing");
+                OnPropertyChanged("Closing");
             }
         }
 
@@ -324,7 +323,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 viewQueue = value;
-                RaisePropertyChanged("ViewQueue");
+                OnPropertyChanged("ViewQueue");
             }
         }
 
@@ -334,7 +333,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 editShares = value;
-                RaisePropertyChanged("EditShares");
+                OnPropertyChanged("EditShares");
             }
         }
 
@@ -344,7 +343,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 sendChatMessage = value;
-                RaisePropertyChanged("SendChatMessage");
+                OnPropertyChanged("SendChatMessage");
             }
         }
 
@@ -354,7 +353,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 settings = value;
-                RaisePropertyChanged("Settings");
+                OnPropertyChanged("Settings");
             }
         }
 
@@ -364,7 +363,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 viewShare = value;
-                RaisePropertyChanged("ViewShare");
+                OnPropertyChanged("ViewShare");
             }
         }
 
@@ -374,7 +373,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 selectedClient = value;
-                RaisePropertyChanged("SelectedClient");
+                OnPropertyChanged("SelectedClient");
             }
         }
 

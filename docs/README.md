@@ -21,10 +21,13 @@ Welcome to the comprehensive documentation for the File Acceleration Protocol (F
 - [Configuration & Settings](configuration-settings.md) - Model entity, settings management, and persistence
 
 ### Components
-- [Network Components](network-components.md) - Detailed breakdown of network-related classes
 - [Protocol Verbs](protocol-verbs.md) - Complete list and specification of FAP verbs
-- [Web Interface](web-interface.md) - HTTP-based web interface for file browsing
 - [HTTP API](API.md) - Typed API endpoints under `/Fap.api`
+- [Chat System](chat-system.md) - Real-time chat and messaging
+- [Search System](search-system.md) - Network file search
+- [Compare Feature](compare-feature.md) - Hardware comparison between peers
+- [Server Console](server-console.md) - Headless server mode
+- [Testing Platform](testing-platform.md) - Testing infrastructure
 
 ## Quick Start
 

@@ -204,13 +204,13 @@ public class BaseEntity : INotifyPropertyChanged
     
     private static readonly string BACKUP_EXT = ".bak";
     
-    protected void SafeSave(object o, string fileName, Formatting f)
+    protected void SafeSave(object o, string fileName, bool indented = false)
     {
         if (!Directory.Exists(DATA_FOLDER))
             Directory.CreateDirectory(DATA_FOLDER);
         
-        // Uses System.Text.Json in current implementation
-        string obj = System.Text.Json.JsonSerializer.Serialize(o, new System.Text.Json.JsonSerializerOptions { WriteIndented = (f == Formatting.Indented) });
+        var options = new System.Text.Json.JsonSerializerOptions { WriteIndented = indented };
+        string obj = System.Text.Json.JsonSerializer.Serialize(o, options);
         File.WriteAllText(DATA_FOLDER + fileName, obj);
         File.WriteAllText(DATA_FOLDER + fileName + BACKUP_EXT, obj);
     }
@@ -243,7 +243,7 @@ public void Save()
 {
     lock (downloadQueue)
     {
-        SafeSave(this, saveLocation, Formatting.Indented);
+        SafeSave(this, saveLocation, indented: true);
     }
 }
 
@@ -331,21 +331,21 @@ Manages settings UI and operations:
 ```csharp
 internal class SettingsController
 {
-    private readonly IContainer container;
+    private readonly IServiceProvider serviceProvider;
     private readonly ApplicationCore core;
     private readonly Model model;
     private SettingsViewModel viewModel;
     
-    public void Initaize()
+    public void Initialize()
     {
         if (null == viewModel)
         {
-            viewModel = container.Resolve<SettingsViewModel>();
+            viewModel = serviceProvider.GetRequiredService<SettingsViewModel>();
             viewModel.Model = model;
-            viewModel.EditDownloadDir = new DelegateCommand(SettingsEditDownloadDir);
-            viewModel.ChangeAvatar = new DelegateCommand(ChangeAvatar);
-            viewModel.ResetInterface = new DelegateCommand(ResetInterface);
-            viewModel.DisplayQuickStart = new DelegateCommand(DisplayQuickStart);
+            viewModel.EditDownloadDir = new RelayCommand(SettingsEditDownloadDir);
+            viewModel.ChangeAvatar = new RelayCommand(ChangeAvatar);
+            viewModel.ResetInterface = new RelayCommand(ResetInterface);
+            viewModel.DisplayQuickStart = new RelayCommand(DisplayQuickStart);
         }
     }
     
@@ -407,7 +407,7 @@ internal class SettingsController
 UI binding for settings:
 
 ```csharp
-public class SettingsViewModel : ViewModel<ISettingsView>, IDataErrorInfo
+public class SettingsViewModel : ViewModelBase<ISettingsView>, IDataErrorInfo
 {
     private Model model;
     private ICommand editDownloadDir;
@@ -421,7 +421,7 @@ public class SettingsViewModel : ViewModel<ISettingsView>, IDataErrorInfo
         set
         {
             model = value;
-            RaisePropertyChanged("Model");
+            OnPropertyChanged("Model");
         }
     }
     
@@ -431,7 +431,7 @@ public class SettingsViewModel : ViewModel<ISettingsView>, IDataErrorInfo
         set
         {
             editDownloadDir = value;
-            RaisePropertyChanged("EditDownloadDir");
+            OnPropertyChanged("EditDownloadDir");
         }
     }
     
@@ -445,7 +445,7 @@ public class SettingsViewModel : ViewModel<ISettingsView>, IDataErrorInfo
             else
                 RegistryHelper.SetRegistryData(Registry.CurrentUser, startupRegistryPath, 
                     "FAP", string.Empty);
-            RaisePropertyChanged("RunOnStartUp");
+            OnPropertyChanged("RunOnStartUp");
         }
         get
         {
@@ -622,17 +622,19 @@ public void GetShutdownLock()
 ### Backup Strategy
 
 ```csharp
-protected void SafeSave(object o, string fileName, Formatting f)
+protected void SafeSave(object o, string fileName, bool indented = false)
 {
-    string obj = JsonConvert.SerializeObject(o, f);
+    var options = new System.Text.Json.JsonSerializerOptions
+    {
+        WriteIndented = indented
+    };
+    string obj = System.Text.Json.JsonSerializer.Serialize(o, options);
     
     // Save primary file
     File.WriteAllText(DATA_FOLDER + fileName, obj);
     
     // Save backup file
     File.WriteAllText(DATA_FOLDER + fileName + BACKUP_EXT, obj);
-    
-    obj = null;
 }
 ```
 

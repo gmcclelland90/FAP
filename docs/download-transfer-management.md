@@ -131,25 +131,25 @@ public bool IsQueueFull
 #### File Downloads
 
 ```csharp
-// File download process
+// File download process using IHttpClientFactory
 if (!currentItem.IsFolder)
 {
-    // 1. Create HTTP request
-    var req = (HttpWebRequest)WebRequest.Create(url);
+    // 1. Create HTTP request via IHttpClientFactory
+    using var client = httpClientFactory.CreateClient();
+    using var request = new HttpRequestMessage(HttpMethod.Get, url);
     
     // 2. Handle resume support
     if (fileStream.Length > 0)
-        req.AddRange(fileStream.Length);
+        request.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(fileStream.Length, null);
     
     // 3. Stream data with progress tracking
-    using (Stream responseStream = resp.GetResponseStream())
+    using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+    using var responseStream = await response.Content.ReadAsStreamAsync();
+    while ((bytesRead = await responseStream.ReadAsync(buffer)) > 0)
     {
-        while (bytesRead > 0)
-        {
-            position += bytesRead;
-            netSpeed.PutData(bytesRead);
-            // Process data...
-        }
+        position += bytesRead;
+        netSpeed.PutData(bytesRead);
+        // Process data...
     }
 }
 ```
@@ -411,11 +411,11 @@ public class Model
 ### Queue Persistence
 
 ```csharp
-// Save queue to disk
+// Save queue to disk using System.Text.Json
 public void Save()
 {
     lock (sync)
-        SafeSave(this, saveLocation, Formatting.None);
+        SafeSave(this, saveLocation);
 }
 
 // Load queue from disk

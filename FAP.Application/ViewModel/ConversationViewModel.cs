@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -18,7 +18,6 @@
 #endregion
 
 using System.Collections.Specialized;
-using System.Waf.Applications;
 using System.Windows.Input;
 using FAP.Application.Controllers;
 using FAP.Application.Views;
@@ -26,7 +25,7 @@ using FAP.Domain.Entities;
 
 namespace FAP.Application.ViewModels
 {
-    public class ConversationViewModel : ViewModel<IConverstationView>
+    public class ConversationViewModel : ViewModelBase<IConverstationView>
     {
         private readonly IPopupWindowController popupWindowController;
         private ICommand close;
@@ -47,7 +46,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 conversation = value;
-                RaisePropertyChanged("Conversation");
+                OnPropertyChanged("Conversation");
                 value.UIMessages.CollectionChanged += UIMessages_CollectionChanged;
             }
         }
@@ -59,7 +58,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 currentChatMessage = value;
-                RaisePropertyChanged("CurrentChatMessage");
+                OnPropertyChanged("CurrentChatMessage");
             }
         }
 
@@ -69,7 +68,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 sendChatMessage = value;
-                RaisePropertyChanged("SendChatMessage");
+                OnPropertyChanged("SendChatMessage");
             }
         }
 
@@ -79,7 +78,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 close = value;
-                RaisePropertyChanged("Close");
+                OnPropertyChanged("Close");
             }
         }
 

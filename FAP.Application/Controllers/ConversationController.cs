@@ -21,8 +21,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using System.Waf.Applications;
-using System.Waf.Applications.Services;
+using CommunityToolkit.Mvvm.Input;
 using FAP.Application.ViewModels;
 using FAP.Domain.Entities;
 using FAP.Domain.Net;
@@ -62,8 +61,8 @@ namespace FAP.Application.Controllers
             if (null == viewModel)
             {
                 viewModel = serviceProvider.GetRequiredService<ConversationViewModel>();
-                viewModel.SendChatMessage = new DelegateCommand(SendMessage);
-                viewModel.Close = new DelegateCommand(Clear);
+                viewModel.SendChatMessage = new RelayCommand(SendMessage);
+                viewModel.Close = new RelayCommand(Clear);
             }
         }
 
@@ -159,8 +158,8 @@ namespace FAP.Application.Controllers
             // Create the conversation view model and set it as the current view model
             viewModel = serviceProvider.GetRequiredService<ConversationViewModel>();
             viewModel.Conversation = conversation;
-            viewModel.SendChatMessage = new DelegateCommand(SendMessage);
-            viewModel.Close = new DelegateCommand(Clear);
+            viewModel.SendChatMessage = new RelayCommand(SendMessage);
+            viewModel.Close = new RelayCommand(Clear);
             
             // Get the popup controller and add the conversation window
             var popupController = serviceProvider.GetRequiredService<IPopupWindowController>();

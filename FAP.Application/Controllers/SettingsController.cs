@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -21,8 +21,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Waf.Applications;
-using System.Waf.Applications.Services;
+using CommunityToolkit.Mvvm.Input;
 using System.Windows;
 using FAP.Application.ViewModels;
 using FAP.Domain.Entities;
@@ -56,10 +55,10 @@ namespace FAP.Application.Controllers
         {
             viewModel = serviceProvider.GetRequiredService<SettingsViewModel>();
             viewModel.Model = model;
-            viewModel.SaveCommand = new DelegateCommand(SaveCommand);
-            viewModel.CancelCommand = new DelegateCommand(CancelCommand);
-            viewModel.ChangeAvatar = new DelegateCommand(ChangeAvatar);
-            viewModel.EditDownloadDir = new DelegateCommand(EditDownloadDir);
+            viewModel.SaveCommand = new RelayCommand(SaveCommand);
+            viewModel.CancelCommand = new RelayCommand(CancelCommand);
+            viewModel.ChangeAvatar = new RelayCommand(ChangeAvatar);
+            viewModel.EditDownloadDir = new RelayCommand(EditDownloadDir);
         }
 
         private void SaveCommand()

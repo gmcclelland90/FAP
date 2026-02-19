@@ -22,8 +22,8 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Waf.Applications;
-using System.Waf.Applications.Services;
+using CommunityToolkit.Mvvm.Input;
+using FAP.Application.Services;
 using System.Windows;
 using FAP.Application.ViewModels;
 using FAP.Application.Views;
@@ -61,10 +61,10 @@ namespace FAP.Application.Controllers
         {
             viewModel = serviceProvider.GetRequiredService<SharesViewModel>();
             browser = serviceProvider.GetRequiredService<QueryViewModel>();
-            viewModel.AddCommand = new DelegateCommand(AddCommand);
-            viewModel.RefreshCommand = new DelegateCommand(RefreshCommand);
-            viewModel.RemoveCommand = new DelegateCommand(RemoveCommand);
-            viewModel.RenameCommand = new DelegateCommand(RenameCommand);
+            viewModel.AddCommand = new RelayCommand(AddCommand);
+            viewModel.RefreshCommand = new RelayCommand(RefreshCommand);
+            viewModel.RemoveCommand = new RelayCommand(RemoveCommand);
+            viewModel.RenameCommand = new RelayCommand(RenameCommand);
             viewModel.Shares = new SafeObservingCollection<Share>(model.Shares);
             RefreshClientStats();
         }

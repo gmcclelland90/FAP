@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -17,12 +17,11 @@
 
 #endregion
 
-using System.Waf.Applications;
 using FAP.Application.Views;
 
 namespace FAP.Application.ViewModels
 {
-    public class MessageBoxViewModel : ViewModel<IMessageBoxView>
+    public class MessageBoxViewModel : ViewModelBase<IMessageBoxView>
     {
         private string message;
         private string response;
@@ -37,7 +36,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 message = value;
-                RaisePropertyChanged("Message");
+                OnPropertyChanged("Message");
             }
             get { return message; }
         }
@@ -47,7 +46,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 response = value;
-                RaisePropertyChanged("Response");
+                OnPropertyChanged("Response");
             }
             get { return response; }
         }

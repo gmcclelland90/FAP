@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -18,13 +18,12 @@
 #endregion
 
 using System.Collections.ObjectModel;
-using System.Waf.Applications;
 using System.Windows.Input;
 using FAP.Application.Views;
 
 namespace FAP.Application.ViewModels
 {
-    public class PopupWindowViewModel : ViewModel<IPopupWindow>
+    public class PopupWindowViewModel : ViewModelBase<IPopupWindow>
     {
         private readonly ObservableCollection<PopUpWindowTab> documentViews;
         private object activeDocumentView;
@@ -49,7 +48,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 activeDocumentView = value;
-                RaisePropertyChanged("ActiveDocumentView");
+                OnPropertyChanged("ActiveDocumentView");
             }
         }
 
@@ -59,7 +58,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 tabClose = value;
-                RaisePropertyChanged("TabClose");
+                OnPropertyChanged("TabClose");
             }
         }
 
@@ -69,7 +68,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 close = value;
-                RaisePropertyChanged("Close");
+                OnPropertyChanged("Close");
             }
         }
 

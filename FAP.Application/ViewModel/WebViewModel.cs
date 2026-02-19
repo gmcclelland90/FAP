@@ -1,9 +1,9 @@
-﻿using System.Waf.Applications;
 using FAP.Application.Views;
+using FAP.Application.ViewModels;
 
 namespace FAP.Application.ViewModel
 {
-    public class WebViewModel : ViewModel<IWebPanel>
+    public class WebViewModel : ViewModelBase<IWebPanel>
     {
         public WebViewModel(IWebPanel view)
             : base(view)

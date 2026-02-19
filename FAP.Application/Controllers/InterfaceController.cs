@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -22,8 +22,8 @@ using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
-using System.Waf.Applications;
-using System.Waf.Applications.Services;
+using CommunityToolkit.Mvvm.Input;
+using FAP.Application.Services;
 using FAP.Application.ViewModels;
 using FAP.Domain.Entities;
 
@@ -72,8 +72,8 @@ namespace FAP.Application.Controllers
                     break;
             }
 
-            vm.Quit = new DelegateCommand(Quit);
-            vm.Select = new DelegateCommand(Select);
+            vm.Quit = new RelayCommand(Quit);
+            vm.Select = new RelayCommand(Select);
         }
 
         private void Quit()

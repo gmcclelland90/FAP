@@ -1,15 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using FAP.Application.Views;
 using FAP.Application.ViewModels;
 using FAP.Application.ViewModel;
 using FAP.Application.Controllers;
 using FAP.Domain.Services;
 using Fap.Presentation.Panels;
-using System.Waf.Presentation.Services;
-using System.Waf.Applications.Services;
 
 namespace Fap.Presentation
 {

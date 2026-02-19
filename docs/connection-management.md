@@ -356,12 +356,12 @@ private void SendMessageAsync(object o)
         }
         else
         {
-            LogManager.GetLogger("faplog").Warn("Could not send message as you are not connected");
+            logger.LogWarning("Could not send message as you are not connected");
         }
     }
     catch (Exception e)
     {
-        LogManager.GetLogger("faplog").Error("Failed to send chat message", e);
+        logger.LogError(e, "Failed to send chat message");
     }
 }
 ```
@@ -437,14 +437,14 @@ public static int DOWNLOAD_RETRY_TIME = 120000;  // 2 minutes
 
 ### Connection Logging
 ```csharp
-// Log connection attempts
-LogManager.GetLogger("faplog").Info("Client connecting to {0}", n.Address);
+// Log connection attempts (using Microsoft.Extensions.Logging.ILogger)
+logger.LogInformation("Client connecting to {Address}", n.Address);
 
 // Log successful connections
-LogManager.GetLogger("faplog").Info("Client connected");
+logger.LogInformation("Client connected");
 
 // Log connection failures
-LogManager.GetLogger("faplog").Warn("Connection failed to {0}", n.Address);
+logger.LogWarning("Connection failed to {Address}", n.Address);
 ```
 
 ### Connection Diagnostics

@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using FAP.Domain.Entities;
 using FAP.Domain.Entities.FileSystem;
+using FAP.Domain.Models;
 using FAP.Domain.Services;
 using FAP.Network.Server;
 using Fap.Foundation;
@@ -69,30 +70,34 @@ namespace FAP.Domain.Handlers
                 }
                 else
                 {
-                    // Handle main page with template processing
-                    string page = Encoding.UTF8.GetString(GetResource("template.html"));
-                    var pagedata = new Dictionary<string, object>();
+                    // Try to resolve the path to a file first
+                    string[] possiblePaths;
+                    if (infoService.ToLocalPath(decodedPath, out possiblePaths))
+                        foreach (string possiblePath in possiblePaths)
+                            if (File.Exists(possiblePath))
+                                return await SendFileAsync(e, possiblePath, decodedPath);
 
-                    pagedata.Add("model", model);
-                    pagedata.Add("appver", Model.AppVersion);
-                    pagedata.Add("freelimit", Utility.FormatBytes(Model.FREE_FILE_LIMIT));
-                    pagedata.Add("uploadslots", model.MaxUploads);
+                    // Build strongly-typed browse page data
                     int freeslots = model.MaxUploads - uploadLimiter.GetActiveTokenCount();
-                    pagedata.Add("currentuploadslots", freeslots);
-                    pagedata.Add("queueInfo", freeslots > 0 ? "" : "  Queue length: " + uploadLimiter.GetQueueLength() + ".");
-                    pagedata.Add("slotcolour", freeslots > 0 ? "green" : "red");
+                    string currentPath = decodedPath.EndsWith("/")
+                        ? decodedPath.Replace("#", "%23")
+                        : (decodedPath + "/").Replace("#", "%23");
 
-                    pagedata.Add("util", new Utility());
+                    var pageData = new BrowsePageData
+                    {
+                        Nickname = model.LocalNode?.Nickname ?? string.Empty,
+                        NodeId = model.LocalNode?.ID ?? string.Empty,
+                        AppVersion = Model.AppVersion,
+                        FreeLimit = Utility.FormatBytes(Model.FREE_FILE_LIMIT),
+                        MaxUploadSlots = model.MaxUploads,
+                        FreeUploadSlots = freeslots,
+                        QueueInfo = freeslots > 0 ? "" : "  Queue length: " + uploadLimiter.GetQueueLength() + ".",
+                        SlotColour = freeslots > 0 ? "green" : "red",
+                        CurrentPath = currentPath
+                    };
 
-                    if (!decodedPath.EndsWith("/"))
-                        pagedata.Add("path", (decodedPath + "/").Replace("#", "%23"));
-                    else
-                        pagedata.Add("path", (decodedPath).Replace("#", "%23"));
-
-                    //Add path info
-                    var paths = new List<Dictionary<string, object>>();
-
-                    string[] split = decodedPath.Split(new[] {'/'}, StringSplitOptions.RemoveEmptyEntries);
+                    // Build path breadcrumb segments
+                    string[] split = decodedPath.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
                     for (int i = 0; i < split.Length; i++)
                     {
                         var sb = new StringBuilder("/");
@@ -101,146 +106,63 @@ namespace FAP.Domain.Handlers
                             sb.Append(split[y]);
                             sb.Append("/");
                         }
-
-                        var di = new Dictionary<string, object>();
-                        di.Add("Name", split[i]);
-                        di.Add("Path", sb.ToString());
-                        paths.Add(di);
+                        pageData.PathSegments.Add(new PathSegment { Name = split[i], Path = sb.ToString() });
                     }
 
-                    pagedata.Add("pathSplit", paths);
-
-                    var files = new List<Dictionary<string, object>>();
+                    // Build file listing
                     long totalSize = 0;
-
-                    //Try to resolve the path to a file first
-                    string[] possiblePaths;
-                    if (infoService.ToLocalPath(decodedPath, out possiblePaths))
-                        //User has requested a file
-                        foreach (string possiblePath in possiblePaths)
-                            if (File.Exists(possiblePath))
-                                return await SendFileAsync(e, possiblePath, decodedPath);
-
-                    //User didnt request a file so try to send directory info
                     List<BrowsingFile> results;
                     if (infoService.GetPath(decodedPath, false, true, out results))
                     {
                         foreach (var browsingFile in results)
                         {
+                            var entry = new BrowseFileEntry
+                            {
+                                Name = browsingFile.Name,
+                                Size = browsingFile.Size,
+                                SizeText = Utility.FormatBytes(browsingFile.Size),
+                                LastModifiedText = browsingFile.LastModified.ToShortDateString(),
+                                LastModified = browsingFile.LastModified
+                            };
+
                             if (browsingFile.IsFolder)
                             {
-                                // Construct the complete folder icon HTML tag
-                                string folderIconHtml = $"<img height=\"16px\" width=\"16px\" src=\"{WEB_ICON_PREFIX}folder\" alt=\"icon\" />";
-                                
-                                var d = new Dictionary<string, object>
-                                            {
-                                                {"Name", browsingFile.Name},
-                                                {"Path", Utility.EncodeURL(browsingFile.Name)},
-                                                {"Icon", "folder"},
-                                                {"HasIcon", true}, // Folder icon always exists
-                                                {"IconHtml", folderIconHtml}, // Pre-built HTML tag
-                                                {"Sizetxt", Utility.FormatBytes(browsingFile.Size)},
-                                                {"Size", browsingFile.Size},
-                                                {
-                                                    "LastModifiedtxt",
-                                                    browsingFile.LastModified.ToShortDateString()
-                                                    },
-                                                {"LastModified", browsingFile.LastModified}
-                                            };
-                                files.Add(d);
-                                totalSize += browsingFile.Size;
+                                entry.Path = Utility.EncodeURL(browsingFile.Name);
+                                entry.Icon = "folder";
+                                entry.HasIcon = true;
+                                entry.IconHtml = $"<img height=\"16px\" width=\"16px\" src=\"{WEB_ICON_PREFIX}folder\" alt=\"icon\" />";
                             }
                             else
                             {
-                                var d = new Dictionary<string, object> {{"Name", browsingFile.Name}};
                                 string ext = Path.GetExtension(browsingFile.Name);
                                 if (ext != null && ext.StartsWith("."))
                                     ext = ext.Substring(1);
+
                                 string name = browsingFile.Name;
                                 if (!string.IsNullOrEmpty(name))
                                     name = name.Replace("#", "%23");
-                                d.Add("Path", name);
-                                d.Add("Icon", ext ?? string.Empty);
-                                
-                                // Construct the complete file icon HTML tag
-                                string fileIconHtml = "";
-                                if (!string.IsNullOrEmpty(ext))
-                                {
-                                    fileIconHtml = $"<img height=\"16px\" width=\"16px\" src=\"{WEB_ICON_PREFIX}{ext}\" alt=\"icon\" />";
-                                }
-                                d.Add("IconHtml", fileIconHtml);
-                                
-                                // Check if icon exists (static file or can be generated)
-                                bool hasIcon = false;
-                                if (!string.IsNullOrEmpty(ext))
-                                {
-                                    // Check if static icon file exists
-                                    var staticIconData = GetResource($"Images/{ext}.png");
-                                    if (staticIconData.Length > 0)
-                                    {
-                                        hasIcon = true;
-                                    }
-                                    else
-                                    {
-                                        // For now, assume we can generate icons for all file types
-                                        // In a more sophisticated implementation, we could check if the extension is valid
-                                        hasIcon = true;
-                                    }
-                                }
-                                d.Add("HasIcon", hasIcon);
-                                
-                                d.Add("Size", browsingFile.Size);
-                                d.Add("Sizetxt", Utility.FormatBytes(browsingFile.Size));
-                                d.Add("LastModifiedtxt", browsingFile.LastModified.ToShortDateString());
-                                d.Add("LastModified", browsingFile.LastModified);
-                                files.Add(d);
-                                totalSize += browsingFile.Size;
-                            }
-                        }
 
-                        //Clear result list to help GC
+                                entry.Path = name;
+                                entry.Icon = ext ?? string.Empty;
+                                entry.HasIcon = !string.IsNullOrEmpty(ext);
+                                entry.IconHtml = !string.IsNullOrEmpty(ext)
+                                    ? $"<img height=\"16px\" width=\"16px\" src=\"{WEB_ICON_PREFIX}{ext}\" alt=\"icon\" />"
+                                    : string.Empty;
+                            }
+
+                            pageData.Files.Add(entry);
+                            totalSize += browsingFile.Size;
+                        }
                         results.Clear();
                     }
 
-                    pagedata.Add("files", files);
-                    pagedata.Add("totalSize", Utility.FormatBytes(totalSize));
+                    pageData.TotalSize = Utility.FormatBytes(totalSize);
 
-                    // Debug: Log the data being passed to template engine
-                    logger.LogDebug("ModernHTTPHandler: Template data contains {Count} items:", pagedata.Count);
-                    foreach (var kvp in pagedata)
-                    {
-                        logger.LogDebug("ModernHTTPHandler: {Key} = {Type}", kvp.Key, kvp.Value?.GetType().Name ?? "null");
-                    }
-
-                    // Debug: Log the files data structure
-                    if (files.Count > 0)
-                    {
-                        logger.LogDebug("ModernHTTPHandler: Files count = {Count}", files.Count);
-                        foreach (var file in files)
-                        {
-                            logger.LogDebug("ModernHTTPHandler: File data:");
-                            foreach (var kvp in file)
-                            {
-                                logger.LogDebug("ModernHTTPHandler:   {Key} = {Value}", kvp.Key, kvp.Value);
-                            }
-                        }
-                    }
-
-                    // Debug: Log the template before processing
-                    logger.LogDebug("ModernHTTPHandler: Template before processing (first 500 chars): {Snippet}", page.Substring(0, Math.Min(500, page.Length)));
-
-                    // Process the template
-                    logger.LogDebug("ModernHTTPHandler: About to call TemplateEngine.Generate");
-                    page = TemplateEngine.Generate(page, pagedata);
-                    logger.LogDebug("ModernHTTPHandler: TemplateEngine.Generate completed");
-                    
-                    // Debug: Log the template after processing
-                    logger.LogDebug("ModernHTTPHandler: Template after processing (first 500 chars): {Snippet}", page.Substring(0, Math.Min(500, page.Length)));
-                    logger.LogDebug("ModernHTTPHandler: Full template after processing: {Page}", page);
+                    logger.LogDebug("Rendering browse page for path '{Path}' with {FileCount} entries", decodedPath, pageData.Files.Count);
+                    string page = BrowsePageRenderer.Render(pageData);
 
                     data = Encoding.UTF8.GetBytes(page);
                     e.Response.ContentType = "text/html";
-                    // Dynamic listing: avoid caching to keep UI fresh
                     e.Response.Headers["Cache-Control"] = "no-store";
                 }
 

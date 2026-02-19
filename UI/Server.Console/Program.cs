@@ -13,12 +13,11 @@ using FAP.Network;
 using FAP.Network.Services;
 using FAP.Domain.Verbs;
 using System.Net;
-using System.Waf.Applications.Services;
+using FAP.Application.Services;
 using FAP.Application.Views;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
-using System.Waf.Presentation.Services; // For MessageService
 using FAP.Domain.Entities; // For Model
 using FAP.Domain.Net; // For LANPeerFinderService
 

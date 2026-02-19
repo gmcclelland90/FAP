@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -31,8 +31,6 @@
     <ProjectReference Include="..\..\FAP.Domain\FAP.Domain.csproj" />
     <ProjectReference Include="..\..\FAP.Foundation\FAP.Foundation.csproj" />
     <ProjectReference Include="..\..\FAP.Network\FAP.Network.csproj" />
-    <ProjectReference Include="..\..\libs\Odyssey\Odyssey.csproj" />
-    <ProjectReference Include="..\..\libs\WpfApplicationFramework\WpfApplicationFramework\WpfApplicationFramework\WpfApplicationFramework.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -17,7 +17,6 @@
 
 #endregion
 
-using System.Waf.Applications;
 using System.Windows.Input;
 using FAP.Application.Views;
 using FAP.Domain.Entities;
@@ -25,7 +24,7 @@ using Fap.Foundation;
 
 namespace FAP.Application.ViewModels
 {
-    public class CompareViewModel : ViewModel<ICompareView>
+    public class CompareViewModel : ViewModelBase<ICompareView>
     {
         private SafeObservable<CompareNode> data;
         private bool enableStart = true;
@@ -44,7 +43,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 enableStart = value;
-                RaisePropertyChanged("EnableRun");
+                OnPropertyChanged("EnableRun");
             }
         }
 
@@ -54,7 +53,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 run = value;
-                RaisePropertyChanged("Run");
+                OnPropertyChanged("Run");
             }
         }
 
@@ -64,7 +63,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 reset = value;
-                RaisePropertyChanged("Reset");
+                OnPropertyChanged("Reset");
             }
         }
 
@@ -74,7 +73,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 data = value;
-                RaisePropertyChanged("Data");
+                OnPropertyChanged("Data");
             }
         }
 
@@ -84,7 +83,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 status = value;
-                RaisePropertyChanged("Status");
+                OnPropertyChanged("Status");
             }
         }
     }

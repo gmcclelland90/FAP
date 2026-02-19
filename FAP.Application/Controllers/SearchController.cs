@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Waf.Applications;
+using CommunityToolkit.Mvvm.Input;
 using FAP.Application.ViewModel;
 using FAP.Domain;
 using FAP.Domain.Entities;
@@ -41,10 +41,10 @@ namespace FAP.Application.Controllers
             if (null == viewModel)
             {
                 viewModel = serviceProvider.GetRequiredService<SearchViewModel>();
-                viewModel.Search = new DelegateCommand(Search);
-                viewModel.Download = new DelegateCommand(Download);
-                viewModel.ViewShare = new DelegateCommand(ViewShare);
-                viewModel.Reset = new DelegateCommand(Reset);
+                viewModel.Search = new RelayCommand(Search);
+                viewModel.Download = new RelayCommand<object?>(Download);
+                viewModel.ViewShare = new RelayCommand<object?>(ViewShare);
+                viewModel.Reset = new RelayCommand(Reset);
             }
         }
 
@@ -64,11 +64,11 @@ namespace FAP.Application.Controllers
             viewModel.SizeText = null;
         }
 
-        private void ViewShare(object o)
+        private void ViewShare(object? o)
         {
         }
 
-        private void Download(object o)
+        private void Download(object? o)
         {
             viewModel.AllowSearch = false;
             var i = o as ObservableCollection<object>;

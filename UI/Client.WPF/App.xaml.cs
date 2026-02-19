@@ -45,7 +45,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 // using NLog.Extensions.Logging;
-using System.Waf.Presentation.Services;
+using FAP.Application.Services;
 using Fap.Presentation.Services;
 
 namespace Fap.Presentation
@@ -320,11 +320,10 @@ namespace Fap.Presentation
             services.AddTransient<Fap.Presentation.Panels.Conversation, Fap.Presentation.Panels.Conversation>();
             services.AddTransient<UserInfoPanel, UserInfoPanel>();
             services.AddTransient<InterfaceSelection, InterfaceSelection>();
-            services.AddTransient<MessageService, MessageService>();
             services.AddTransient<SearchPanel, SearchPanel>();
             services.AddTransient<WebPanel, WebPanel>();
             services.AddTransient<IInterfaceSelectionView, InterfaceSelection>();
-            services.AddTransient<System.Waf.Applications.Services.IMessageService, System.Waf.Presentation.Services.MessageService>();
+            services.AddTransient<IMessageService, Fap.Presentation.Services.WpfMessageService>();
             services.AddTransient<ISharesView, SharesPanel>();
             services.AddTransient<IQuery, Query>();
             services.AddTransient<IWebPanel, WebPanel>();

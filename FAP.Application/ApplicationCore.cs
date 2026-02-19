@@ -30,7 +30,7 @@ using System.Net.Http;
 using FAP.Domain.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Waf.Applications;
+using CommunityToolkit.Mvvm.Input;
 using System.Windows.Threading;
 using FAP.Application.Controllers;
 using FAP.Application.ViewModel;
@@ -143,15 +143,15 @@ namespace FAP.Application
         {
             trayIcon = serviceProvider.GetRequiredService<TrayIconViewModel>();
             //Tray icon
-            trayIcon.Exit = new DelegateCommand(Exit);
+            trayIcon.Exit = new RelayCommand(Exit);
             trayIcon.Model = model;
-            trayIcon.Open = new DelegateCommand(ShowMainWindow);
-            trayIcon.Queue = new DelegateCommand(ViewQueue);
-            trayIcon.Settings = new DelegateCommand(Settings);
-            trayIcon.Shares = new DelegateCommand(EditShares);
-            trayIcon.ViewShare = new DelegateCommand(viewShare);
-            trayIcon.Compare = new DelegateCommand(Compare);
-            trayIcon.OpenExternal = new DelegateCommand(OpenExternal);
+            trayIcon.Open = new RelayCommand(ShowMainWindow);
+            trayIcon.Queue = new RelayCommand(ViewQueue);
+            trayIcon.Settings = new RelayCommand(Settings);
+            trayIcon.Shares = new RelayCommand(EditShares);
+            trayIcon.ViewShare = new RelayCommand<object?>(viewShare);
+            trayIcon.Compare = new RelayCommand(Compare);
+            trayIcon.OpenExternal = new RelayCommand<object?>(OpenExternal);
             trayIcon.ShowIcon = true;
             if (showWindow)
                 ShowMainWindow();
@@ -307,23 +307,23 @@ namespace FAP.Application
                 mainWindowModel = serviceProvider.GetRequiredService<MainWindowViewModel>();
 
                 mainWindowModel.WindowTitle = Model.AppVersion;
-                mainWindowModel.SendChatMessage = new DelegateCommand(sendChatMessage);
-                mainWindowModel.ViewShare = new DelegateCommand(viewShare);
-                mainWindowModel.EditShares = new DelegateCommand(EditShares);
-                mainWindowModel.Settings = new DelegateCommand(Settings);
-                mainWindowModel.ViewQueue = new DelegateCommand(ViewQueue);
-                mainWindowModel.Closing = new DelegateCommand(MainWindowClosing);
-                mainWindowModel.OpenExternal = new DelegateCommand(OpenExternal);
-                mainWindowModel.Compare = new DelegateCommand(Compare);
-                mainWindowModel.Chat = new DelegateCommand(Chat);
-                mainWindowModel.UserInfo = new DelegateCommand(showUserInfo);
+                mainWindowModel.SendChatMessage = new RelayCommand(sendChatMessage);
+                mainWindowModel.ViewShare = new RelayCommand<object?>(viewShare);
+                mainWindowModel.EditShares = new RelayCommand(EditShares);
+                mainWindowModel.Settings = new RelayCommand(Settings);
+                mainWindowModel.ViewQueue = new RelayCommand(ViewQueue);
+                mainWindowModel.Closing = new RelayCommand(MainWindowClosing);
+                mainWindowModel.OpenExternal = new RelayCommand<object?>(OpenExternal);
+                mainWindowModel.Compare = new RelayCommand(Compare);
+                mainWindowModel.Chat = new RelayCommand<object?>(Chat);
+                mainWindowModel.UserInfo = new RelayCommand<object?>(showUserInfo);
                 mainWindowModel.Avatar = model.Avatar;
                 mainWindowModel.Nickname = model.Nickname;
                 mainWindowModel.Description = model.Description;
                 mainWindowModel.Sessions = model.UITransferSessions;
                 mainWindowModel.Node = model.LocalNode;
                 mainWindowModel.Model = model;
-                mainWindowModel.Search = new DelegateCommand(Search);
+                mainWindowModel.Search = new RelayCommand(Search);
 
                 var f = new SafeFilteredObservingCollection<Node>(new SafeObservingCollection<Node>(model.Network.Nodes));
                 f.Filter = s => s.NodeType != ClientType.Overlord;
@@ -382,7 +382,7 @@ namespace FAP.Application
             popupController.AddWindow(searchController.ViewModel.View, "Search");
         }
 
-        private void showUserInfo(object obj)
+        private void showUserInfo(object? obj)
         {
             var n = obj as Node;
             if (null != n)
@@ -393,7 +393,7 @@ namespace FAP.Application
             }
         }
 
-        private void Chat(object o)
+        private void Chat(object? o)
         {
             var peer = o as Node;
             if (null != peer)
@@ -410,7 +410,7 @@ namespace FAP.Application
             popupController.AddWindow(compareController.ViewModel.View, "Compare");
         }
 
-        private void OpenExternal(object o)
+        private void OpenExternal(object? o)
         {
             var url = o as string;
             if (!string.IsNullOrEmpty(url))
@@ -463,7 +463,7 @@ namespace FAP.Application
             mainWindowModel.CurrentChatMessage = string.Empty;
         }
 
-        private void viewShare(object o)
+        private void viewShare(object? o)
         {
             logger.LogDebug("viewShare: Called with object={Type}", o?.GetType().Name ?? "null");
             

@@ -22,7 +22,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Waf.Applications;
+using CommunityToolkit.Mvvm.Input;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -67,8 +67,8 @@ namespace FAP.Application.Controllers
 
         public void Initalise()
         {
-            bvm.Download = new DelegateCommand(Download);
-            bvm.Refresh = new DelegateCommand(Refresh);
+            bvm.Download = new RelayCommand(Download);
+            bvm.Refresh = new RelayCommand(Refresh);
             bvm.PropertyChanged += bvm_PropertyChanged;
             //Pull down the inital listing
             bvm.Status = "Getting initial share list..";

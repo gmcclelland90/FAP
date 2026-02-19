@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -21,8 +21,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using System.Waf.Applications;
-using System.Waf.Applications.Services;
+using CommunityToolkit.Mvvm.Input;
+using System.Windows.Input;
 using System.Collections.Concurrent;
 using FAP.Application.ViewModels;
 using FAP.Domain.Entities;
@@ -62,8 +62,8 @@ namespace FAP.Application.Controllers
             if (null == viewModel)
             {
                 viewModel = serviceProvider.GetRequiredService<CompareViewModel>();
-                viewModel.Run = new DelegateCommand(Compare);
-                viewModel.Reset = new DelegateCommand(Reset);
+                viewModel.Run = new RelayCommand(Compare);
+                viewModel.Reset = new RelayCommand(Reset);
                 viewModel.Data = new SafeObservable<CompareNode>();
                 viewModel.Status = "Idle";
             }
@@ -77,7 +77,7 @@ namespace FAP.Application.Controllers
             viewModel.EnableRun = false;
             viewModel.Status = "Collecting...";
 
-            QueueWork(new DelegateCommand(() =>
+            QueueWork(new RelayCommand(() =>
             {
                 try
                 {
