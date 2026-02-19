@@ -30,13 +30,13 @@ namespace FAP.Application.ViewModels
     public class SettingsViewModel : ViewModelBase<ISettingsView>, IDataErrorInfo
     {
         private readonly string startupRegistryPath = "SOFTWARE/Microsoft/Windows/CurrentVersion/Run";
-        private ICommand changeAvatar;
-        private ICommand displayQuickStart;
-        private ICommand editDownloadDir;
-        private Model model;
-        private ICommand resetInterface;
-        private ICommand saveCommand;
-        private ICommand cancelCommand;
+        private ICommand changeAvatar = null!;
+        private ICommand displayQuickStart = null!;
+        private ICommand editDownloadDir = null!;
+        private Model model = null!;
+        private ICommand resetInterface = null!;
+        private ICommand saveCommand = null!;
+        private ICommand cancelCommand = null!;
 
         public SettingsViewModel(ISettingsView view)
             : base(view)
@@ -132,18 +132,18 @@ namespace FAP.Application.ViewModels
 
         private string GetStartupCommand()
         {
-            string location = Assembly.GetEntryAssembly().Location;
+            string location = Assembly.GetEntryAssembly()!.Location;
             return string.Format("\"{0}\" STARTUP", location);
         }
 
         public string Error
         {
-            get { return this[null]; }
+            get { return this[null!]; }
         }
 
         public string this[string columnName]
         {
-            get { return model[columnName]; }
+            get { return model[columnName] ?? string.Empty; }
         }
     }
 }

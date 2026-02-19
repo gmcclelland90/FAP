@@ -43,7 +43,7 @@ namespace FAP.Application.Controllers
         private readonly IServiceProvider serviceProvider;
         private readonly Microsoft.Extensions.Logging.ILogger<CompareController> logger;
         private readonly Model model;
-        private CompareViewModel viewModel;
+        private CompareViewModel viewModel = null!;
 
         public CompareController(IServiceProvider serviceProvider, Model m)
         {
@@ -108,7 +108,7 @@ namespace FAP.Application.Controllers
                             if (recentCache.TryGetValue(cacheKey, out var cached) && (DateTime.UtcNow - cached.ts) < cacheTtl)
                             {
                                 var cachedNode = cached.node;
-                                cachedNode.Nickname = string.IsNullOrEmpty(peer.Nickname) ? peer.Host : peer.Nickname;
+                                cachedNode.Nickname = string.IsNullOrEmpty(peer.Nickname) ? peer.Host ?? string.Empty : peer.Nickname;
                                 cachedNode.Status = cachedNode.Status; // trigger change stamp
                                 cachedNode.LatencyMs = 0;
                                 viewModel.Data.Add(cachedNode);
@@ -121,7 +121,7 @@ namespace FAP.Application.Controllers
                             {
                                 var errorNode = new CompareNode
                                 {
-                                    Nickname = string.IsNullOrEmpty(peer.Nickname) ? peer.Host : peer.Nickname
+                                    Nickname = string.IsNullOrEmpty(peer.Nickname) ? peer.Host ?? string.Empty : peer.Nickname
                                 };
                                 errorNode.Status = "Error";
                                 errorNode.LatencyMs = (long)(DateTime.UtcNow - peerStart).TotalMilliseconds;
@@ -131,7 +131,7 @@ namespace FAP.Application.Controllers
 
                             var result = verb.Node ?? new CompareNode();
                             if (string.IsNullOrEmpty(result.Nickname))
-                                result.Nickname = string.IsNullOrEmpty(peer.Nickname) ? peer.Host : peer.Nickname;
+                                result.Nickname = string.IsNullOrEmpty(peer.Nickname) ? peer.Host ?? string.Empty : peer.Nickname;
 
                             result.Status = verb.Allowed ? "OK" : "Denied";
                             result.LatencyMs = (long)(DateTime.UtcNow - peerStart).TotalMilliseconds;
@@ -143,7 +143,7 @@ namespace FAP.Application.Controllers
                             logger.LogWarning(ex, "Compare failed for peer {Peer}", peer?.Nickname ?? peer?.Host ?? "unknown");
                             var errorNode = new CompareNode
                             {
-                                Nickname = string.IsNullOrEmpty(peer.Nickname) ? peer.Host : peer.Nickname
+                                Nickname = peer?.Nickname ?? peer?.Host ?? string.Empty
                             };
                             errorNode.Status = "Error";
                             // If we reached here we still have elapsed time for the attempt

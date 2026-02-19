@@ -63,7 +63,7 @@ namespace FAP.Application.Controllers
             CompletedDownloads_CollectionChanged(null, null);
         }
 
-        private void CompletedUploads_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        private void CompletedUploads_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs? e)
         {
             List<TransferLog> list = model.CompletedUploads.ToList();
             long totalSize = list.Sum(s => s.Size);
@@ -78,7 +78,7 @@ namespace FAP.Application.Controllers
             list.Clear();
         }
 
-        private void CompletedDownloads_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        private void CompletedDownloads_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs? e)
         {
             List<TransferLog> list = model.CompletedDownloads.ToList();
             long totalSize = list.Sum(s => s.Size);
@@ -102,7 +102,7 @@ namespace FAP.Application.Controllers
             model.CompletedDownloads.Clear();
         }
 
-        private List<DownloadRequest> ConvertList(object o)
+        private List<DownloadRequest> ConvertList(object? o)
         {
             var incoming = o as ObservableCollection<object>;
             var list = new List<DownloadRequest>();

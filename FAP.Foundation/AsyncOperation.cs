@@ -4,8 +4,8 @@ namespace Fap.Foundation
 {
     public class AsyncOperation
     {
-        public ICommand Command { set; get; }
-        public object Object { set; get; }
-        public ICommand CompletedCommand { set; get; }
+        public required ICommand Command { set; get; }
+        public object? Object { set; get; }
+        public ICommand? CompletedCommand { set; get; }
     }
 }

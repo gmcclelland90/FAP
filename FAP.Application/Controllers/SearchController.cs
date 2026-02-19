@@ -22,7 +22,7 @@ namespace FAP.Application.Controllers
         private SafeObservedCollection<SearchResult> currentResults = new SafeObservedCollection<SearchResult>();
         private int outstandingrequests;
         private long startTime;
-        private SearchViewModel viewModel;
+        private SearchViewModel viewModel = null!;
 
         public SearchController(IServiceProvider serviceProvider, Model m)
         {
@@ -142,7 +142,7 @@ namespace FAP.Application.Controllers
                         try
                         {
                             var client = new Client(model.LocalNode);
-                            var verb = new SearchVerb(null);
+                            var verb = new SearchVerb(null!);
                             verb.SearchString = viewModel.SearchString;
 
                             switch (viewModel.SizeSearchType)
@@ -158,10 +158,10 @@ namespace FAP.Application.Controllers
                             switch (viewModel.ModifiedSearchType)
                             {
                                 case "Before":
-                                    verb.ModifiedBefore = (DateTime) viewModel.ModifiedDate;
+                                    verb.ModifiedBefore = viewModel.ModifiedDate!.Value;
                                     break;
                                 case "After":
-                                    verb.ModifiedAfter = (DateTime) viewModel.ModifiedDate;
+                                    verb.ModifiedAfter = viewModel.ModifiedDate!.Value;
                                     break;
                             }
 
@@ -205,7 +205,7 @@ namespace FAP.Application.Controllers
             }
         }
 
-        private async void EnableSearch(object b)
+        private async void EnableSearch(object? b)
         {
             await Task.Delay(8000);
             viewModel.AllowSearch = true;
@@ -216,24 +216,24 @@ namespace FAP.Application.Controllers
             switch (viewModel.SizeModifier)
             {
                 case "KB":
-                    return (double) viewModel.SizeText*1024;
+                    return (double)viewModel.SizeText! * 1024;
                 case "MB":
-                    return (double) viewModel.SizeText*1048576;
+                    return (double)viewModel.SizeText! * 1048576;
                 case "GB":
-                    return (double) viewModel.SizeText*1073741824;
+                    return (double)viewModel.SizeText! * 1073741824;
                 case "TB":
-                    return (double) viewModel.SizeText*1099511627776;
+                    return (double)viewModel.SizeText! * 1099511627776;
             }
             return 0;
         }
 
-        private void RunAsync(object o)
+        private void RunAsync(object? o)
         {
             var param = o as AsyncSearchParam;
             if (null != param && null != param.Node)
             {
                 var client = new Client(model.LocalNode);
-                var verb = new SearchVerb(null);
+                var verb = new SearchVerb(null!);
                 verb.SearchString = viewModel.SearchString;
 
                 switch (viewModel.SizeSearchType)
@@ -253,10 +253,10 @@ namespace FAP.Application.Controllers
                     case "Any":
                         break;
                     case "Before":
-                        verb.ModifiedBefore = (DateTime) viewModel.ModifiedDate;
+                        verb.ModifiedBefore = viewModel.ModifiedDate!.Value;
                         break;
                     case "After":
-                        verb.ModifiedAfter = (DateTime) viewModel.ModifiedDate;
+                        verb.ModifiedAfter = viewModel.ModifiedDate!.Value;
                         break;
                 }
 
@@ -277,7 +277,7 @@ namespace FAP.Application.Controllers
             lock (sync)
             {
                 //If we still on the same search then update the UI.
-                if (param.Results == currentResults)
+                if (param?.Results == currentResults)
                 {
                     outstandingrequests--;
                     if (outstandingrequests < 1)
@@ -298,8 +298,8 @@ namespace FAP.Application.Controllers
 
         private class AsyncSearchParam
         {
-            public SafeObservedCollection<SearchResult> Results { set; get; }
-            public Node Node { set; get; }
+            public SafeObservedCollection<SearchResult> Results { set; get; } = null!;
+            public Node Node { set; get; } = null!;
         }
 
         #endregion

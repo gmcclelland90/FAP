@@ -29,6 +29,6 @@ namespace FAP.Application.ViewModels
         {
         }
 
-        public Node Node { set; get; }
+        public Node Node { set; get; } = null!;
     }
 }

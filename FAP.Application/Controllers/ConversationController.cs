@@ -40,7 +40,7 @@ namespace FAP.Application.Controllers
         private readonly System.Net.Http.IHttpClientFactory _httpClientFactory;
         private readonly Microsoft.Extensions.Logging.ILogger<ModernHttpClient> _httpLogger;
         private readonly Model model;
-        private ConversationViewModel viewModel;
+        private ConversationViewModel viewModel = null!;
 
         public ConversationController(IServiceProvider serviceProvider, Model m)
         {

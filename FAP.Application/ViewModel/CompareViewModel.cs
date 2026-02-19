@@ -26,11 +26,11 @@ namespace FAP.Application.ViewModels
 {
     public class CompareViewModel : ViewModelBase<ICompareView>
     {
-        private SafeObservable<CompareNode> data;
+        private SafeObservable<CompareNode> data = null!;
         private bool enableStart = true;
-        private ICommand run;
-        private ICommand reset;
-        private string status;
+        private ICommand run = null!;
+        private ICommand reset = null!;
+        private string status = string.Empty;
 
         public CompareViewModel(ICompareView view)
             : base(view)

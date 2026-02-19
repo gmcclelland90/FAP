@@ -27,15 +27,15 @@ namespace FAP.Application.ViewModels
 {
     public class BrowserViewModel : ViewModelBase<IBrowserView>
     {
-        private BrowsingFile currentItem;
-        private string currentPath;
-        private ICommand download;
+        private BrowsingFile currentItem = null!;
+        private string currentPath = string.Empty;
+        private ICommand download = null!;
         private bool isBusy;
-        private List<BrowsingFile> lastSelectedEntity;
+        private List<BrowsingFile> lastSelectedEntity = null!;
         private bool noCache;
-        private ICommand refresh;
+        private ICommand refresh = null!;
         private ObservableCollection<BrowsingFile> root = new ObservableCollection<BrowsingFile>();
-        private string status;
+        private string status = string.Empty;
 
         public BrowserViewModel(IBrowserView view)
             : base(view)

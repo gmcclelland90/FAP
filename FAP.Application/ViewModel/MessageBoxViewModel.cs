@@ -23,8 +23,8 @@ namespace FAP.Application.ViewModels
 {
     public class MessageBoxViewModel : ViewModelBase<IMessageBoxView>
     {
-        private string message;
-        private string response;
+        private string message = string.Empty;
+        private string response = string.Empty;
 
         public MessageBoxViewModel(IMessageBoxView view)
             : base(view)

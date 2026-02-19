@@ -191,7 +191,7 @@ namespace FAP.Application.Controllers
                 foreach (var group in downloads)
                 {
                     //Check if the client is online
-                    Node client = model.Network.Nodes.ToList().Where(p => p.ID == group.ID).FirstOrDefault();
+                    Node? client = model.Network.Nodes.ToList().Where(p => p.ID == group.ID).FirstOrDefault();
                     if (null == client)
                         client =
                             model.Network.Nodes.ToList().Where(c => c.Nickname == group.Downloads.First().Nickname).
@@ -251,7 +251,7 @@ namespace FAP.Application.Controllers
                 {
                     worker.OnWorkerFinished -= worker_OnWorkerFinished;
                     workers.Remove(worker);
-                    TransferSession session =
+                    TransferSession? session =
                         model.TransferSessions.ToList().Where(t => t.Worker == worker).FirstOrDefault();
                     if (null != session)
                         model.TransferSessions.Remove(session);
@@ -259,7 +259,7 @@ namespace FAP.Application.Controllers
             }
         }
 
-        private void worker_OnWorkerFinished(object sender, EventArgs e)
+        private void worker_OnWorkerFinished(object? sender, EventArgs e)
         {
             ScanForDownloads();
         }

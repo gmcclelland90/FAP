@@ -26,9 +26,9 @@ namespace FAP.Application.ViewModels
     public class PopupWindowViewModel : ViewModelBase<IPopupWindow>
     {
         private readonly ObservableCollection<PopUpWindowTab> documentViews;
-        private object activeDocumentView;
-        private ICommand close;
-        private ICommand tabClose;
+        private object activeDocumentView = null!;
+        private ICommand close = null!;
+        private ICommand tabClose = null!;
 
 
         public PopupWindowViewModel(IPopupWindow view)

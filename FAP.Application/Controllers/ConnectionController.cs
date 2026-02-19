@@ -86,12 +86,12 @@ namespace FAP.Application.Controllers
             // model.Networks.Add(network);
         }
 
-        private void LocalNode_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        private void LocalNode_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
             _ = Task.Run(() => CheckModelChangesAsync(null));
         }
 
-        private void model_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        private void model_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
             if (e.PropertyName == "State")
                 workerEvent.Set();
@@ -106,14 +106,14 @@ namespace FAP.Application.Controllers
             _ = Task.Run(() => SendMessageAsync(verb));
         }
 
-        private async void SendMessageAsync(object o)
+        private async void SendMessageAsync(object? o)
         {
             try
             {
                 if (model.Network.State == ConnectionState.Connected)
                 {
                     var client = new ModernHttpClient((INode)model.LocalNode, _httpLogger, _httpClientFactory.CreateClient("FapDefault"));
-                    if (!await client.ExecuteAsync((IVerb) o, model.Network.Overlord))
+                    if (!await client.ExecuteAsync((IVerb)o!, model.Network.Overlord))
                     {
                         if (model.Network.State == ConnectionState.Connected)
                             model.Network.State = ConnectionState.Disconnected;
@@ -155,7 +155,7 @@ namespace FAP.Application.Controllers
                 await c.ExecuteAsync(verb, model.Network.Overlord, 3000);
 
                 //Remove peer so we dont reconnect straight away most likely
-                DetectedNode peer =
+                DetectedNode? peer =
                     peerFinder.Peers.Where(p => p.Address == model.Network.Overlord.Location).FirstOrDefault();
                 if (null != peer)
                     peerFinder.RemovePeer(peer);
@@ -276,7 +276,7 @@ namespace FAP.Application.Controllers
         }
 
 
-        private void CheckModelChangesAsync(object o)
+        private void CheckModelChangesAsync(object? o)
         {
             CheckModelChanges();
         }
@@ -288,7 +288,7 @@ namespace FAP.Application.Controllers
         {
             if (model.Network.State == ConnectionState.Connected)
             {
-                UpdateVerb verb = null;
+                UpdateVerb? verb = null;
                 lock (sync)
                 {
                     var data = new Dictionary<string, string>();
@@ -339,7 +339,7 @@ namespace FAP.Application.Controllers
             }
         }
 
-        private void network_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        private void network_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
             //When the network state changes then reconnect if needed.
             if (e.PropertyName == "State")

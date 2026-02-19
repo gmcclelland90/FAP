@@ -27,21 +27,21 @@ namespace FAP.Application.ViewModels
 {
     public class DownloadQueueViewModel : ViewModelBase<IDownloadQueue>
     {
-        private ICommand clearDownloadLog;
-        private ICommand clearUploadLog;
-        private SafeObservingCollection<TransferLog> completedDownloads;
-        private SafeObservingCollection<TransferLog> completedUploads;
-        private SafeObservingCollection<DownloadRequest> downloadQueue;
-        private string downloadStats;
+        private ICommand clearDownloadLog = null!;
+        private ICommand clearUploadLog = null!;
+        private SafeObservingCollection<TransferLog> completedDownloads = null!;
+        private SafeObservingCollection<TransferLog> completedUploads = null!;
+        private SafeObservingCollection<DownloadRequest> downloadQueue = null!;
+        private string downloadStats = string.Empty;
 
-        private ICommand movedown;
-        private ICommand movetobottom;
-        private ICommand movetotop;
-        private ICommand moveup;
-        private ICommand removeAll;
-        private ICommand removeSelection;
-        private IList selectedItems;
-        private string uploadStats;
+        private ICommand movedown = null!;
+        private ICommand movetobottom = null!;
+        private ICommand movetotop = null!;
+        private ICommand moveup = null!;
+        private ICommand removeAll = null!;
+        private ICommand removeSelection = null!;
+        private IList selectedItems = null!;
+        private string uploadStats = string.Empty;
 
         public DownloadQueueViewModel(IDownloadQueue view)
             : base(view)

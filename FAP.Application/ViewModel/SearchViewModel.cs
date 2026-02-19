@@ -10,19 +10,19 @@ namespace FAP.Application.ViewModel
     public class SearchViewModel : ViewModelBase<ISearchView>
     {
         private bool allowSearch = true;
-        private ICommand download;
-        private string lowerStatusMessage;
+        private ICommand download = null!;
+        private string lowerStatusMessage = string.Empty;
         private DateTime? modifiedDate;
-        private string modifiedSearchType;
-        private ICommand reset;
-        private SafeObservingCollection<SearchResult> results;
-        private ICommand search;
-        private string searchString;
-        private string sizeModifier;
-        private string sizeSearchType;
+        private string modifiedSearchType = string.Empty;
+        private ICommand reset = null!;
+        private SafeObservingCollection<SearchResult> results = null!;
+        private ICommand search = null!;
+        private string searchString = string.Empty;
+        private string sizeModifier = string.Empty;
+        private string sizeSearchType = string.Empty;
         private double? sizeText;
-        private string upperStatusMessage;
-        private ICommand viewShare;
+        private string upperStatusMessage = string.Empty;
+        private ICommand viewShare = null!;
 
         public SearchViewModel(ISearchView v) : base(v)
         {

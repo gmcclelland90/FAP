@@ -1,23 +1,27 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Input;
 
 namespace Fap.Foundation
 {
     public abstract class AsyncControllerBase
     {
-        private BackgroundWorker worker = new BackgroundWorker();
-        private Queue<AsyncOperation> operations = new Queue<AsyncOperation>();
+        private readonly Queue<AsyncOperation> operations = new Queue<AsyncOperation>();
+        private readonly object lockObject = new object();
+        private readonly SynchronizationContext syncContext;
+        private volatile bool isProcessing;
+        private CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
 
         public delegate void AsyncControllerJobComplete();
-        public event AsyncControllerJobComplete AsyncControllerJobCompleteHandler;
+        public event AsyncControllerJobComplete? AsyncControllerJobCompleteHandler;
 
         public int JobCount
         {
             get
             {
-                lock (worker)
+                lock (lockObject)
                 {
                     return operations.Count;
                 }
@@ -26,54 +30,76 @@ namespace Fap.Foundation
 
         public AsyncControllerBase()
         {
-            worker.WorkerSupportsCancellation = true;
-            worker.DoWork += worker_DoWork;
-            worker.RunWorkerCompleted += worker_RunWorkerCompleted;
+            syncContext = SynchronizationContext.Current ?? new SynchronizationContext();
         }
 
-        private void worker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        private async Task ProcessQueueAsync()
         {
-            AsyncControllerJobCompleteHandler?.Invoke();
-            lock (worker)
+            while (true)
             {
-                if (operations.Count > 0 && !worker.IsBusy)
-                    worker.RunWorkerAsync();
-            }
-        }
-
-        private void worker_DoWork(object sender, DoWorkEventArgs e)
-        {
-            AsyncOperation op = null;
-            lock (worker)
-            {
-                if (operations.Count > 0)
+                AsyncOperation op;
+                lock (lockObject)
+                {
+                    if (operations.Count == 0)
+                    {
+                        isProcessing = false;
+                        return;
+                    }
                     op = operations.Dequeue();
-            }
-            if (null != op)
-            {
-                if (op.Command.CanExecute(op.Object))
-                    op.Command.Execute(op.Object);
-                e.Result = op;
+                }
+
+                try
+                {
+                    await Task.Run(() =>
+                    {
+                        if (op.Command.CanExecute(op.Object))
+                            op.Command.Execute(op.Object);
+                    }, cancellationTokenSource.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    lock (lockObject)
+                    {
+                        cancellationTokenSource = new CancellationTokenSource();
+                    }
+                }
+
+                syncContext.Post(_ =>
+                {
+                    AsyncControllerJobCompleteHandler?.Invoke();
+                }, null);
+
+                lock (lockObject)
+                {
+                    if (operations.Count == 0)
+                    {
+                        isProcessing = false;
+                        return;
+                    }
+                }
             }
         }
 
         protected void QueueWork(ICommand command)
         {
-            QueueWork(command, null);
+            QueueWork(command, null, null);
         }
 
-        protected void QueueWork(ICommand command, object param)
+        protected void QueueWork(ICommand command, object? param)
         {
             QueueWork(command, param, null);
         }
 
-        protected void QueueWork(ICommand command, object param, ICommand completed)
+        protected void QueueWork(ICommand command, object? param, ICommand? completed)
         {
-            lock (worker)
+            lock (lockObject)
             {
                 operations.Enqueue(new AsyncOperation() { Command = command, Object = param });
-                if (!worker.IsBusy)
-                    worker.RunWorkerAsync();
+                if (!isProcessing)
+                {
+                    isProcessing = true;
+                    _ = ProcessQueueAsync();
+                }
             }
         }
     }

@@ -67,7 +67,7 @@ namespace FAP.Application.Controllers
             //Select primary interface.  Just go with the lowest
             foreach (IPAddress t in localIPs)
             {
-                vm.SelectedInterface = vm.Interfaces.Where(s => Equals(s.Address, t)).FirstOrDefault();
+                vm.SelectedInterface = vm.Interfaces.Where(s => Equals(s.Address, t)).FirstOrDefault()!;
                 if (null != vm.SelectedInterface)
                     break;
             }
@@ -88,7 +88,7 @@ namespace FAP.Application.Controllers
                 vm.Close();
         }
 
-        public string CheckAddress(string a)
+        public string? CheckAddress(string a)
         {
             //Check to see if the passed address is still valid, if so just use it
             if (!vm.Interfaces.Any(t => string.Equals(t.Address.ToString(), a)))
@@ -103,7 +103,7 @@ namespace FAP.Application.Controllers
                 vm.ShowDialog();
                 if (quit)
                     return null;
-                return vm.SelectedInterface.Address.ToString();
+                return vm.SelectedInterface?.Address?.ToString();
             }
 
             return a;

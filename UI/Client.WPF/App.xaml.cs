@@ -80,7 +80,8 @@ namespace Fap.Presentation
 
         protected override void OnStartup(StartupEventArgs e)
         {
-            if(e.Args.Contains("WAIT"))
+            // Intentionally block startup to allow the previous instance time to fully exit
+            if (e.Args.Contains("WAIT"))
                 Thread.Sleep(5000);
 
             this.DispatcherUnhandledException += new System.Windows.Threading.DispatcherUnhandledExceptionEventHandler(App_DispatcherUnhandledException);
@@ -98,7 +99,7 @@ namespace Fap.Presentation
             {
                 if (e.Args.Length == 1 && e.Args[0] == "WAIT")
                 {
-                    //Delay the application starting up, used when restarting.
+                    // Allow previous instance time to release resources before we initialize
                     Thread.Sleep(3000);
                 }
 
@@ -358,6 +359,7 @@ namespace Fap.Presentation
 
         protected override void OnExit(ExitEventArgs e)
         {
+            SafeObservingCollectionManager.Stop();
             if (serviceProvider is IDisposable disposable)
             {
                 disposable.Dispose();

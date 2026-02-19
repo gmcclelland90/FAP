@@ -31,9 +31,9 @@ namespace Server.Console
             await p.RunAsync(args);
         }
 
-        private IServiceProvider serviceProvider;
-        private ILogger<Program> logger;
-        private Model model;
+        private IServiceProvider serviceProvider = null!;
+        private ILogger<Program> logger = null!;
+        private Model model = null!;
 
         private async Task RunAsync(string[] args)
         {
@@ -57,9 +57,9 @@ namespace Server.Console
             }
         }
 
-        private void Messages_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        private void Messages_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
-            if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add)
+            if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add && e.NewItems != null)
             {
                 foreach (var item in e.NewItems)
                     logger?.LogInformation("{Message}", item?.ToString());

@@ -60,18 +60,18 @@ namespace FAP.Application
         private readonly SingleInstanceService singleInstanceService;
         private readonly UpdateCheckerService updateChecker;
         private readonly IServiceProvider serviceProvider; // For resolving services that can't be injected directly
-        private ListenerService client;
-        private CompareController compareController;
-        private ConversationController conversationController;
-        private DownloadQueueController downloadQueueController;
-        private MainWindowViewModel mainWindowModel;
-        private IPopupWindowController popupController;
-        private SearchController searchController;
-        private SettingsController settingsController;
-        private SharesController shareController;
-        private ShareInfoService shareInfo;
-        private TrayIconViewModel trayIcon;
-        private WatchdogController watchdogController;
+        private ListenerService client = null!;
+        private CompareController compareController = null!;
+        private ConversationController conversationController = null!;
+        private DownloadQueueController downloadQueueController = null!;
+        private MainWindowViewModel mainWindowModel = null!;
+        private IPopupWindowController popupController = null!;
+        private SearchController searchController = null!;
+        private SettingsController settingsController = null!;
+        private SharesController shareController = null!;
+        private ShareInfoService shareInfo = null!;
+        private TrayIconViewModel trayIcon = null!;
+        private WatchdogController watchdogController = null!;
 
         public ApplicationCore(
             Model model,
@@ -109,7 +109,7 @@ namespace FAP.Application
             _ = Task.Run(() => ShutDownAsync(null));
         }
 
-        public void ShutDownAsync(object param)
+        public void ShutDownAsync(object? param)
         {
             model.Save();
             model.DownloadQueue.Save();
@@ -161,7 +161,7 @@ namespace FAP.Application
         public bool Load(bool server)
         {
             model.Load();
-            model.LocalNode.Host = interfaceController.CheckAddress(model.LocalNode.Host);
+            model.LocalNode.Host = interfaceController.CheckAddress(model.LocalNode.Host) ?? string.Empty;
             //User chose to quit rather than select an interface =s
             if (string.IsNullOrEmpty(model.LocalNode.Host))
                 return false;
@@ -211,14 +211,14 @@ namespace FAP.Application
             return true;
         }
 
-        private void LocalNode_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        private void LocalNode_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
             //Update immeadiatly on user input to give the app a nicer feel
             if (e.PropertyName == "Nickname" || e.PropertyName == "Description" || e.PropertyName == "Avatar")
                 _ = Task.Run(() => updateModelAsync(null));
         }
 
-        private void updateModelAsync(object o)
+        private void updateModelAsync(object? o)
         {
             connectionController.CheckModelChanges();
         }
@@ -267,12 +267,12 @@ namespace FAP.Application
             _ = Task.Run(() => AddDownloadAsync(url));
         }
 
-        private async void AddDownloadAsync(object url)
+        private async void AddDownloadAsync(object? url)
         {
             while (model.Network.State != ConnectionState.Connected)
                 await Task.Delay(250);
             await Task.Delay(2000);
-            model.AddDownloadURL(url as string);
+            model.AddDownloadURL((url as string)!);
         }
 
         public void StartClient()
@@ -434,7 +434,7 @@ namespace FAP.Application
 
         private void MainWindowClosing()
         {
-            mainWindowModel = null;
+                mainWindowModel = null!;
         }
 
         private void ViewQueue()
@@ -539,7 +539,7 @@ namespace FAP.Application
         {
             while (!token.IsCancellationRequested)
             {
-                MainWindowViewModel window = mainWindowModel;
+                MainWindowViewModel? window = mainWindowModel;
                 if (null != window)
                 {
                     window.Dispatcher.Invoke(DispatcherPriority.Background,
@@ -569,7 +569,7 @@ namespace FAP.Application
                                                                      else
                                                                      {
                                                                          sbs.Append(" on ");
-                                                                         Node search =
+                                                                         Node? search =
                                                                              model.Network.Nodes.ToList().Where(
                                                                                  n =>
                                                                                  n.Host == model.Network.Overlord.Host &&
@@ -694,7 +694,7 @@ namespace FAP.Application
                                                      }
                                                  ));
                 }
-                window = null;
+                window = null!;
                 try { await System.Threading.Tasks.Task.Delay(333, token); } catch { }
             }
         }

@@ -37,7 +37,7 @@ namespace FAP.Application.Controllers
         private readonly IServiceProvider serviceProvider;
         private readonly Microsoft.Extensions.Logging.ILogger<SettingsController> logger;
         private readonly Model model;
-        private SettingsViewModel viewModel;
+        private SettingsViewModel viewModel = null!;
 
         public SettingsController(IServiceProvider serviceProvider, Model m)
         {

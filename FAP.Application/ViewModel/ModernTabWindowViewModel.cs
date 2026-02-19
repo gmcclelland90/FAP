@@ -8,7 +8,7 @@ namespace FAP.Application.ViewModels
     public class ModernTabWindowViewModel : INotifyPropertyChanged
     {
         private readonly ObservableCollection<TabItemViewModel> _tabs;
-        private TabItemViewModel _selectedTab;
+        private TabItemViewModel _selectedTab = null!;
 
         public ModernTabWindowViewModel()
         {
@@ -50,14 +50,14 @@ namespace FAP.Application.ViewModels
         }
 
         #region INotifyPropertyChanged
-        public event PropertyChangedEventHandler PropertyChanged;
+        public event PropertyChangedEventHandler? PropertyChanged;
 
-        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string propertyName = null)
+        protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
         {
             if (Equals(field, value)) return false;
             field = value;

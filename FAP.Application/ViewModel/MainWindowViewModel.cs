@@ -29,35 +29,35 @@ namespace FAP.Application.ViewModels
     public class MainWindowViewModel : ViewModelBase<IMainWindow>
     {
         private bool allowClose;
-        private string avatar;
-        private ICommand chat;
-        private SafeObservingCollection<string> chatList;
-        private ICommand closing;
-        private ICommand compare;
-        private string currentChatMessage;
-        private string description;
-        private ICommand editShares;
-        private string globalStats;
-        private string localStats;
-        private Model model;
-        private string networkInfo;
-        private string networkStats;
-        private string nickname;
-        private Node node;
-        private string nodeStatus;
-        private ICommand openExternal;
-        private SafeFilteredObservingCollection<Node> peers;
-        private ICommand search;
-        private object selectedClient;
-        private ICommand sendChatMessage;
-        private SafeObservingCollection<TransferSession> sessions;
-        private ICommand settings;
+        private string avatar = string.Empty;
+        private ICommand chat = null!;
+        private SafeObservingCollection<string> chatList = null!;
+        private ICommand closing = null!;
+        private ICommand compare = null!;
+        private string currentChatMessage = string.Empty;
+        private string description = string.Empty;
+        private ICommand editShares = null!;
+        private string globalStats = string.Empty;
+        private string localStats = string.Empty;
+        private Model model = null!;
+        private string networkInfo = string.Empty;
+        private string networkStats = string.Empty;
+        private string nickname = string.Empty;
+        private Node node = null!;
+        private string nodeStatus = string.Empty;
+        private ICommand openExternal = null!;
+        private SafeFilteredObservingCollection<Node> peers = null!;
+        private ICommand search = null!;
+        private object selectedClient = null!;
+        private ICommand sendChatMessage = null!;
+        private SafeObservingCollection<TransferSession> sessions = null!;
+        private ICommand settings = null!;
         private PeerSortType sortType;
-        private ICommand userinfo;
-        private ICommand viewQueue;
-        private ICommand viewShare;
+        private ICommand userinfo = null!;
+        private ICommand viewQueue = null!;
+        private ICommand viewShare = null!;
         private bool visible;
-        private string windowTitle;
+        private string windowTitle = string.Empty;
 
         public MainWindowViewModel(IMainWindow view)
             : base(view)

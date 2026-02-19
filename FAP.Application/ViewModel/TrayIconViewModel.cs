@@ -25,14 +25,14 @@ namespace FAP.Application.ViewModels
 {
     public class TrayIconViewModel : ViewModelBase<ITrayIconView>
     {
-        private ICommand compare;
-        private ICommand exit;
-        private ICommand open;
-        private ICommand openExternal;
-        private ICommand queue;
-        private ICommand settings;
-        private ICommand shares;
-        private ICommand viewshare;
+        private ICommand compare = null!;
+        private ICommand exit = null!;
+        private ICommand open = null!;
+        private ICommand openExternal = null!;
+        private ICommand queue = null!;
+        private ICommand settings = null!;
+        private ICommand shares = null!;
+        private ICommand viewshare = null!;
 
 
         public TrayIconViewModel(ITrayIconView view)
@@ -40,7 +40,7 @@ namespace FAP.Application.ViewModels
         {
         }
 
-        public Model Model { set; get; }
+        public Model Model { set; get; } = null!;
 
         public bool ShowIcon
         {

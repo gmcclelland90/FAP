@@ -26,10 +26,10 @@ namespace FAP.Application.ViewModels
 {
     public class InterfaceSelectionViewModel : ViewModelBase<IInterfaceSelectionView>
     {
-        private BindingList<NetInterface> interfaces;
-        private ICommand quit;
-        private ICommand select;
-        private NetInterface selectedInterface;
+        private BindingList<NetInterface> interfaces = null!;
+        private ICommand quit = null!;
+        private ICommand select = null!;
+        private NetInterface selectedInterface = null!;
 
         public InterfaceSelectionViewModel(IInterfaceSelectionView i) : base(i)
         {

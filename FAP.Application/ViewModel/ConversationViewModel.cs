@@ -28,10 +28,10 @@ namespace FAP.Application.ViewModels
     public class ConversationViewModel : ViewModelBase<IConverstationView>
     {
         private readonly IPopupWindowController popupWindowController;
-        private ICommand close;
-        private Conversation conversation;
-        private string currentChatMessage;
-        private ICommand sendChatMessage;
+        private ICommand close = null!;
+        private Conversation conversation = null!;
+        private string currentChatMessage = string.Empty;
+        private ICommand sendChatMessage = null!;
 
         public ConversationViewModel(IConverstationView view, IPopupWindowController p)
             : base(view)
@@ -82,7 +82,7 @@ namespace FAP.Application.ViewModels
             }
         }
 
-        private void UIMessages_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        private void UIMessages_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
             if (popupWindowController.ActiveTab != this)
                 popupWindowController.Highlight(this);

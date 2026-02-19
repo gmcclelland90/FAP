@@ -28,12 +28,12 @@ namespace FAP.Application.ViewModels
 {
     public class SharesViewModel : ViewModelBase<ISharesView>
     {
-        private ICommand addCommand;
-        private ICommand refreshCommand;
-        private ICommand removeCommand;
-        private ICommand renameCommand;
-        private Share selectedShare;
-        private SafeObservingCollection<Share> shares;
+        private ICommand addCommand = null!;
+        private ICommand refreshCommand = null!;
+        private ICommand removeCommand = null!;
+        private ICommand renameCommand = null!;
+        private Share selectedShare = null!;
+        private SafeObservingCollection<Share> shares = null!;
 
         public SharesViewModel(ISharesView view)
             : base(view)
@@ -140,7 +140,7 @@ namespace FAP.Application.ViewModels
             }
         }
 
-        private void value_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        private void value_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
             switch (e.Action)
             {
@@ -179,7 +179,7 @@ namespace FAP.Application.ViewModels
             OnPropertyChanged("TotalShareSizeString");
         }
 
-        private void s_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        private void s_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
             OnPropertyChanged("TotalShareSizeString");
         }

@@ -41,8 +41,8 @@ namespace FAP.Application.Controllers
         private readonly Microsoft.Extensions.Logging.ILogger<SharesController> logger;
         private readonly Model model;
         private readonly ShareInfoService scanner;
-        private QueryViewModel browser;
-        private SharesViewModel viewModel;
+        private QueryViewModel browser = null!;
+        private SharesViewModel viewModel = null!;
 
         public SharesController(IServiceProvider serviceProvider, Model m)
         {

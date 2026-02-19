@@ -75,7 +75,7 @@ namespace FAP.Application.Controllers
             Populate("");
         }
 
-        private void bvm_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        private void bvm_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
             if (e.PropertyName == "CurrentPath")
             {
@@ -99,7 +99,7 @@ namespace FAP.Application.Controllers
             }
             string[] items = ent.Split('\\');
             logger.LogDebug("Populate: Split path into {Count} items: [{Items}]", items.Length, string.Join(", ", items));
-            BrowsingFile parent = bvm.Root.Where(n => n.Name == items[0]).FirstOrDefault();
+            BrowsingFile? parent = bvm.Root.Where(n => n.Name == items[0]).FirstOrDefault();
             logger.LogDebug("Populate: Found parent in Root: {Parent}", parent?.Name ?? "null");
 
             if (parent == null)
@@ -137,7 +137,7 @@ namespace FAP.Application.Controllers
             // Navigate through subdirectories
             for (int i = 1; i < items.Length; i++)
             {
-                BrowsingFile search = parent.Items.Where(n => n.Name == items[i]).FirstOrDefault();
+                BrowsingFile? search = parent.Items.Where(n => n.Name == items[i]).FirstOrDefault();
                 if (null == search)
                 {
                     var fse = new BrowsingFile();
@@ -164,7 +164,7 @@ namespace FAP.Application.Controllers
         }
 
 
-        private async void PopulateAsync(object o)
+        private async void PopulateAsync(object? o)
         {
             try
             {
@@ -503,7 +503,7 @@ namespace FAP.Application.Controllers
         }
 
 
-        private void item_Selected(object sender, RoutedEventArgs e)
+        private void item_Selected(object? sender, RoutedEventArgs e)
         {
             var src = e.Source as TreeViewItem;
 
@@ -524,7 +524,7 @@ namespace FAP.Application.Controllers
             }
         }
 
-        private void item_selected_async(object input)
+        private void item_selected_async(object? input)
         {
             var c = new Client(model.LocalNode);
             var cmd = new BrowseVerb(shareInfo);
@@ -550,20 +550,21 @@ namespace FAP.Application.Controllers
               }*/
         }
 
-        private void item_Expanded(object sender, RoutedEventArgs e)
+        private void item_Expanded(object? sender, RoutedEventArgs e)
         {
-            var item = (TreeViewItem) sender;
+            var item = (TreeViewItem)sender!;
             item.Items.Clear();
             var path = item.Tag as BrowsingFile;
             if (null != path)
                 bvm.Status = "Downloading: " + path.FullPath;
-            _ = Task.Run(() => item_Expanded_Async(new ExpandRequest {Item = item, Path = path}));
+            _ = Task.Run(() => item_Expanded_Async(new ExpandRequest {Item = item, Path = path!}));
             e.Handled = true;
         }
 
-        private void item_Expanded_Async(object input)
+        private void item_Expanded_Async(object? input)
         {
             var req = input as ExpandRequest;
+            if (req == null) return;
             var c = new Client(model.LocalNode);
             var cmd = new BrowseVerb(shareInfo);
             cmd.Path = req.Path.FullPath;
@@ -599,8 +600,8 @@ namespace FAP.Application.Controllers
 
         private class ExpandRequest
         {
-            public BrowsingFile Path { set; get; }
-            public TreeViewItem Item { set; get; }
+            public BrowsingFile Path { set; get; } = null!;
+            public TreeViewItem Item { set; get; } = null!;
         }
 
         #endregion
