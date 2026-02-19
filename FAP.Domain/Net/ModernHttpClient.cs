@@ -33,11 +33,6 @@ namespace FAP.Domain.Net
             }
         }
 
-        public ModernHttpClient(INode callingNode)
-            : this(callingNode, NullLogger<ModernHttpClient>.Instance, new HttpClient { Timeout = TimeSpan.FromMilliseconds(DEFAULT_TIMEOUT) })
-        {
-        }
-
         public async Task<bool> ExecuteAsync(FAP.Shared.Interfaces.IVerb verb, INode destinationNode)
         {
             return await ExecuteAsync(verb, destinationNode, DEFAULT_TIMEOUT);
@@ -178,7 +173,7 @@ namespace FAP.Domain.Net
 
         public void Dispose()
         {
-            _httpClient?.Dispose();
+            // HttpClient lifetime is managed by IHttpClientFactory; do not dispose.
         }
     }
 } 

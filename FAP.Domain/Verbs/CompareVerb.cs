@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -86,11 +86,10 @@ namespace FAP.Domain.Verbs
                         var nicTask = hw.GetNetworkAdaptersAsync();
                         var soundTask = hw.GetPrimarySoundDeviceAsync();
 
-                        System.Threading.Tasks.Task.WhenAll(
+                        Task.Run(() => System.Threading.Tasks.Task.WhenAll(
                             cpuTask, baseBoardTask, biosTask, memTask, gpuTask, diskTask, nicTask, soundTask
-                        ).GetAwaiter().GetResult();
+                        )).GetAwaiter().GetResult();
 
-                        // CPU
                         var cpu = cpuTask.Result;
                         Node.SetData("COMP-CPUSpeed", si.GetCPUSpeed().ToString());
                         Node.SetData("COMP-CPUType", cpu?.Name ?? si.GetCPUType());

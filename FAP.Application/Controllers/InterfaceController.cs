@@ -93,8 +93,13 @@ namespace FAP.Application.Controllers
             //Check to see if the passed address is still valid, if so just use it
             if (!vm.Interfaces.Any(t => string.Equals(t.Address.ToString(), a)))
             {
+                // If there is exactly one non-loopback interface and there is no dedicated overlord, prefer loopback for local-only use
+                // Fall back to UI selection only when truly ambiguous
                 if (vm.Interfaces.Count == 1)
-                    return vm.Interfaces[0].Address.ToString();
+                {
+                    // Prefer 127.0.0.1 for single-user local setups
+                    return IPAddress.Loopback.ToString();
+                }
                 vm.ShowDialog();
                 if (quit)
                     return null;

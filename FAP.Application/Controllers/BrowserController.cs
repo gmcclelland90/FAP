@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -21,6 +21,7 @@ using System;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Waf.Applications;
 using System.Windows;
 using System.Windows.Controls;
@@ -29,6 +30,7 @@ using FAP.Application.ViewModels;
 using FAP.Domain;
 using FAP.Domain.Entities;
 using FAP.Domain.Entities.FileSystem;
+using System.Net.Http;
 using FAP.Domain.Net;
 using FAP.Domain.Services;
 using FAP.Domain.Verbs;
@@ -43,19 +45,19 @@ namespace FAP.Application.Controllers
         private readonly Node client;
         private readonly Model model;
         private readonly ShareInfoService shareInfo;
+        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly ILogger<ModernHttpClient> _httpLogger;
 
-        public BrowserController(BrowserViewModel bvm, Model model, Node client, ShareInfoService i)
+        public BrowserController(BrowserViewModel bvm, Model model, Node client, ShareInfoService i,
+            IHttpClientFactory httpClientFactory, ILogger<ModernHttpClient> httpLogger)
         {
-            var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
-            logger.LogDebug("BrowserController constructor: client={Client}, model={Model}", client?.Nickname ?? "null", model?.Nickname ?? "null");
-            
             this.client = client ?? throw new ArgumentNullException(nameof(client), "Client node cannot be null");
             this.model = model ?? throw new ArgumentNullException(nameof(model), "Model cannot be null");
             this.bvm = bvm ?? throw new ArgumentNullException(nameof(bvm), "BrowserViewModel cannot be null");
             shareInfo = i ?? throw new ArgumentNullException(nameof(i), "ShareInfoService cannot be null");
+            _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
+            _httpLogger = httpLogger ?? throw new ArgumentNullException(nameof(httpLogger));
             bvm.NoCache = model.AlwaysNoCacheBrowsing;
-            
-            logger.LogDebug("BrowserController constructor: Successfully created with client={Client}", this.client.Nickname);
         }
 
         public BrowserViewModel ViewModel
@@ -92,7 +94,7 @@ namespace FAP.Application.Controllers
             {
                 logger.LogDebug("Populate: Empty path, clearing root and starting root browse");
                 bvm.Root.Clear();
-                ThreadPool.QueueUserWorkItem(PopulateAsync, null);
+                _ = Task.Run(() => PopulateAsync(null));
                 return;
             }
             string[] items = ent.Split('\\');
@@ -109,7 +111,7 @@ namespace FAP.Application.Controllers
                 tempShare.Name = items[0];
                 tempShare.FullPath = ent;
                 tempShare.IsFolder = true;
-                ThreadPool.QueueUserWorkItem(PopulateAsync, tempShare);
+                _ = Task.Run(() => PopulateAsync(tempShare));
                 return;
             }
 
@@ -121,7 +123,7 @@ namespace FAP.Application.Controllers
                 {
                     logger.LogDebug("Populate: Share not populated or no cache, starting populate for '{Name}'", parent.Name);
                     parent.ClearItems();
-                    ThreadPool.QueueUserWorkItem(PopulateAsync, parent);
+                    _ = Task.Run(() => PopulateAsync(parent));
                 }
                 else
                 {
@@ -152,7 +154,7 @@ namespace FAP.Application.Controllers
             if (!parent.IsPopulated || bvm.NoCache)
             {
                 parent.ClearItems();
-                ThreadPool.QueueUserWorkItem(PopulateAsync, parent);
+                _ = Task.Run(() => PopulateAsync(parent));
             }
             else
             {
@@ -162,7 +164,7 @@ namespace FAP.Application.Controllers
         }
 
 
-        private void PopulateAsync(object o)
+        private async void PopulateAsync(object o)
         {
             try
             {
@@ -208,13 +210,13 @@ namespace FAP.Application.Controllers
                     try
                     {
                         logger.LogDebug("PopulateAsync: Creating ModernHttpClient for path={Path}", fse.FullPath);
-                        var c = new ModernHttpClient(model.LocalNode);
+                        var c = new ModernHttpClient(model.LocalNode, _httpLogger, _httpClientFactory.CreateClient("FapDefault"));
                         var cmd = new BrowseVerb(shareInfo);
                         cmd.Path = fse.FullPath;
                         cmd.NoCache = bvm.NoCache;
                         
                         logger.LogDebug("PopulateAsync: About to execute command with client={Nickname}", client.Nickname);
-                        var result = c.ExecuteAsync(cmd, client).Result;
+                        var result = await c.ExecuteAsync(cmd, client);
                         logger.LogDebug("PopulateAsync: Execute result = {Result}", result);
                          if (result)
                          {
@@ -314,13 +316,13 @@ namespace FAP.Application.Controllers
                     try
                     {
                         logger.LogDebug("PopulateAsync: Creating ModernHttpClient for root browse");
-                        var c = new ModernHttpClient(model.LocalNode);
+                        var c = new ModernHttpClient(model.LocalNode, _httpLogger, _httpClientFactory.CreateClient("FapDefault"));
                         var cmd = new BrowseVerb(shareInfo);
                         cmd.Path = ""; // Root path for initial browse
                         cmd.NoCache = bvm.NoCache;
 
                         logger.LogDebug("PopulateAsync: About to execute root command with client={Nickname}", client.Nickname);
-                        var result = c.ExecuteAsync(cmd, client).Result;
+                        var result = await c.ExecuteAsync(cmd, client);
                         logger.LogDebug("PopulateAsync: Execute result = {Result}", result);
                          if (result)
                          {
@@ -496,7 +498,7 @@ namespace FAP.Application.Controllers
             if (null != bvm.LastSelectedEntity)
             {
                 bvm.Status = "Refreshing current file list.. ";
-                ThreadPool.QueueUserWorkItem(item_selected_async, bvm.LastSelectedEntity);
+                _ = Task.Run(() => item_selected_async(bvm.LastSelectedEntity));
             }
         }
 
@@ -516,7 +518,7 @@ namespace FAP.Application.Controllers
                     var path = src.Tag as BrowsingFile;
                     if (null != path)
                         bvm.Status = "Downloading: " + path.FullPath;
-                    ThreadPool.QueueUserWorkItem(item_selected_async, path);
+                    _ = Task.Run(() => item_selected_async(path));
                 }
                 e.Handled = true;
             }
@@ -555,7 +557,7 @@ namespace FAP.Application.Controllers
             var path = item.Tag as BrowsingFile;
             if (null != path)
                 bvm.Status = "Downloading: " + path.FullPath;
-            ThreadPool.QueueUserWorkItem(item_Expanded_Async, new ExpandRequest {Item = item, Path = path});
+            _ = Task.Run(() => item_Expanded_Async(new ExpandRequest {Item = item, Path = path}));
             e.Handled = true;
         }
 

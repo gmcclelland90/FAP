@@ -25,7 +25,7 @@
 - **WPF Framework**: WpfApplicationFramework (legacy; slated for later)
 - **UI Controls**: Odyssey (legacy; slated for later)
 - **WMI Access**: System.Management (replacing LinqToWmi)
-- **String Templates**: ~~StringTemplate (Antlr3)~~ ✅ **COMPLETED** - Replaced with custom TemplateEngine
+- **String Templates**: ~~StringTemplate (Antlr3)~~ ✅ **COMPLETED** - Replaced with custom TemplateEngine (to be replaced by Razor Pages, see `docs/upgrade-plan-ui.md`)
 
 ## Migration Strategy
 
@@ -62,8 +62,8 @@
 
 #### 2.2 Library Modernization
 - ✅ HttpServer → ASP.NET Core Kestrel/minimal
-- ⏭️ WpfApplicationFramework: later
-- ⏭️ Odyssey: later
+- ⏭️ WpfApplicationFramework → CommunityToolkit.Mvvm (see `docs/upgrade-plan-ui.md`)
+- ⏭️ Odyssey → remove (BreadcrumbBar only; see `docs/upgrade-plan-ui.md`)
 - ✅ LinqToWmi → System.Management
 - ✅ StringTemplate → TemplateEngine
 
@@ -89,12 +89,11 @@
 - **System.Collections**: Use modern collection types
 - **System.ComponentModel**: Update to modern patterns
 
-#### 3.3 WPF Modernization
-- **XAML**: Update to modern XAML patterns
-- **Data Binding**: Use modern binding patterns
-- **Commands**: Update to modern command patterns
-- **Styling**: Modernize styles and themes
-- **Controls**: Update to modern WPF controls
+#### 3.3 WPF Modernization (see `docs/upgrade-plan-ui.md`)
+- **Fluent Theme**: Apply .NET 9 built-in Windows 11 FluentTheme
+- **Odyssey removal**: Replace BreadcrumbBar with a simple custom UserControl
+- **WpfApplicationFramework → CommunityToolkit.Mvvm**: Migrate ViewModels and commands
+- **Project cleanup**: Remove `<UseWPF>` from non-UI projects, remove legacy lib projects from solution
 
 ### Phase 4: Architecture Improvements
 

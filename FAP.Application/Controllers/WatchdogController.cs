@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -35,19 +35,21 @@ namespace FAP.Application.Controllers
         private readonly Model model;
         private readonly OverlordManagerService overlordLauncherService;
         private readonly SharesController shareController;
-        //Sync object for scanfordownloads - only single invocations allowed.
         private readonly object sync = new object();
         private readonly List<DownloadWorkerService> workers = new List<DownloadWorkerService>();
         private readonly Microsoft.Extensions.Logging.ILogger<WatchdogController> logger;
+        private readonly System.Net.Http.IHttpClientFactory _httpClientFactory;
         private bool run;
 
-        public WatchdogController(Model m, SharesController s, BufferService b, OverlordManagerService o, Microsoft.Extensions.Logging.ILogger<WatchdogController> logger)
+        public WatchdogController(Model m, SharesController s, BufferService b, OverlordManagerService o,
+            Microsoft.Extensions.Logging.ILogger<WatchdogController> logger, System.Net.Http.IHttpClientFactory httpClientFactory)
         {
             model = m;
             shareController = s;
             bufferService = b;
             this.logger = logger;
             overlordLauncherService = o;
+            _httpClientFactory = httpClientFactory;
         }
 
         public void Start()
@@ -73,16 +75,24 @@ namespace FAP.Application.Controllers
             {
                 lastRun = Environment.TickCount;
 
-                // Only start overlord via watchdog when connected peer count is zero and no overlord active
+                // Prefer joining an existing overlord; only start one if none are discovered after a short grace period
                 logger.LogDebug("WatchdogController: model.IsDedicated={Dedicated}, overlordLauncherService.IsOverlordActive={Active}", model.IsDedicated, overlordLauncherService.IsOverlordActive);
                 if (!model.IsDedicated && !overlordLauncherService.IsOverlordActive)
                 {
-                    // Start overlord if there are no available peers and we need a coordinator
-                    var anyPeers = model.Network.Nodes.Any(n => n.NodeType != ClientType.Overlord);
-                    if (!anyPeers)
+                    // Is there any discovered overlord?
+                    var anyOverlordPresent = model.Network.Nodes.Any(n => n.NodeType == ClientType.Overlord);
+                    if (!anyOverlordPresent)
                     {
-                        logger.LogInformation("WatchdogController: No peers detected, starting overlord");
-                        overlordLauncherService.StartAndStopIfNeeded();
+                        // Wait a couple of cycles (~10s) for discovery before self-electing
+                        if (runCount >= 2)
+                        {
+                            logger.LogInformation("WatchdogController: No overlord detected, starting overlord");
+                            overlordLauncherService.StartAndStopIfNeeded();
+                        }
+                        else
+                        {
+                            logger.LogDebug("WatchdogController: Waiting for overlord discovery before starting (runCount={RunCount})", runCount);
+                        }
                     }
                 }
 
@@ -200,7 +210,7 @@ namespace FAP.Application.Controllers
                                 {
                                     addedDownload = true;
                                     //Max workers not reached, add download via new worker.
-                                    var worker = new DownloadWorkerService(client, model, bufferService, Microsoft.Extensions.Logging.Abstractions.NullLogger<DownloadWorkerService>.Instance);
+                                    var worker = new DownloadWorkerService(client, model, bufferService, Microsoft.Extensions.Logging.Abstractions.NullLogger<DownloadWorkerService>.Instance, _httpClientFactory.CreateClient("FapDefault"));
                                     worker.OnWorkerFinished += worker_OnWorkerFinished;
                                     workers.Add(worker);
                                     worker.AddDownload(item);

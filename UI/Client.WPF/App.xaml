@@ -1,4 +1,4 @@
-﻿<Application
+<Application
 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Fap.Presentation.App" ShutdownMode="OnExplicitShutdown"
 DispatcherUnhandledException="Application_DispatcherUnhandledException"
@@ -8,6 +8,11 @@ DispatcherUnhandledException="Application_DispatcherUnhandledException"
      mc:Ignorable="d"
   xmlns:d="http://schemas.microsoft.com/expression/blend/2008">
 <Application.Resources>
+    <ResourceDictionary>
+        <ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary Source="pack://application:,,,/PresentationFramework.Fluent;component/Themes/Fluent.xaml" />
+        </ResourceDictionary.MergedDictionaries>
+
         <local:BinaryImageConverter x:Key="imageConverter" />
         <local:Base64Converter x:Key="base64Converter" />
         <local:SizeConverter x:Key="sizeConverter" />
@@ -3450,5 +3455,6 @@ DispatcherUnhandledException="Application_DispatcherUnhandledException"
             </Setter>
         </Style>
 
+    </ResourceDictionary>
     </Application.Resources>
 </Application>

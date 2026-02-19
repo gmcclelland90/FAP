@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -56,12 +56,6 @@ namespace FAP.Domain.Handlers
 
         #region IFAPHandler Members
 
-        public bool Handle(FAP.Network.Server.RequestEventArgs e)
-        {
-            // For backward compatibility, use the async version
-            return HandleAsync(e).GetAwaiter().GetResult();
-        }
-
         public async Task<bool> HandleAsync(FAP.Network.Server.RequestEventArgs e)
         {
             var networkReq = await Multiplexor.DecodeModernAsync(e.Request);
@@ -81,8 +75,8 @@ namespace FAP.Domain.Handlers
             switch (req.Verb)
             {
                 case "BROWSE":
-                    logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleBrowse");
-                    handled = HandleBrowse(e, req);
+                    logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleBrowseAsync");
+                    handled = await HandleBrowseAsync(e, req);
                     break;
                 case "UPDATE":
                     logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleUpdate");
@@ -113,8 +107,8 @@ namespace FAP.Domain.Handlers
                     handled = await HandleCompareAsync(e, req);
                     break;
                 case "SEARCH":
-                    logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleSearch");
-                    handled = HandleSearch(e, req);
+                    logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleSearchAsync");
+                    handled = await HandleSearchAsync(e, req);
                     break;
                 case "CONVERSTATION":
                     logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleConversation");
@@ -239,11 +233,6 @@ namespace FAP.Domain.Handlers
             return true;
         }
 
-        private bool HandleBrowse(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
-        {
-            // For backward compatibility, use the async version
-            return HandleBrowseAsync(e, req).GetAwaiter().GetResult();
-        }
 
         private bool HandleConversation(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
         {
@@ -289,7 +278,7 @@ namespace FAP.Domain.Handlers
                     generatorTO.SendHeaders(e.Context, e.Response);
                     return true;
                 }
-                result = task.Result;
+                result = await task;
             }
             catch
             {
@@ -323,11 +312,6 @@ namespace FAP.Domain.Handlers
             return true;
         }
 
-        private bool HandleSearch(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
-        {
-            // For backward compatibility, use the async version
-            return HandleSearchAsync(e, req).GetAwaiter().GetResult();
-        }
 
         private async Task<bool> HandleCompareAsync(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
         {
@@ -345,11 +329,6 @@ namespace FAP.Domain.Handlers
             return true;
         }
 
-        private bool HandleCompare(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
-        {
-            // For backward compatibility, use the async version
-            return HandleCompareAsync(e, req).GetAwaiter().GetResult();
-        }
 
         private bool HandleChat(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
         {
@@ -439,11 +418,6 @@ namespace FAP.Domain.Handlers
             return true;
         }
 
-        private bool HandleInfo(FAP.Network.Server.RequestEventArgs e)
-        {
-            // For backward compatibility, use the async version
-            return HandleInfoAsync(e).GetAwaiter().GetResult();
-        }
 
         private bool HandleNOOP(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
         {

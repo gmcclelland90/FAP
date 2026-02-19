@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -98,20 +98,6 @@ namespace FAP.Network
             return req;
         }
 
-        public static NetworkRequest DecodeModern(ModernHttpRequest r)
-        {
-            // For backward compatibility, we'll use a synchronous wrapper
-            // but this should be avoided in new code
-            try
-            {
-                return DecodeModernAsync(r).GetAwaiter().GetResult();
-            }
-            catch (Exception ex)
-            {
-                staticLogger?.LogError(ex, "Multiplexor.DecodeModern: Failed to decode request");
-                return new NetworkRequest();
-            }
-        }
 
         public static async Task<string> GetPostStringModernAsync(ModernHttpRequest e)
         {
@@ -144,19 +130,5 @@ namespace FAP.Network
             }
         }
 
-        public static string GetPostStringModern(ModernHttpRequest e)
-        {
-            // For backward compatibility, we'll use a synchronous wrapper
-            // but this should be avoided in new code
-            try
-            {
-                return GetPostStringModernAsync(e).GetAwaiter().GetResult();
-            }
-            catch (Exception ex)
-            {
-                // TODO: add ILogger<Multiplexor> and log
-                return string.Empty;
-            }
-        }
     }
 }

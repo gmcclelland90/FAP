@@ -81,11 +81,11 @@ namespace Fap.Foundation
 
             return new SystemSpecification
             {
-                Processor = cpuTask.Result,
-                Memory = memTask.Result,
-                VideoControllers = gpuTask.Result,
-                Disks = diskTask.Result,
-                NetworkAdapters = nicTask.Result
+                Processor = await cpuTask,
+                Memory = await memTask,
+                VideoControllers = await gpuTask,
+                Disks = await diskTask,
+                NetworkAdapters = await nicTask
             };
         }
 

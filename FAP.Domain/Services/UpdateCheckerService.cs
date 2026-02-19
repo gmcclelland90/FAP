@@ -1,4 +1,4 @@
-﻿using System.Net.Http;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using FAP.Domain.Entities;
@@ -8,24 +8,26 @@ namespace FAP.Domain.Services
     public class UpdateCheckerService
     {
         private readonly Model model;
+        private readonly IHttpClientFactory _httpClientFactory;
 
-        public UpdateCheckerService(Model m)
+        public UpdateCheckerService(Model m, IHttpClientFactory httpClientFactory)
         {
             model = m;
+            _httpClientFactory = httpClientFactory;
         }
 
         public void Run()
         {
-            ThreadPool.QueueUserWorkItem(doCheck);
+            _ = Task.Run(() => doCheck(null));
         }
 
-        private void doCheck(object? o)
+        private async void doCheck(object? o)
         {
             try
             {
-                using var client = new HttpClient();
-                string message = client.GetStringAsync("http://iownallyourbase.com/fap/updates.php?i=" + model.LocalNode.ID + "&v=" +
-                                          Model.AppVersion).Result;
+                var client = _httpClientFactory.CreateClient("FapDefault");
+                string message = await client.GetStringAsync("http://iownallyourbase.com/fap/updates.php?i=" + model.LocalNode.ID + "&v=" +
+                                          Model.AppVersion);
                 if (null != message)
                 {
                     foreach (string split in message.Split('\n'))

@@ -28,6 +28,25 @@ dotnet run --project UI/Server.Console -- --Fap:Web:Listen:Address 127.0.0.1 --F
 - `GET /Fap.api/compare/v1` → JSON
 - `GET /Fap.app.web/template.html` → HTML
 
+### Publish (self-contained, single-file) and smoke
+Publish:
+```
+dotnet publish UI/Server.Console/Server.Console.csproj -c Release -r win-x64 \
+  --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true \
+  -o artifacts/publish/server/win-x64/Release
+```
+
+Smoke the published binary:
+```
+artifacts/publish/server/win-x64/Release/Server.Console.exe \
+  --Fap:Web:Listen:Address 127.0.0.1 --Fap:Web:Listen:Port 4040
+
+# in another shell
+curl http://127.0.0.1:4040/Fap.api/health
+curl http://127.0.0.1:4040/Fap.api/compare/v1
+curl http://127.0.0.1:4040/Fap.app.web/template.html
+```
+
 ### Notes
 - Default Overlord port is 40. Use CLI overrides to change.
 - In tests, logging is reduced to keep output concise; production defaults are configurable via `appsettings.json`.

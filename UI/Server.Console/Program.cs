@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using FAP.Domain;
 using FAP.Domain.Services;
 using FAP.Domain.Handlers;
@@ -25,19 +26,17 @@ namespace Server.Console
 {
     class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
-
-            
             Program p = new Program();
-            p.Run(args);
+            await p.RunAsync(args);
         }
 
         private IServiceProvider serviceProvider;
         private ILogger<Program> logger;
         private Model model;
 
-        private void Run(string[] args)
+        private async Task RunAsync(string[] args)
         {
 
             if(Compose(args))
@@ -47,7 +46,7 @@ namespace Server.Console
 
                 ApplicationCore core = serviceProvider.GetRequiredService<ApplicationCore>();
                 core.Load(true);
-                core.StartOverlordServer();
+                await core.StartOverlordServerAsync();
                
                 logger?.LogInformation("Server started");
                 System.Console.ReadKey();

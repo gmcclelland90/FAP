@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -38,12 +38,16 @@ namespace FAP.Application.Controllers
     {
         private readonly IServiceProvider serviceProvider;
         private readonly Microsoft.Extensions.Logging.ILogger<ConversationController> logger;
+        private readonly System.Net.Http.IHttpClientFactory _httpClientFactory;
+        private readonly Microsoft.Extensions.Logging.ILogger<ModernHttpClient> _httpLogger;
         private readonly Model model;
         private ConversationViewModel viewModel;
 
         public ConversationController(IServiceProvider serviceProvider, Model m)
         {
             logger = serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ConversationController>>();
+            _httpClientFactory = serviceProvider.GetRequiredService<System.Net.Http.IHttpClientFactory>();
+            _httpLogger = serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ModernHttpClient>>();
             model = m;
             this.serviceProvider = serviceProvider;
         }
@@ -89,9 +93,7 @@ namespace FAP.Application.Controllers
                 convoVerb.Nickname = model.Nickname;
                 // SourceID is stamped by transport headers
                 
-                var httpClientFactory = serviceProvider.GetService<System.Net.Http.IHttpClientFactory>();
-                var httpClient = httpClientFactory != null ? httpClientFactory.CreateClient("FapDefault") : new System.Net.Http.HttpClient();
-                var client = new ModernHttpClient(model.LocalNode, serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<FAP.Domain.Net.ModernHttpClient>>(), httpClient);
+                var client = new ModernHttpClient(model.LocalNode, _httpLogger, _httpClientFactory.CreateClient("FapDefault"));
                 var ok = await client.ExecuteAsync(convoVerb, viewModel.Conversation.OtherParty);
                 if (ok)
                 {

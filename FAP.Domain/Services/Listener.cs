@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -19,6 +19,7 @@
 
 using System;
 using System.Net;
+using System.Net.Http;
 using FAP.Domain.Entities;
 using FAP.Domain.Handlers;
 using FAP.Domain.Net;
@@ -64,7 +65,13 @@ namespace FAP.Domain.Services
             // Determine initial bind address and port once, then retry by incrementing port when needed
             var listenOptions = serviceProvider.GetService<Microsoft.Extensions.Options.IOptions<FAP.Network.Server.FapListenOptions>>()?.Value;
             var listenAddress = listenOptions?.Address;
-            var ip = !string.IsNullOrWhiteSpace(listenAddress) ? IPAddress.Parse(listenAddress) : IPAddress.Parse(model.LocalNode.Host);
+            bool addressIsAny = !string.IsNullOrWhiteSpace(listenAddress) &&
+                                 (string.Equals(listenAddress, "0.0.0.0", StringComparison.OrdinalIgnoreCase) ||
+                                  string.Equals(listenAddress, "::", StringComparison.OrdinalIgnoreCase) ||
+                                  string.Equals(listenAddress, "::0", StringComparison.OrdinalIgnoreCase));
+            var ip = (!string.IsNullOrWhiteSpace(listenAddress) && !addressIsAny)
+                ? IPAddress.Parse(listenAddress!)
+                : IPAddress.Parse(model.LocalNode.Host);
             int port = (!isServer && listenOptions?.Port != null) ? listenOptions!.Port!.Value : inport;
 
             bool trybind = true;
@@ -77,18 +84,24 @@ namespace FAP.Domain.Services
                     trybind = false;
                     if (isServer)
                     {
-                        // Use the actual bound IP address for the server node, not the prior model value
-                        var f = new FAPServerHandler(ip,
+                        // Compute advertised address: avoid 0.0.0.0/:: when announcing or connecting
+                        var advertiseIp = (IPAddress.Any.Equals(ip) || IPAddress.IPv6Any.Equals(ip))
+                            ? IPAddress.Loopback
+                            : ip;
+                        // Use the advertised IP for server handler so peers see a connectable address
+                        var f = new FAPServerHandler(advertiseIp,
                                                      port,
                                                      model,
                                                      serviceProvider.GetRequiredService<MulticastClientService>(),
                                                      serviceProvider.GetRequiredService<LANPeerFinderService>(),
-                                                      serviceProvider.GetRequiredService<MulticastServerService>(),
-                                                      serviceProvider.GetRequiredService<ILogger<FAPServerHandler>>());
+                                                     serviceProvider.GetRequiredService<MulticastServerService>(),
+                                                     serviceProvider.GetRequiredService<ILogger<FAPServerHandler>>(),
+                                                     serviceProvider.GetRequiredService<IHttpClientFactory>(),
+                                                     serviceProvider.GetRequiredService<ILogger<ModernHttpClient>>());
                         fap = f;
                         f.Start("Local", "Local");
-                        // Also update model to reflect the bound address so fallbacks use the correct host
-                        try { model.LocalNode.Host = ip.ToString(); } catch { }
+                        // Do not overwrite the client's LocalNode with server bind info
+                        // The client's LocalNode must continue to represent the client listener (port 30)
                     }
                     else
                     {
@@ -99,6 +112,16 @@ namespace FAP.Domain.Services
                                                       serviceProvider.GetRequiredService<ILogger<FAPClientHandler>>());
                         fap = f;
                         f.Start();
+                        // Compute advertised address for the client as well
+                        var advertiseIp = (IPAddress.Any.Equals(ip) || IPAddress.IPv6Any.Equals(ip))
+                            ? IPAddress.Loopback
+                            : ip;
+                        try
+                        {
+                            model.LocalNode.Host = advertiseIp.ToString();
+                            model.LocalNode.Port = port;
+                        }
+                        catch { }
                         model.ClientPort = port;
                     }
                 }
@@ -166,10 +189,5 @@ namespace FAP.Domain.Services
             }
         }
 
-        private void listener_OnRequest(object sender, FAP.Network.Server.RequestEventArgs arg)
-        {
-            // For backward compatibility, use the async version
-            listener_OnRequestAsync(sender, arg).GetAwaiter().GetResult();
-        }
     }
 }

@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -59,7 +59,7 @@ namespace FAP.Network.Services
                 listenSocket.ReceiveBufferSize = buffer.Length;
                 listenSocket.SendBufferSize = buffer.Length;
 
-                ThreadPool.QueueUserWorkItem(Process);
+                _ = Task.Run(() => Process(null));
                 //  listenSocket.Connect(broadcastAddress, broadcastPort);
             }
         }

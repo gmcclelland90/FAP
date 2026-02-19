@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -20,13 +20,17 @@
 using System;
 using System.IO;
 using System.Net;
+using System.Net.Http;
 using System.Text;
+using System.Threading.Tasks;
 using FAP.Domain.Entities;
 using FAP.Domain.Net;
 using FAP.Domain.Verbs;
 using FAP.Network;
 using FAP.Shared.Entities;
 using FAP.Shared.Interfaces;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FAP.Domain.Net
 {
@@ -34,10 +38,14 @@ namespace FAP.Domain.Net
     {
         private readonly int DEFAULT_TIMEOUT = 30000; //30 seconds
         private readonly Node callingNode;
+        private readonly IHttpClientFactory? _httpClientFactory;
+        private readonly ILogger<ModernHttpClient> _httpLogger;
 
-        public Client(Node _callingNode)
+        public Client(Node _callingNode, IHttpClientFactory? httpClientFactory = null, ILogger<ModernHttpClient>? httpLogger = null)
         {
             callingNode = _callingNode;
+            _httpClientFactory = httpClientFactory;
+            _httpLogger = httpLogger ?? NullLogger<ModernHttpClient>.Instance;
         }
 
         public bool Execute(FAP.Shared.Interfaces.IVerb verb, Node destinationNode)
@@ -107,9 +115,11 @@ namespace FAP.Domain.Net
 
             try
             {
-                // Use ModernHttpClient internally to avoid deprecated WebRequest
-                using var modernClient = new ModernHttpClient(callingNode ?? throw new InvalidOperationException("Calling node cannot be null"));
-                return modernClient.DoRequestAsync(url, input, result, timeout).GetAwaiter().GetResult();
+                var r = result;
+                var node = callingNode ?? throw new InvalidOperationException("Calling node cannot be null");
+                var httpClient = _httpClientFactory?.CreateClient("FapDefault") ?? new HttpClient { Timeout = TimeSpan.FromMilliseconds(timeout) };
+                var modernClient = new ModernHttpClient(node, _httpLogger, httpClient);
+                return Task.Run(() => modernClient.DoRequestAsync(url, input, r, timeout)).GetAwaiter().GetResult();
             }
             catch
             {

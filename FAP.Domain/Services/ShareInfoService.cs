@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -69,7 +69,7 @@ namespace FAP.Domain.Services
                 catch (Exception e)
                 {
                     logger.LogDebug(e, "ShareInfoService.Load: Failed to load share {Id}, scheduling refresh", share.ID);
-                    ThreadPool.QueueUserWorkItem(DoRefreshPath, share);
+                    _ = Task.Run(() => DoRefreshPath(share));
                 }
             }
         }

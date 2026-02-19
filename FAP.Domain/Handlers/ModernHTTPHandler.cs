@@ -449,11 +449,6 @@ namespace FAP.Domain.Handlers
             return $"\"{key}-{data.Length}-{b64}\""; // quoted ETag
         }
 
-        private bool SendIcon(RequestEventArgs e, string ext)
-        {
-            // For backward compatibility, use the async version
-            return SendIconAsync(e, ext).GetAwaiter().GetResult();
-        }
 
         private async Task<bool> SendFileAsync(RequestEventArgs e, string path, string url)
         {

@@ -180,15 +180,15 @@ namespace FAP.Network.Server
                                         var soundTask = hw.GetPrimarySoundDeviceAsync();
                                         await Task.WhenAll(cpuTask, memTask, gpuTask, diskTask, nicTask, soundTask);
 
-                                        var cpu = cpuTask.Result;
-                                        var memBytes = memTask.Result.Sum(m => m.Capacity);
-                                        var gpus = gpuTask.Result;
+                                        var cpu = await cpuTask;
+                                        var memBytes = (await memTask).Sum(m => m.Capacity);
+                                        var gpus = await gpuTask;
                                         var firstGpu = gpus.FirstOrDefault();
                                         long gpuMem = 0; foreach (var g in gpus) { if (long.TryParse(g.AdapterRAM, out var v)) gpuMem += v; }
-                                        var disks = diskTask.Result;
+                                        var disks = await diskTask;
                                         long dTotal = 0, dFree = 0; int dCount = 0; foreach (var d in disks) { dTotal += d.Size; dFree += d.FreeSpace; dCount++; }
-                                        var nics = nicTask.Result; long link = 0; foreach (var n in nics) link = Math.Max(link, n.Speed);
-                                        var sound = soundTask.Result;
+                                        var nics = await nicTask; long link = 0; foreach (var n in nics) link = Math.Max(link, n.Speed);
+                                        var sound = await soundTask;
 
                                         // Basic score: reuse existing calculation indirectly is non-trivial here; set to 0 for typed view
                                         var specs = new CompareSpecsV1(
@@ -311,19 +311,27 @@ namespace FAP.Network.Server
             }
         }
 
-        public void Stop()
+        public async Task StopAsync()
         {
             try
             {
                 _logger.LogDebug("Stopping modern node server");
-                _host?.StopAsync().Wait();
-                _host?.Dispose();
+                if (_host != null)
+                {
+                    await _host.StopAsync();
+                    _host.Dispose();
+                }
                 _logger.LogDebug("Modern node server stopped");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error stopping modern node server");
             }
+        }
+
+        public void Stop()
+        {
+            StopAsync().GetAwaiter().GetResult();
         }
 
         private static long _activeRequests = 0;

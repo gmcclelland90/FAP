@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -21,6 +21,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Waf.Applications;
 using System.Waf.Applications.Services;
 using System.Windows;
@@ -122,7 +123,7 @@ namespace FAP.Application.Controllers
                         model.Shares.Add(s);
                     logger.LogDebug("SharesController.AddCommand: model.Shares count after add: {Count}", model.Shares.Count);
                     logger.LogDebug("SharesController.AddCommand: viewModel.Shares count: {Count}", viewModel.Shares?.Count ?? 0);
-                        ThreadPool.QueueUserWorkItem(AsyncRefresh, s);
+                        _ = Task.Run(() => AsyncRefresh(s));
                     }
                 }
                 catch (Exception e)
@@ -154,7 +155,7 @@ namespace FAP.Application.Controllers
         {
             foreach (var s in model.Shares)
             {
-                ThreadPool.QueueUserWorkItem(AsyncRefresh, s);
+                _ = Task.Run(() => AsyncRefresh(s));
             }
         }
 

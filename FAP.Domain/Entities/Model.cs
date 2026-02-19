@@ -640,6 +640,8 @@ namespace FAP.Domain.Entities
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(base64))
+                    return;
                 var path = GetAvatarFilePath();
                 var bytes = Convert.FromBase64String(base64);
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!);

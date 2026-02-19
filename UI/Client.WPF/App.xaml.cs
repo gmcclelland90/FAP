@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 /**
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -350,10 +350,7 @@ namespace Fap.Presentation
             services.AddSingleton<QueryViewModel>();
             services.AddSingleton<SearchController>();
             services.AddSingleton<CompareController>();
-            services.AddSingleton<DownloadQueueController>();
             services.AddSingleton<SettingsController>();
-            services.AddSingleton<BrowserController>();
-            services.AddSingleton<ShareInfoService>();
             services.AddSingleton<ConversationViewModel>();
             services.AddTransient<IConverstationView, Fap.Presentation.Panels.Conversation>();
             services.AddSingleton<PopupWindowViewModel>();

@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -28,6 +28,7 @@ using System.Waf.Applications.Services;
 using FAP.Application.ViewModels;
 using FAP.Domain.Entities;
 using FAP.Domain.Services;
+using System.Net.Http;
 using FAP.Domain.Net;
 using FAP.Shared.Interfaces;
 using FAP.Network;
@@ -53,6 +54,8 @@ namespace FAP.Application.Controllers
         private static readonly object sync = new object();
         private readonly IServiceProvider serviceProvider;
         private readonly ILogger<ConnectionController> logger;
+        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly ILogger<ModernHttpClient> _httpLogger;
         private readonly Model model;
         private readonly MulticastServerService mserver;
         private readonly LANPeerFinderService peerFinder;
@@ -66,6 +69,8 @@ namespace FAP.Application.Controllers
             model = m;
             this.serviceProvider = serviceProvider;
             this.logger = logger;
+            _httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
+            _httpLogger = serviceProvider.GetRequiredService<ILogger<ModernHttpClient>>();
             mserver = serviceProvider.GetRequiredService<MulticastServerService>();
             peerFinder = serviceProvider.GetRequiredService<LANPeerFinderService>();
             setupLocalNetwork();
@@ -84,7 +89,7 @@ namespace FAP.Application.Controllers
 
         private void LocalNode_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            ThreadPool.QueueUserWorkItem(CheckModelChangesAsync);
+            _ = Task.Run(() => CheckModelChangesAsync(null));
         }
 
         private void model_PropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -99,19 +104,17 @@ namespace FAP.Application.Controllers
             verb.Message = message;
             verb.Nickname = model.LocalNode.Nickname;
             verb.SourceID = model.LocalNode.ID;
-            ThreadPool.QueueUserWorkItem(SendMessageAsync, verb);
+            _ = Task.Run(() => SendMessageAsync(verb));
         }
 
-        private void SendMessageAsync(object o)
+        private async void SendMessageAsync(object o)
         {
             try
             {
                 if (model.Network.State == ConnectionState.Connected)
                 {
-                    var httpClientFactory = serviceProvider.GetService<System.Net.Http.IHttpClientFactory>();
-                    var httpClient = httpClientFactory != null ? httpClientFactory.CreateClient("FapDefault") : new System.Net.Http.HttpClient();
-                    var client = new ModernHttpClient((INode)model.LocalNode, serviceProvider.GetRequiredService<ILogger<ModernHttpClient>>(), httpClient);
-                    if (!client.ExecuteAsync((IVerb) o, model.Network.Overlord).Result)
+                    var client = new ModernHttpClient((INode)model.LocalNode, _httpLogger, _httpClientFactory.CreateClient("FapDefault"));
+                    if (!await client.ExecuteAsync((IVerb) o, model.Network.Overlord))
                     {
                         if (model.Network.State == ConnectionState.Connected)
                             model.Network.State = ConnectionState.Disconnected;
@@ -147,9 +150,7 @@ namespace FAP.Application.Controllers
             //Notify log off
             if (model.Network.State == ConnectionState.Connected)
             {
-                var httpClientFactory = serviceProvider.GetService<System.Net.Http.IHttpClientFactory>();
-                var httpClient = httpClientFactory != null ? httpClientFactory.CreateClient("FapDefault") : new System.Net.Http.HttpClient();
-                var c = new ModernHttpClient(model.LocalNode, serviceProvider.GetRequiredService<ILogger<ModernHttpClient>>(), httpClient);
+                var c = new ModernHttpClient(model.LocalNode, _httpLogger, _httpClientFactory.CreateClient("FapDefault"));
                 var verb = new UpdateVerb();
                 verb.Nodes.Add(new Node {ID = model.LocalNode.ID, Online = false});
                 await c.ExecuteAsync(verb, model.Network.Overlord, 3000);
@@ -256,9 +257,7 @@ namespace FAP.Application.Controllers
                         var noopVerb = new NoopVerb();
                         noopVerb.SourceID = model.LocalNode.ID;
                         noopVerb.AuthKey = model.Network.Overlord.Secret;
-                        var httpClientFactory = serviceProvider.GetService<System.Net.Http.IHttpClientFactory>();
-                        var httpClient = httpClientFactory != null ? httpClientFactory.CreateClient("FapDefault") : new System.Net.Http.HttpClient();
-                        var client = new ModernHttpClient((INode)model.LocalNode, serviceProvider.GetRequiredService<ILogger<ModernHttpClient>>(), httpClient);
+                        var client = new ModernHttpClient((INode)model.LocalNode, _httpLogger, _httpClientFactory.CreateClient("FapDefault"));
                         if (!await client.ExecuteAsync(noopVerb, model.Network.Overlord, 4000))
                         {
                             if (network.State == ConnectionState.Connected)
@@ -334,9 +333,7 @@ namespace FAP.Application.Controllers
                 }
                 if (null != verb)
                 {
-                    var httpClientFactory = serviceProvider.GetService<System.Net.Http.IHttpClientFactory>();
-                    var httpClient = httpClientFactory != null ? httpClientFactory.CreateClient("FapDefault") : new System.Net.Http.HttpClient();
-                    var c = new ModernHttpClient((INode)model.LocalNode, serviceProvider.GetRequiredService<ILogger<ModernHttpClient>>(), httpClient);
+                    var c = new ModernHttpClient((INode)model.LocalNode, _httpLogger, _httpClientFactory.CreateClient("FapDefault"));
                     if (!await c.ExecuteAsync(verb, model.Network.Overlord))
                         model.Network.State = ConnectionState.Disconnected;
                 }
@@ -361,9 +358,7 @@ namespace FAP.Application.Controllers
                 verb.ClientType = ClientType.Client;
                 verb.Address = model.LocalNode.Location; // This should be the client's address (port 30)
                 verb.Secret = IDService.CreateID();
-                var httpClientFactory = serviceProvider.GetService<System.Net.Http.IHttpClientFactory>();
-                var httpClient = httpClientFactory != null ? httpClientFactory.CreateClient("FapDefault") : new System.Net.Http.HttpClient();
-                var client = new ModernHttpClient((INode)model.LocalNode, serviceProvider.GetRequiredService<ILogger<ModernHttpClient>>(), httpClient);
+                var client = new ModernHttpClient((INode)model.LocalNode, _httpLogger, _httpClientFactory.CreateClient("FapDefault"));
 
                 transmitted.Data.Clear();
                 foreach (var info in model.LocalNode.Data.ToList())

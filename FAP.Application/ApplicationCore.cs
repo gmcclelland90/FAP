@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -26,7 +26,10 @@ using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Text;
+using System.Net.Http;
+using FAP.Domain.Net;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Waf.Applications;
 using System.Windows.Threading;
 using FAP.Application.Controllers;
@@ -103,7 +106,7 @@ namespace FAP.Application
 
         public void Exit()
         {
-            ThreadPool.QueueUserWorkItem(ShutDownAsync);
+            _ = Task.Run(() => ShutDownAsync(null));
         }
 
         public void ShutDownAsync(object param)
@@ -197,7 +200,13 @@ namespace FAP.Application
                 watchdogController.Start();
 
                 if (!model.DisplayedHelp)
-                    ShowQuickStart();
+                {
+                    try { ShowQuickStart(); }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Quick Start failed; continuing without help window");
+                    }
+                }
             }
             return true;
         }
@@ -206,7 +215,7 @@ namespace FAP.Application
         {
             //Update immeadiatly on user input to give the app a nicer feel
             if (e.PropertyName == "Nickname" || e.PropertyName == "Description" || e.PropertyName == "Avatar")
-                ThreadPool.QueueUserWorkItem(updateModelAsync);
+                _ = Task.Run(() => updateModelAsync(null));
         }
 
         private void updateModelAsync(object o)
@@ -221,22 +230,48 @@ namespace FAP.Application
 
             if (null != helpWindow)
             {
-                string path = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-                helpWindow.Location = Path.Combine(path, "Web.Help", "help.html");
-                popupController.AddWindow(helpWindow.View, "Quick Start");
+                try
+                {
+                    var baseDir = AppContext.BaseDirectory ?? string.Empty;
+                    if (string.IsNullOrWhiteSpace(baseDir))
+                    {
+                        baseDir = Path.GetDirectoryName(Assembly.GetEntryAssembly()?.Location ?? string.Empty) ?? string.Empty;
+                        if (string.IsNullOrWhiteSpace(baseDir))
+                            baseDir = Environment.CurrentDirectory ?? string.Empty;
+                    }
+                    if (string.IsNullOrWhiteSpace(baseDir))
+                    {
+                        logger.LogWarning("Base directory is empty; skipping Quick Start help");
+                        return;
+                    }
+                    var helpPath = Path.Combine(baseDir, "Web.Help", "help.html");
+                    if (System.IO.File.Exists(helpPath))
+                    {
+                        helpWindow.Location = helpPath;
+                        popupController.AddWindow(helpWindow.View, "Quick Start");
+                    }
+                    else
+                    {
+                        logger.LogWarning("Quick Start help not found at {Path}; skipping help window", helpPath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to show Quick Start help; continuing without it");
+                }
             }
         }
 
         public void AddDownloadUrlWhenConnected(string url)
         {
-            ThreadPool.QueueUserWorkItem(AddDownloadAsync, url);
+            _ = Task.Run(() => AddDownloadAsync(url));
         }
 
-        private void AddDownloadAsync(object url)
+        private async void AddDownloadAsync(object url)
         {
             while (model.Network.State != ConnectionState.Connected)
-                Thread.Sleep(250);
-            Thread.Sleep(2000);
+                await Task.Delay(250);
+            await Task.Delay(2000);
             model.AddDownloadURL(url as string);
         }
 
@@ -252,18 +287,16 @@ namespace FAP.Application
             logger.LogDebug("ApplicationCore.StartClient: Client started successfully");
         }
 
-        public void StartOverlordServer()
+        public async Task StartOverlordServerAsync()
         {
             logger.LogDebug("ApplicationCore.StartOverlordServer: Starting dedicated overlord server");
             
             model.IsDedicated = true;
             overlordManagerService.Start();
             
-            // Give the overlord server a moment to start up before connecting
-            Thread.Sleep(1000);
+            await Task.Delay(1000);
             
             logger.LogDebug("ApplicationCore.StartOverlordServer: Starting client to connect to overlord");
-            // Also start the client to connect to the overlord
             StartClient();
         }
 
@@ -463,7 +496,9 @@ namespace FAP.Application
                     
                         logger.LogDebug("viewShare: Created proper node - Nickname={Nickname}, Host={Host}, ID={Id}", properNode.Nickname, properNode.Host, properNode.ID);
                     
-                    var bc = new BrowserController(browserViewModel, model, properNode, shareInfoService);
+                    var bc = new BrowserController(browserViewModel, model, properNode, shareInfoService,
+                        serviceProvider.GetRequiredService<IHttpClientFactory>(),
+                        serviceProvider.GetRequiredService<ILogger<ModernHttpClient>>());
                     bc.Initalise();
                     popupController.AddWindow(bc.ViewModel.View, "View share of " + properNode.Nickname);
                 }

@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Waf.Applications;
 using FAP.Application.ViewModel;
 using FAP.Domain;
@@ -204,9 +205,9 @@ namespace FAP.Application.Controllers
             }
         }
 
-        private void EnableSearch(object b)
+        private async void EnableSearch(object b)
         {
-            Thread.Sleep(8000);
+            await Task.Delay(8000);
             viewModel.AllowSearch = true;
         }
 
