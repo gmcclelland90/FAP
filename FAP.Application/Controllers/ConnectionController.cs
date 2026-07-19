@@ -42,6 +42,7 @@ using FAP.Domain.Verbs; // For ChatVerb, ConnectVerb, UpdateVerb
 using FAP.Network.Entities; // For NetworkRequest
 using FAP.Domain.Services; // For IDService
 using Fap.Foundation.Services; // For IDService
+using FAP.Shared.ConnectTiming;
 
 namespace FAP.Application.Controllers
 {
@@ -58,6 +59,7 @@ namespace FAP.Application.Controllers
         private readonly Model model;
         private readonly MulticastServerService mserver;
         private readonly LANPeerFinderService peerFinder;
+        private readonly IConnectTimingProbe connectTiming;
         private readonly Node transmitted = new Node();
         private readonly AutoResetEvent workerEvent = new AutoResetEvent(true);
         private bool run = true;
@@ -72,6 +74,7 @@ namespace FAP.Application.Controllers
             _httpLogger = serviceProvider.GetRequiredService<ILogger<ModernHttpClient>>();
             mserver = serviceProvider.GetRequiredService<MulticastServerService>();
             peerFinder = serviceProvider.GetRequiredService<LANPeerFinderService>();
+            connectTiming = serviceProvider.GetRequiredService<IConnectTimingProbe>();
             setupLocalNetwork();
         }
 
@@ -115,8 +118,8 @@ namespace FAP.Application.Controllers
                     var client = new ModernHttpClient((INode)model.LocalNode, _httpLogger, _httpClientFactory.CreateClient("FapDefault"));
                     if (!await client.ExecuteAsync((IVerb)o!, model.Network.Overlord))
                     {
-                        if (model.Network.State == ConnectionState.Connected)
-                            model.Network.State = ConnectionState.Disconnected;
+                        // Do not drop the whole session on a single chat send failure.
+                        logger.LogWarning("Chat message was not accepted by overlord; staying connected");
                     }
                 }
                 else
@@ -172,6 +175,7 @@ namespace FAP.Application.Controllers
         {
             logger.LogInformation("ProcessLanConnection started");
             mserver.SendMessage(WhoVerb.CreateRequest());
+            connectTiming.Mark(ConnectTimingPhases.WhoSent);
             Domain.Entities.Network network = model.Network;
             network.PropertyChanged += network_PropertyChanged;
             while (run && !token.IsCancellationRequested)
@@ -352,6 +356,7 @@ namespace FAP.Application.Controllers
             {
                 logger.LogInformation("Client connecting to {Address}", n.Address);
                 net.State = ConnectionState.Connecting;
+                connectTiming.Mark(ConnectTimingPhases.ConnectStart);
 
                 var verb = new ConnectVerb();
                 verb.ClientType = ClientType.Client;
@@ -382,6 +387,7 @@ namespace FAP.Application.Controllers
                         logger.LogDebug("Updated overlord secret to: {Secret}", verb.Secret);
                     }
                     
+                    connectTiming.Mark(ConnectTimingPhases.Connected);
                     logger.LogInformation("Client connected successfully");
                     return true;
                 }

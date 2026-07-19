@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\FAP.Foundation\FAP.Foundation.csproj" />
+    <ProjectReference Include="..\FAP.GuestWeb\FAP.GuestWeb.csproj" />
     <ProjectReference Include="..\FAP.Shared\FAP.Shared.csproj" />
   </ItemGroup>
 

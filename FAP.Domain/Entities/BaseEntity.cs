@@ -31,8 +31,24 @@ namespace FAP.Domain.Entities
     {
         private static readonly string BACKUP_EXT = ".bak";
 
-        protected readonly string DATA_FOLDER =
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + @"\FAP\";
+        /// <summary>
+        /// Config/queue/avatar directory. Override with env <c>FAP_DATA_FOLDER</c> (tests must set this
+        /// so Watchdog/Model.Save cannot clobber the user's real %LocalAppData%\FAP).
+        /// </summary>
+        protected static string DATA_FOLDER
+        {
+            get
+            {
+                var overrideDir = Environment.GetEnvironmentVariable("FAP_DATA_FOLDER");
+                if (!string.IsNullOrWhiteSpace(overrideDir))
+                {
+                    var dir = overrideDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                    return dir + Path.DirectorySeparatorChar;
+                }
+                return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FAP")
+                       + Path.DirectorySeparatorChar;
+            }
+        }
 
         #region INotifyPropertyChanged Members
 

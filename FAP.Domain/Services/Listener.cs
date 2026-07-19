@@ -26,6 +26,7 @@ using FAP.Domain.Net;
 using FAP.Domain.Verbs;
 using FAP.Network.Server;
 using FAP.Network.Services;
+using FAP.Shared.ConnectTiming;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -97,7 +98,8 @@ namespace FAP.Domain.Services
                                                      serviceProvider.GetRequiredService<MulticastServerService>(),
                                                      serviceProvider.GetRequiredService<ILogger<FAPServerHandler>>(),
                                                      serviceProvider.GetRequiredService<IHttpClientFactory>(),
-                                                     serviceProvider.GetRequiredService<ILogger<ModernHttpClient>>());
+                                                     serviceProvider.GetRequiredService<ILogger<ModernHttpClient>>(),
+                                                     serviceProvider.GetRequiredService<IConnectTimingProbe>());
                         fap = f;
                         f.Start("Local", "Local");
                         // Do not overwrite the client's LocalNode with server bind info

@@ -17,6 +17,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using FAP.Network.Entities;
+using FAP.GuestWeb;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.AspNetCore.ResponseCompression;
 using System.IO.Compression;
@@ -110,6 +111,7 @@ namespace FAP.Network.Server
                             app.UseRouting();
                             app.UseEndpoints(endpoints =>
                             {
+                                endpoints.MapRazorPages();
                                 endpoints.MapGet("/Fap.api/health", async context =>
                                 {
                                     context.Response.ContentType = "text/plain";
@@ -232,6 +234,7 @@ namespace FAP.Network.Server
                         services.AddSingleton(_serviceProvider);
                         services.Configure<FapListenOptions>(_ => { });
                         services.Configure<FapWebOptions>(_ => { });
+                        services.AddFapGuestWeb();
                         services.AddResponseCompression(o =>
                         {
                             o.EnableForHttps = true;

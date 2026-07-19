@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Input;
 
 namespace Fap.Foundation
 {
@@ -50,11 +49,7 @@ namespace Fap.Foundation
 
                 try
                 {
-                    await Task.Run(() =>
-                    {
-                        if (op.Command.CanExecute(op.Object))
-                            op.Command.Execute(op.Object);
-                    }, cancellationTokenSource.Token);
+                    await Task.Run(() => op.Command(op.Object), cancellationTokenSource.Token);
                 }
                 catch (OperationCanceledException)
                 {
@@ -80,17 +75,12 @@ namespace Fap.Foundation
             }
         }
 
-        protected void QueueWork(ICommand command)
+        protected void QueueWork(Action<object?> command)
         {
-            QueueWork(command, null, null);
+            QueueWork(command, null);
         }
 
-        protected void QueueWork(ICommand command, object? param)
-        {
-            QueueWork(command, param, null);
-        }
-
-        protected void QueueWork(ICommand command, object? param, ICommand? completed)
+        protected void QueueWork(Action<object?> command, object? param)
         {
             lock (lockObject)
             {

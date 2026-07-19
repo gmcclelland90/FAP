@@ -30,5 +30,16 @@ namespace FAP.Domain.Entities
         public string Description { set; get; } = string.Empty;
 
         public IPAddress Address { set; get; } = null!;
+
+        /// <summary>UI label: description (or name) and address.</summary>
+        public string DisplayLabel
+        {
+            get
+            {
+                var label = string.IsNullOrWhiteSpace(Description) ? Name : Description;
+                var addr = Address?.ToString() ?? string.Empty;
+                return string.IsNullOrEmpty(addr) ? label : $"{label} — {addr}";
+            }
+        }
     }
 }

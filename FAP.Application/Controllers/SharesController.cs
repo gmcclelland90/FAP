@@ -24,7 +24,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
 using FAP.Application.Services;
-using System.Windows;
 using FAP.Application.ViewModels;
 using FAP.Application.Views;
 using FAP.Domain.Entities;
@@ -92,7 +91,8 @@ namespace FAP.Application.Controllers
 
                     if (model.Shares.Where(sh => sh.Path == folder).Count() > 0)
                     {
-                        MessageBox.Show("You have already shared this folder!");
+                        serviceProvider.GetRequiredService<IMessageService>()
+                            .ShowWarning("You have already shared this folder!");
                         return;
                     }
 
@@ -140,15 +140,33 @@ namespace FAP.Application.Controllers
             if (null != s)
             {
                 logger.LogDebug("SharesController.AsyncRefresh: Starting refresh for share '{Name}' with path '{Path}'", s.Name, s.Path);
-                s.Status = "Scanning..";
+                SetShareStatus(s, "Scanning..");
                 Domain.Entities.FileSystem.Directory info = scanner.RefreshPath(s);
-                s.Size = info.Size;
-                s.FileCount = info.ItemCount;
-                s.Status = string.Empty;
-                s.LastRefresh = DateTime.Now;
+                void ApplyResult()
+                {
+                    s.Size = info.Size;
+                    s.FileCount = info.ItemCount;
+                    s.Status = string.Empty;
+                    s.LastRefresh = DateTime.Now;
+                    RefreshClientStats();
+                }
+
+                if (SafeObservableStatic.UiDispatcher != null)
+                    SafeObservableStatic.UiDispatcher.Invoke(ApplyResult);
+                else
+                    ApplyResult();
+
                 logger.LogDebug("SharesController.AsyncRefresh: Completed refresh for share '{Name}' - Size: {Size}, FileCount: {Count}", s.Name, s.Size, s.FileCount);
-                RefreshClientStats();
             }
+        }
+
+        private static void SetShareStatus(Share s, string status)
+        {
+            void Apply() => s.Status = status;
+            if (SafeObservableStatic.UiDispatcher != null)
+                SafeObservableStatic.UiDispatcher.Invoke(Apply);
+            else
+                Apply();
         }
 
         public void RefreshShareInfo()

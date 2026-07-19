@@ -72,7 +72,7 @@ namespace FAP.Application.Controllers
             long speed = 0;
             if (0 != list.Count)
                 speed = list.Sum(s => (long) s.Speed)/list.Count;
-            vm.UploadStats = string.Format("{0} transfered in {1} files at an average of {2}",
+            vm.UploadStats = string.Format("{0} transferred in {1} files at an average of {2}",
                                            Utility.FormatBytes(totalSize), list.Count,
                                            Utility.ConvertNumberToTextSpeed(speed));
             list.Clear();
@@ -86,7 +86,7 @@ namespace FAP.Application.Controllers
             if (list.Count != 0)
                 speed = list.Sum(s => (long) s.Speed)/list.Count;
 
-            vm.DownloadStats = string.Format("{0} transfered in {1} files at an average of {2}",
+            vm.DownloadStats = string.Format("{0} transferred in {1} files at an average of {2}",
                                              Utility.FormatBytes(totalSize), list.Count,
                                              Utility.ConvertNumberToTextSpeed(speed));
             list.Clear();

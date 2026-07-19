@@ -50,10 +50,11 @@ namespace FAP.Network.Services
             if (null == listenSocket)
             {
                 listenSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+                // Must be Socket-level before Bind so multiple local listeners (client + overlord) can coexist.
+                listenSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                try { listenSocket.ExclusiveAddressUse = false; } catch { /* ignore on platforms that disallow */ }
                 listenSocket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.AddMembership,
                                              new MulticastOption(broadcastAddress, IPAddress.Any));
-                listenSocket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.ReuseAddress, true);
-                //  listenSocket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.MulticastInterface,);
                 listenSocket.Bind(new IPEndPoint(IPAddress.Any, broadcastPort));
 
                 listenSocket.ReceiveBufferSize = buffer.Length;
@@ -77,6 +78,19 @@ namespace FAP.Network.Services
         public void StartListener()
         {
             ConnectListen();
+        }
+
+        public void Stop()
+        {
+            try
+            {
+                listenSocket?.Close();
+            }
+            catch
+            {
+                // ignore
+            }
+            listenSocket = null!;
         }
     }
 }

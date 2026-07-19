@@ -40,12 +40,14 @@ using FAP.Domain.Handlers;
 using FAP.Network;
 using FAP.Network.Services;
 using Fap.Foundation;
+using Fap.Foundation.Hosting;
+using Fap.Foundation.Threading;
 using Fap.Presentation.Panels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-// using NLog.Extensions.Logging;
 using FAP.Application.Services;
+using FAP.Application.DependencyInjection;
 using Fap.Presentation.Services;
 
 namespace Fap.Presentation
@@ -86,7 +88,7 @@ namespace Fap.Presentation
             base.OnStartup(e);
             
             // Initialize the SafeObservableStatic dispatcher for UI updates
-            SafeObservableStatic.Dispatcher = this.Dispatcher;
+            SafeObservableStatic.UiDispatcher = new WpfUiDispatcher(Dispatcher);
             
             // Start the SafeObservingCollectionManager for UI collection synchronization
             SafeObservingCollectionManager.Start();
@@ -220,17 +222,10 @@ namespace Fap.Presentation
 
                  var services = builder.Services;
 
-                 // HttpClient factory
-                 services.AddHttpClient("FapDefault", c =>
-                 {
-                     c.Timeout = TimeSpan.FromSeconds(30);
-                     c.DefaultRequestHeaders.UserAgent.ParseAdd(FAP.Domain.Entities.Model.AppVersion);
-                 });
-                 
-                 // Register services from all modules
-                 RegisterDomainServices(services);
-                 RegisterNetworkServices(services);
-                 RegisterApplicationServices(services);
+                 services.AddSingleton<Fap.Foundation.Threading.IUiDispatcher>(_ => new WpfUiDispatcher(Dispatcher));
+                 services.AddSingleton<Fap.Foundation.Hosting.IAppLifetime, WpfAppLifetime>();
+                 services.AddFapCore(builder.Configuration);
+                 services.AddFapClient();
                  RegisterGUIServices(services);
 
                  host = builder.Build();
@@ -324,27 +319,7 @@ namespace Fap.Presentation
             services.AddTransient<IDownloadQueue, Fap.Presentation.Panels.DownloadQueue>();
             services.AddTransient<ICompareView, ComparePanel>();
             services.AddTransient<ISettingsView, SettingsPanel>();
-
-            // Register ViewModels
-            services.AddSingleton<MainWindowViewModel>();
-            services.AddSingleton<TrayIconViewModel>();
-            services.AddSingleton<WebViewModel>();
-            services.AddSingleton<UserInfoViewModel>();
-            services.AddSingleton<DownloadQueueViewModel>();
-            services.AddSingleton<BrowserViewModel>();
-            services.AddSingleton<SharesViewModel>();
-            services.AddSingleton<CompareViewModel>();
-            services.AddSingleton<SettingsViewModel>();
-            services.AddSingleton<SearchViewModel>();
-            services.AddSingleton<MessageBoxViewModel>();
-            services.AddSingleton<QueryViewModel>();
-            services.AddSingleton<SearchController>();
-            services.AddSingleton<CompareController>();
-            services.AddSingleton<SettingsController>();
-            services.AddSingleton<ConversationViewModel>();
             services.AddTransient<IConverstationView, Fap.Presentation.Panels.Conversation>();
-            services.AddSingleton<PopupWindowViewModel>();
-            services.AddSingleton<InterfaceSelectionViewModel>();
 		}
 
         protected override void OnExit(ExitEventArgs e)

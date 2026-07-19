@@ -30,6 +30,8 @@ namespace FAP.Application.ViewModels
         private ICommand open = null!;
         private ICommand openExternal = null!;
         private ICommand queue = null!;
+        private ICommand search = null!;
+        private ICommand chat = null!;
         private ICommand settings = null!;
         private ICommand shares = null!;
         private ICommand viewshare = null!;
@@ -86,6 +88,26 @@ namespace FAP.Application.ViewModels
                 OnPropertyChanged("Queue");
             }
             get { return queue; }
+        }
+
+        public ICommand Search
+        {
+            set
+            {
+                search = value;
+                OnPropertyChanged("Search");
+            }
+            get { return search; }
+        }
+
+        public ICommand Chat
+        {
+            set
+            {
+                chat = value;
+                OnPropertyChanged("Chat");
+            }
+            get { return chat; }
         }
 
         public ICommand Settings

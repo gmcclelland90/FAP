@@ -40,17 +40,18 @@ public class SmokeTests
 	}
 
 	[Fact]
-	public async Task Static_template_served()
+	public async Task Guest_browse_root_served()
 	{
 		var serverUrl = Environment.GetEnvironmentVariable("FAP_SERVER_URL");
 		if (string.IsNullOrWhiteSpace(serverUrl)) serverUrl = "http://127.0.0.1:40";
 		await WaitForHealthAsync(serverUrl, TimeSpan.FromSeconds(10));
 		using var http = new HttpClient();
-		var url = new Uri(new Uri(serverUrl.EndsWith("/") ? serverUrl : serverUrl + "/"), "Fap.app.web/template.html");
+		var url = new Uri(serverUrl.EndsWith("/") ? serverUrl : serverUrl + "/");
 		var resp = await http.GetAsync(url);
-		Assert.True(resp.IsSuccessStatusCode, $"template.html status={(int)resp.StatusCode}");
+		Assert.True(resp.IsSuccessStatusCode, $"browse root status={(int)resp.StatusCode}");
 		var html = await resp.Content.ReadAsStringAsync();
 		Assert.Contains("<html", html, StringComparison.OrdinalIgnoreCase);
+		Assert.Contains("browse.js", html, StringComparison.OrdinalIgnoreCase);
 	}
 
 	private static async Task WaitForHealthAsync(string baseUrl, TimeSpan timeout)

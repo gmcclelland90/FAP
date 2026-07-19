@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fap.local/impeccable/winui-critique-loop/state.schema.json",
+  "title": "WinUICritiqueLoopState",
+  "type": "object",
+  "required": ["version", "passScore", "maxIterationsPerPage", "plateauLimit", "currentPageIndex", "pages", "updatedAt"],
+  "properties": {
+    "version": { "type": "integer", "const": 1 },
+    "passScore": { "type": "integer", "minimum": 1, "maximum": 40 },
+    "maxIterationsPerPage": { "type": "integer", "minimum": 1 },
+    "plateauLimit": { "type": "integer", "minimum": 1 },
+    "currentPageIndex": { "type": "integer", "minimum": 0 },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "activePack": { "type": ["string", "null"] },
+    "loopArmed": { "type": "boolean" },
+    "pages": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "items": {
+        "type": "object",
+        "required": ["id", "target", "captureLabel", "status", "iterations", "scores"],
+        "properties": {
+          "id": { "type": "string" },
+          "target": { "type": "string" },
+          "captureLabel": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "in_progress", "passed", "stuck"]
+          },
+          "iterations": { "type": "integer", "minimum": 0 },
+          "scoreBefore": { "type": ["integer", "null"] },
+          "scoreAfter": { "type": ["integer", "null"] },
+          "bestScore": { "type": ["integer", "null"] },
+          "lastSlug": { "type": ["string", "null"] },
+          "lastPack": { "type": ["string", "null"] },
+          "lastCritiqueFile": { "type": ["string", "null"] },
+          "stuckReason": {
+            "type": ["string", "null"],
+            "enum": [null, "max_iterations", "plateau", "build_failed", "capture_failed"]
+          },
+          "scores": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["at", "total", "phase"],
+              "properties": {
+                "at": { "type": "string", "format": "date-time" },
+                "total": { "type": "integer", "minimum": 0, "maximum": 40 },
+                "phase": {
+                  "type": "string",
+                  "enum": ["baseline", "post_fix"]
+                },
+                "p0": { "type": "integer", "minimum": 0 },
+                "p1": { "type": "integer", "minimum": 0 }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

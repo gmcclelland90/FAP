@@ -6,6 +6,7 @@ using FAP.Domain.Verbs;
 using FAP.Domain.Verbs.Multicast;
 using Fap.Foundation;
 using FAP.Network.Services;
+using FAP.Shared.ConnectTiming;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -19,11 +20,15 @@ namespace FAP.Domain.Net
         private readonly IServiceProvider serviceProvider;
         private MulticastClientService mclient = null!;
         private readonly Microsoft.Extensions.Logging.ILogger<LANPeerFinderService> logger;
+        private readonly IConnectTimingProbe connectTiming;
+        private int helloMarked;
 
-        public LANPeerFinderService(IServiceProvider serviceProvider, Microsoft.Extensions.Logging.ILogger<LANPeerFinderService> logger)
+        public LANPeerFinderService(IServiceProvider serviceProvider, Microsoft.Extensions.Logging.ILogger<LANPeerFinderService> logger,
+            IConnectTimingProbe connectTiming)
         {
             this.serviceProvider = serviceProvider;
             this.logger = logger;
+            this.connectTiming = connectTiming;
             announcedAddresses.CollectionChanged += announcedAddresses_CollectionChanged;
         }
 
@@ -95,6 +100,8 @@ namespace FAP.Domain.Net
                             // Add new node
                             announcedAddresses.Add(detectedNode);
                             logger.LogDebug("Added new node: {Address}", detectedNode.Address);
+                            if (System.Threading.Interlocked.Exchange(ref helloMarked, 1) == 0)
+                                connectTiming.Mark(ConnectTimingPhases.HelloRx);
                         }
                         
                         announcedAddresses.Unlock();

@@ -17,9 +17,7 @@
 
 #endregion
 
-using System.Collections.Specialized;
 using System.Windows.Input;
-using FAP.Application.Controllers;
 using FAP.Application.Views;
 using FAP.Domain.Entities;
 
@@ -27,18 +25,15 @@ namespace FAP.Application.ViewModels
 {
     public class ConversationViewModel : ViewModelBase<IConverstationView>
     {
-        private readonly IPopupWindowController popupWindowController;
         private ICommand close = null!;
         private Conversation conversation = null!;
         private string currentChatMessage = string.Empty;
         private ICommand sendChatMessage = null!;
 
-        public ConversationViewModel(IConverstationView view, IPopupWindowController p)
+        public ConversationViewModel(IConverstationView view)
             : base(view)
         {
-            popupWindowController = p;
         }
-
 
         public Conversation Conversation
         {
@@ -47,10 +42,8 @@ namespace FAP.Application.ViewModels
             {
                 conversation = value;
                 OnPropertyChanged("Conversation");
-                value.UIMessages.CollectionChanged += UIMessages_CollectionChanged;
             }
         }
-
 
         public string CurrentChatMessage
         {
@@ -80,13 +73,6 @@ namespace FAP.Application.ViewModels
                 close = value;
                 OnPropertyChanged("Close");
             }
-        }
-
-        private void UIMessages_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
-        {
-            if (popupWindowController.ActiveTab != this)
-                popupWindowController.Highlight(this);
-            popupWindowController.FlashIfNotActive();
         }
     }
 }

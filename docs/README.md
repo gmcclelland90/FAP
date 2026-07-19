@@ -27,7 +27,7 @@ Welcome to the comprehensive documentation for the File Acceleration Protocol (F
 - [Search System](search-system.md) - Network file search
 - [Compare Feature](compare-feature.md) - Hardware comparison between peers
 - [Server Console](server-console.md) - Headless server mode
-- [Testing Platform](testing-platform.md) - Testing infrastructure
+- [Testing Platform](testing-platform.md) - Unit/integration/Playwright/FlaUI regression + agent feedback packs
 
 ## Quick Start
 

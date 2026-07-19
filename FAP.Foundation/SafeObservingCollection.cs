@@ -77,8 +77,11 @@ namespace Fap.Foundation
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                SafeObservableStatic.Dispatcher.Invoke(System.Windows.Threading.DispatcherPriority.Background,
-                       new Action(Sync));
+                var ui = SafeObservableStatic.UiDispatcher;
+                if (ui != null)
+                    ui.Invoke(Sync);
+                else
+                    Sync();
 
                 try
                 {

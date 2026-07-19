@@ -20,6 +20,11 @@ namespace Server.Console
             throw new NotImplementedException();
         }
 
+        public bool SelectImageFile(out string result)
+        {
+            throw new NotImplementedException();
+        }
+
         #endregion
     }
 }

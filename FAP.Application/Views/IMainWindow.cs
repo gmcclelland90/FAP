@@ -17,13 +17,10 @@
 
 #endregion
 
-using System.Windows.Threading;
-
 namespace FAP.Application.Views
 {
     public interface IMainWindow : IView
     {
-        Dispatcher Dispatcher { get; }
         void Show();
         void Close();
         void Flash();

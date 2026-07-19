@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
@@ -109,8 +110,10 @@ namespace FAP.Application.Controllers
                 viewModel.Results.Dispose();
             viewModel.Results = new SafeObservingCollection<SearchResult>(currentResults);
 
-            List<Node> peerlist = model.Network.Nodes.ToList();
-
+            List<Node> peerlist = model.Network.Nodes
+                .ToList()
+                .Where(n => n.NodeType != ClientType.Overlord && n.Online)
+                .ToList();
 
             outstandingrequests = 0;
             viewModel.LowerStatusMessage = string.Empty;
@@ -120,11 +123,12 @@ namespace FAP.Application.Controllers
             {
                 viewModel.UpperStatusMessage = "Please wait until your connected";
                 viewModel.LowerStatusMessage = "to a network prior to searching.";
+                viewModel.AllowSearch = true;
             }
             else
             {
                 viewModel.UpperStatusMessage = "Search running..";
-                viewModel.LowerStatusMessage = model.Network.Nodes.Count + " peers remaining..";
+                viewModel.LowerStatusMessage = peerlist.Count + " peers remaining..";
                 outstandingrequests = peerlist.Count;
                 startTime = Environment.TickCount;
 

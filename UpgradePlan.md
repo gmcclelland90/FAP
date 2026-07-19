@@ -16,7 +16,7 @@
 
 **Current Architecture (after migration):**
 - **Framework**: .NET 9
-- **UI**: WPF (Windows Presentation Foundation)
+- **UI**: WinUI 3 (primary, `UI/Client.WinUI`); WPF legacy until cutover
 - **Dependency Injection**: Microsoft.Extensions.DependencyInjection
 - **Logging**: Microsoft.Extensions.Logging
 - **JSON**: System.Text.Json (source-gen used for DTOs/verbs)

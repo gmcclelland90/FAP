@@ -118,17 +118,22 @@ public sealed class DefaultScenarioRunner : IScenarioRunner
 		{
 			target = uri.Host + ":" + (uri.IsDefaultPort ? 40 : uri.Port);
 		}
-        var clientNode = new Node();
-        clientNode.ID = IDService.CreateID();
-		var serverNode = new Node { Location = target };
+		var clientNode = new Node
+		{
+			ID = IDService.CreateID(),
+			Nickname = "ScenarioClient",
+			Host = "127.0.0.1",
+			Port = 0
+		};
 		var connect = new ConnectVerb
 		{
-			Address = target,
-            ClientType = ClientType.Client,
-            Secret = IDService.CreateID()
+			Address = clientNode.Location,
+			ClientType = ClientType.Client,
+			Secret = IDService.CreateID()
 		};
-		var client = new Client(clientNode);
-		var ok = await Task.Run(() => client.Execute(connect, serverNode, (int)timeout.TotalMilliseconds), cancellationToken);
+		using var http = new System.Net.Http.HttpClient();
+		var client = new ModernHttpClient(clientNode, Microsoft.Extensions.Logging.Abstractions.NullLogger<ModernHttpClient>.Instance, http);
+		var ok = await client.ExecuteAsync(connect, target, connect.Secret, (int)timeout.TotalMilliseconds).ConfigureAwait(false);
 		if (!ok) return (false, string.Empty, string.Empty);
 		return (true, connect.Secret, clientNode.ID);
 	}

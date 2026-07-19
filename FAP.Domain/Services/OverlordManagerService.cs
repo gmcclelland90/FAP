@@ -29,6 +29,7 @@ using FAP.Domain.Net;
 using FAP.Domain.Services;
 using FAP.Network.Server;
 using FAP.Network.Services;
+using FAP.Shared.ConnectTiming;
 using Fap.Foundation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -40,14 +41,17 @@ namespace FAP.Domain.Services
         private readonly IServiceProvider serviceProvider;
         private readonly ILogger<OverlordManagerService> logger;
         private readonly Model model;
+        private readonly IConnectTimingProbe connectTiming;
         private ListenerService overlordListener = null!;
         private bool isRunning;
 
-        public OverlordManagerService(IServiceProvider serviceProvider, Model m, ILogger<OverlordManagerService> logger)
+        public OverlordManagerService(IServiceProvider serviceProvider, Model m, ILogger<OverlordManagerService> logger,
+            IConnectTimingProbe connectTiming)
         {
             model = m;
             this.serviceProvider = serviceProvider;
             this.logger = logger;
+            this.connectTiming = connectTiming;
         }
 
         public void Start()
@@ -64,15 +68,19 @@ namespace FAP.Domain.Services
                 logger.LogDebug("Starting overlord manager");
                 
                 // Start the overlord server on port 40
-                overlordListener = new ListenerService(serviceProvider, true, serviceProvider.GetRequiredService<ILogger<ListenerService>>());
+                overlordListener = serviceProvider.GetRequiredService<IListenerServiceFactory>().Create(true);
                 overlordListener.Start(40);
                 
                 isRunning = true;
+                connectTiming.Mark(ConnectTimingPhases.OverlordBound);
                 logger.LogDebug("Overlord manager started successfully");
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed to start overlord manager");
+                try { overlordListener?.Stop(); } catch { /* ignore */ }
+                overlordListener = null!;
+                isRunning = false;
                 throw;
             }
         }

@@ -36,6 +36,7 @@ using Fap.Foundation;
 using Fap.Foundation.Services;
 using FAP.Network;
 using FAP.Shared.Entities;
+using FAP.Shared.ConnectTiming;
 using FAP.Network.Services;
 using Microsoft.Extensions.Logging;
 
@@ -63,6 +64,7 @@ namespace FAP.Domain.Handlers
         private readonly MulticastServerService multicastServer;
         private readonly Entities.Network network;
         private readonly LANPeerFinderService peerFinder;
+        private readonly IConnectTimingProbe connectTiming;
         private readonly Overlord serverNode;
         private readonly object sync = new object();
 
@@ -70,13 +72,15 @@ namespace FAP.Domain.Handlers
 
         public FAPServerHandler(IPAddress host, int port, Model m, MulticastClientService c, LANPeerFinderService p,
                                 MulticastServerService ms, ILogger<FAPServerHandler> logger,
-                                IHttpClientFactory httpClientFactory, ILogger<ModernHttpClient> httpLogger)
+                                IHttpClientFactory httpClientFactory, ILogger<ModernHttpClient> httpLogger,
+                                IConnectTimingProbe connectTiming)
         {
             multicastServer = ms;
             this.logger = logger;
             _httpClientFactory = httpClientFactory;
             _httpLogger = httpLogger;
             peerFinder = p;
+            this.connectTiming = connectTiming;
             serverNode = new Overlord();
             serverNode.Nickname = "Overlord";
             serverNode.Host = host.ToString();
@@ -350,6 +354,9 @@ namespace FAP.Domain.Handlers
             var req = new NetworkRequest {Verb = "DISCONNECT", SourceID = serverNode.ID};
             SendToStandardClients(req);
             SendToOverlordClients(req);
+
+            try { multicastServer.Stop(); } catch { /* ignore */ }
+            try { multicastClient.Stop(); } catch { /* ignore */ }
         }
 
         private void m_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -883,11 +890,13 @@ namespace FAP.Domain.Handlers
                     return true;
                 }
 
+                connectTiming.Mark(ConnectTimingPhases.ReverseInfoStart);
                 if (!await client.ExecuteAsync(verb, address))
                 {
                     logger.LogDebug("HandleConnect: client.Execute failed for {Address}", address);
                     return false;
                 }
+                connectTiming.Mark(ConnectTimingPhases.ReverseInfoEnd);
                 logger.LogDebug("HandleConnect: client.Execute succeeded");
                 //Connected ok
                 var c = new ClientStream();

@@ -18,7 +18,6 @@
 #endregion
 
 using System.Windows.Input;
-using System.Windows.Threading;
 using FAP.Application.Views;
 using FAP.Domain;
 using FAP.Domain.Entities;
@@ -45,6 +44,9 @@ namespace FAP.Application.ViewModels
         private string nickname = string.Empty;
         private Node node = null!;
         private string nodeStatus = string.Empty;
+        private string nodeStatusDetail = string.Empty;
+        private string shellStatus = string.Empty;
+        private bool isMeshConnected;
         private ICommand openExternal = null!;
         private SafeFilteredObservingCollection<Node> peers = null!;
         private ICommand search = null!;
@@ -97,6 +99,46 @@ namespace FAP.Application.ViewModels
             }
         }
 
+        /// <summary>Short chrome status: Connected / Connecting / Disconnected · nickname.</summary>
+        public string ShellStatus
+        {
+            get { return shellStatus; }
+            set
+            {
+                if (shellStatus != value)
+                {
+                    shellStatus = value;
+                    OnPropertyChanged(nameof(ShellStatus));
+                }
+            }
+        }
+
+        /// <summary>Secondary line (overlord / host detail); empty when not useful.</summary>
+        public string NodeStatusDetail
+        {
+            get { return nodeStatusDetail; }
+            set
+            {
+                if (nodeStatusDetail != value)
+                {
+                    nodeStatusDetail = value;
+                    OnPropertyChanged(nameof(NodeStatusDetail));
+                }
+            }
+        }
+
+        public bool IsMeshConnected
+        {
+            get { return isMeshConnected; }
+            set
+            {
+                if (isMeshConnected != value)
+                {
+                    isMeshConnected = value;
+                    OnPropertyChanged(nameof(IsMeshConnected));
+                }
+            }
+        }
 
         public string CurrentNetworkStatus
         {
@@ -375,11 +417,6 @@ namespace FAP.Application.ViewModels
                 selectedClient = value;
                 OnPropertyChanged("SelectedClient");
             }
-        }
-
-        public Dispatcher Dispatcher
-        {
-            get { return ViewCore.Dispatcher; }
         }
 
         public void DoFlashWindow()

@@ -17,6 +17,7 @@
 
 #endregion
 
+using System.Collections.Generic;
 using System.Reflection;
 using System.Windows.Input;
 using FAP.Application.Views;
@@ -37,10 +38,36 @@ namespace FAP.Application.ViewModels
         private ICommand resetInterface = null!;
         private ICommand saveCommand = null!;
         private ICommand cancelCommand = null!;
+        private IList<NetInterface> availableInterfaces = new List<NetInterface>();
+        private NetInterface? selectedNetworkInterface;
 
         public SettingsViewModel(ISettingsView view)
             : base(view)
         {
+        }
+
+        public IList<NetInterface> AvailableInterfaces
+        {
+            get => availableInterfaces;
+            set
+            {
+                availableInterfaces = value ?? new List<NetInterface>();
+                OnPropertyChanged(nameof(AvailableInterfaces));
+            }
+        }
+
+        public NetInterface? SelectedNetworkInterface
+        {
+            get => selectedNetworkInterface;
+            set
+            {
+                if (ReferenceEquals(selectedNetworkInterface, value))
+                    return;
+                selectedNetworkInterface = value;
+                if (model?.LocalNode != null && value?.Address != null)
+                    model.LocalNode.Host = value.Address.ToString();
+                OnPropertyChanged(nameof(SelectedNetworkInterface));
+            }
         }
 
         public ICommand ResetInterface

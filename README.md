@@ -20,7 +20,7 @@ FAP is an HTTP-based LAN file sharing tool. It includes peer discovery, coordina
 - **HTTP API**: Typed endpoints
 - **Web serving**: Static files plus dynamic pages
 - **Logging & metrics**: Structured logging
-- **Windows client**: WPF client
+- **Windows client**: WinUI 3 (Fluent) client; WPF client retained as legacy
 
 ### Architecture
 - **Hosting**: ASP.NET Core Kestrel (HTTP only, LAN use)
@@ -34,8 +34,9 @@ Routes overview:
 | Area | Base path | Examples |
 |---|---|---|
 | Protocol (verbs) | `/Fap.app/` | `/Fap.app/CONNECT`, `/Fap.app/SEARCH?p=...` |
-| Web UI | `/Fap.app.web/` | `/Fap.app.web/`, `/Fap.app.web/css/fap.css` |
-| HTTP API | `/Fap.api/` | `/Fap.api/health`, `/Fap.api/compare/v1` |
+| Guest web share | `/` | `/`, `/{share}/…` (HTML + file GET) |
+| Guest assets | `/Fap.app.web/` | `/Fap.app.web/css/fap.css`, `/Fap.app.web/js/browse.js` |
+| HTTP API | `/Fap.api/` | `/Fap.api/health`, `/Fap.api/compare/v1`, `/Fap.api/guest-ui` |
 - **Request decoding**: Centralized in the server; forwarded to handlers via context
 - **Serialization**: System.Text.Json (with source generation where applicable)
 - **Dependency Injection**: Microsoft.Extensions.DependencyInjection
@@ -44,7 +45,9 @@ Routes overview:
 - **Caching & limits**: Response compression/caching and rate limiting via middleware
 
 Projects of interest:
-- `UI/Client.WPF` – Windows client (WPF)
+- `UI/Client.WinUI` – Windows client (WinUI 3 / Windows App SDK)
+- `UI/Client.WPF` – Legacy WPF client (see `LEGACY.md`)
+- `FAP.GuestWeb` – Guest share Razor pages/views
 - `FAP.Network` – Server hosting, HTTP wrappers, Kestrel integration
 - `FAP.Domain` – Verbs, handlers, entities, services
 - `FAP.Foundation` – Core utilities, WMI/system info, caching

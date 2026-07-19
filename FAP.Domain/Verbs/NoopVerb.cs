@@ -31,7 +31,16 @@ namespace FAP.Domain.Verbs
 
         public bool ReceiveResponse(NetworkRequest r)
         {
+            // Overlord NOOP replies are empty HTTP 200s (no JSON body). Deserializing
+            // that used to throw, making ExecuteAsync return false and the client
+            // disconnect/reconnect every UPLINK_TIMEOUT (~60s).
+            if (string.IsNullOrWhiteSpace(r.Data))
+                return true;
+
             var inc = Deserialise<NoopVerb>(r.Data);
+            if (inc == null)
+                return true;
+
             SourceID = inc.SourceID;
             AuthKey = inc.AuthKey;
             return true;

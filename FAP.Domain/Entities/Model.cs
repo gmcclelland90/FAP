@@ -23,7 +23,6 @@ using System.Linq;
 using System.Net;
 using System.Security.Principal;
 using System.Threading;
-using System.Windows;
 using System.Xml.Serialization;
 using FAP.Domain.Entities.FileSystem;
 using FAP.Domain.Net;
@@ -444,25 +443,8 @@ namespace FAP.Domain.Entities
             if (string.IsNullOrEmpty(Avatar))
             {
                 LoadAvatarFromDisk();
-                if (string.IsNullOrEmpty(Avatar))
-                {
-                    Stream stream =
-                        Application.GetResourceStream(new Uri("Images/Default_Avatar.png", UriKind.Relative)).Stream;
-                    var img = new byte[stream.Length];
-                    int totalBytesRead = 0;
-                    int bytesRead;
-                    while (totalBytesRead < stream.Length &&
-                           (bytesRead = stream.Read(img, totalBytesRead, (int)stream.Length - totalBytesRead)) > 0)
-                    {
-                        totalBytesRead += bytesRead;
-                    }
-                    var base64 = Convert.ToBase64String(img);
-                    // Set both model property and LocalNode for UI bindings using Node.Avatar
-                    Avatar = base64;
-                    LocalNode.Avatar = base64;
-                    TryPersistAvatarToDisk(Avatar);
-                    Save();
-                }
+                // Default avatar is supplied by the presentation host when needed;
+                // Domain no longer loads WPF pack resources.
             }
             //Set default nick
             if (string.IsNullOrEmpty(Nickname))

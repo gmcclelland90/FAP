@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="Fap.Client.WinUI.Pages.HomePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:entities="using:FAP.Domain.Entities"
+    NavigationCacheMode="Enabled">
+
+    <Page.Resources>
+        <Thickness x:Key="HomeSectionPadding">16,12,16,12</Thickness>
+    </Page.Resources>
+
+    <Grid Margin="16,16,16,12" ColumnSpacing="12" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="2*" />
+            <RowDefinition Height="*" MinHeight="168" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Status: louder than chrome -->
+        <Border
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="8"
+            Padding="16,14">
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Spacing="4">
+                    <TextBlock
+                        x:Name="StatusText"
+                        AutomationProperties.AutomationId="home.status"
+                        Style="{StaticResource SubtitleTextBlockStyle}"
+                        FontWeight="SemiBold"
+                        TextWrapping="WrapWholeWords" />
+                    <TextBlock
+                        x:Name="StatusDetailText"
+                        AutomationProperties.AutomationId="home.statusDetail"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        TextWrapping="WrapWholeWords"
+                        Visibility="Collapsed" />
+                    <StackPanel Orientation="Horizontal" Spacing="16">
+                        <TextBlock
+                            x:Name="LocalStatsText"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            TextWrapping="NoWrap" />
+                        <TextBlock
+                            x:Name="GlobalStatsText"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            TextWrapping="NoWrap" />
+                    </StackPanel>
+                </StackPanel>
+                <InfoBar
+                    x:Name="StatusInfoBar"
+                    Grid.Column="1"
+                    MaxWidth="360"
+                    IsClosable="False"
+                    IsOpen="False"
+                    Severity="Informational"
+                    VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+
+        <!-- Peers -->
+        <Border
+            Grid.Row="1"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="8">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <TextBlock
+                    x:Name="PeersHeader"
+                    Margin="{StaticResource HomeSectionPadding}"
+                    Style="{StaticResource BodyStrongTextBlockStyle}"
+                    Text="Peers" />
+                <Grid Grid.Row="1">
+                    <ListView
+                        x:Name="PeersList"
+                        AutomationProperties.AutomationId="home.peers"
+                        AutomationProperties.Name="Peers"
+                        Padding="4,0,4,8"
+                        SelectionMode="Single"
+                        IsItemClickEnabled="True"
+                        IsDoubleTapEnabled="True"
+                        ItemClick="PeersList_ItemClick"
+                        RightTapped="PeersList_RightTapped"
+                        DoubleTapped="PeersList_DoubleTapped" />
+                    <StackPanel
+                        x:Name="PeersEmpty"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="8"
+                        Padding="24"
+                        MaxWidth="280"
+                        Visibility="Collapsed">
+                        <FontIcon Glyph="&#xE77B;" FontSize="32" Opacity="0.55" />
+                        <TextBlock
+                            Text="No peers yet"
+                            Style="{StaticResource BodyStrongTextBlockStyle}"
+                            HorizontalAlignment="Center" />
+                        <TextBlock
+                            x:Name="PeersEmptyBody"
+                            Text="Peers show up when the LAN mesh connects. Select a peer to browse shares."
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            TextWrapping="WrapWholeWords"
+                            HorizontalAlignment="Center"
+                            TextAlignment="Center" />
+                        <HyperlinkButton
+                            x:Name="PeersEmptySettings"
+                            Content="Open Settings"
+                            HorizontalAlignment="Center"
+                            Click="PeersEmptySettings_Click" />
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- Transfers -->
+        <Border
+            Grid.Row="2"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="8">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid Margin="{StaticResource HomeSectionPadding}">
+                    <TextBlock
+                        Style="{StaticResource BodyStrongTextBlockStyle}"
+                        Text="Transfers"
+                        VerticalAlignment="Center" />
+                    <HyperlinkButton
+                        x:Name="OpenQueueLink"
+                        Content="Open queue"
+                        HorizontalAlignment="Right"
+                        Click="OpenQueueLink_Click" />
+                </Grid>
+                <Grid Grid.Row="1">
+                    <ListView
+                        x:Name="SessionsList"
+                        AutomationProperties.AutomationId="home.transfers"
+                        AutomationProperties.Name="Transfers"
+                        Padding="8,0,8,8"
+                        SelectionMode="None">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="entities:TransferSession">
+                                <Grid Padding="4,8" RowSpacing="6">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock
+                                            Text="{x:Bind User}"
+                                            FontWeight="SemiBold"
+                                            TextWrapping="NoWrap"
+                                            TextTrimming="CharacterEllipsis" />
+                                        <TextBlock
+                                            Grid.Column="1"
+                                            Text="{x:Bind Status}"
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            VerticalAlignment="Center" />
+                                        <TextBlock
+                                            Grid.Column="2"
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            VerticalAlignment="Center">
+                                            <Run Text="{x:Bind Percent}" />
+                                            <Run Text="%" />
+                                        </TextBlock>
+                                    </Grid>
+                                    <ProgressBar
+                                        Grid.Row="1"
+                                        Minimum="0"
+                                        Maximum="100"
+                                        Value="{x:Bind Percent, Mode=OneWay}"
+                                        Height="4" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                    <StackPanel
+                        x:Name="TransfersEmpty"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="8"
+                        Padding="24"
+                        MaxWidth="360"
+                        Visibility="Collapsed">
+                        <FontIcon Glyph="&#xE896;" FontSize="32" Opacity="0.55" />
+                        <TextBlock
+                            Text="No active transfers"
+                            Style="{StaticResource BodyStrongTextBlockStyle}"
+                            HorizontalAlignment="Center" />
+                        <TextBlock
+                            Text="Queued and in-flight downloads show progress here. Use Open queue above for the full list."
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            TextWrapping="WrapWholeWords"
+                            HorizontalAlignment="Center"
+                            TextAlignment="Center" />
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <TextBlock
+            Grid.Row="3"
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            Style="{StaticResource CaptionTextBlockStyle}"
+            Text="Tip: select a peer to browse shares. Right-click for Web share or Chat." />
+    </Grid>
+</Page>

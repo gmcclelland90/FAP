@@ -1,0 +1,6 @@
+{
+  "files": ["FAP.GuestWeb/Views/Guest/Browse.cshtml"],
+  "insertBefore": "</body>",
+  "commentSyntax": "html",
+  "cspChecked": true
+}

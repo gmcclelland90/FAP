@@ -23,5 +23,8 @@ namespace FAP.Application.Views
     {
         bool SelectFolder(out string result);
         bool SelectFile(out string result);
+
+        /// <summary>Pick an image file (avatar). Implementations should filter to common image types.</summary>
+        bool SelectImageFile(out string result);
     }
 }

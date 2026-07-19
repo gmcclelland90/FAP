@@ -39,17 +39,18 @@ Examples:
 - `http://192.168.1.100:30/Fap.app/BROWSE?p=L2ZvbGRlcg==`
 - `http://192.168.1.100:30/Fap.app/CHAT`
 
-### Web Interface URLs
-Standard HTTP requests serve the web interface via ASP.NET Core static files and the modern handler:
+### Guest Web Share URLs
+LAN browsers can list shares and download files without the desktop client. Directory listings are rendered with compiled Razor (`FAP.GuestWeb`) via `IBrowsePageHtmlRenderer`; static assets are served from `/Fap.app.web/`.
 
 ```
-http://host:port/Fap.app.web/
+http://host:port/                    → guest browse root (HTML)
+http://host:port/{share}/...         → share subdirectory listing or file GET (Range/ETag)
+http://host:port/Fap.app.web/css/fap.css
+http://host:port/Fap.app.web/js/browse.js
+http://host:port/Fap.api/guest-ui    → Razor host smoke page
 ```
 
-Examples:
-- `http://192.168.1.100:30/Fap.app.web/` (main page)
-- `http://192.168.1.100:30/Fap.app.web/css/fap.css` (stylesheets)
-- `http://192.168.1.100:30/Fap.app.web/js/jquery-1.5.2.min.js` (scripts)
+Guest pages use vanilla JS (no jQuery), light/dark via `prefers-color-scheme`, and `fap://` download handoff icons.
 
 ## HTTP Headers
 

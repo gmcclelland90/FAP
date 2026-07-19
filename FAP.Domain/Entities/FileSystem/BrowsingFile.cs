@@ -90,16 +90,18 @@ namespace FAP.Domain.Entities.FileSystem
                     // Don't set anything if the value is null or empty
                     return;
                 }
-                
-                if (value.Contains("/"))
+
+                var normalized = value.Replace('\\', '/');
+                if (normalized.Contains('/'))
                 {
-                    int split = value.LastIndexOf("/");
-                    Path = value.Substring(0, split);
-                    Name = value.Substring(split + 1, value.Length - (split + 1));
+                    int split = normalized.LastIndexOf('/');
+                    Path = normalized.Substring(0, split);
+                    Name = normalized.Substring(split + 1);
                 }
                 else
                 {
-                    Name = value;
+                    Path = string.Empty;
+                    Name = normalized;
                 }
             }
         }

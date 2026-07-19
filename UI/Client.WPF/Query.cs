@@ -58,5 +58,21 @@ namespace Fap.Presentation
             return false;
         }
 
+        public bool SelectImageFile(out string result)
+        {
+            OpenFileDialog ofd = new OpenFileDialog();
+            ofd.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
+            ofd.Multiselect = false;
+            ofd.RestoreDirectory = true;
+            ofd.Filter = "Images (*.jpg;*.jpeg;*.gif;*.png;*.bmp;*.webp)|*.jpg;*.jpeg;*.gif;*.png;*.bmp;*.webp";
+            ofd.FilterIndex = 1;
+            if (ofd.ShowDialog() == DialogResult.OK)
+            {
+                result = ofd.FileName;
+                return true;
+            }
+            result = string.Empty;
+            return false;
+        }
     }
 }

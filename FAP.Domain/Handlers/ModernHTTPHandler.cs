@@ -4,9 +4,10 @@ using System.IO;
 using System.Text;
 using FAP.Domain.Entities;
 using FAP.Domain.Entities.FileSystem;
-using FAP.Domain.Models;
 using FAP.Domain.Services;
 using FAP.Network.Server;
+using FAP.Shared.Models;
+using FAP.Shared.Services;
 using Fap.Foundation;
 using Microsoft.Extensions.Logging;
 using Directory = FAP.Domain.Entities.FileSystem.Directory;
@@ -26,6 +27,7 @@ namespace FAP.Domain.Handlers
         private readonly Model model;
         private readonly BufferService bufferService;
         private readonly ServerUploadLimiterService uploadLimiter;
+        private readonly IBrowsePageHtmlRenderer browsePageRenderer;
         private readonly ILogger<ModernHTTPHandler> logger;
 
         // Icon cache - missing from original ModernHTTPHandler
@@ -33,12 +35,19 @@ namespace FAP.Domain.Handlers
         private readonly Dictionary<string, string> iconEtagCache = new Dictionary<string, string>();
         private readonly object sync = new object();
 
-        public ModernHTTPHandler(ShareInfoService i, Model m, BufferService b, ServerUploadLimiterService u, ILogger<ModernHTTPHandler> logger)
+        public ModernHTTPHandler(
+            ShareInfoService i,
+            Model m,
+            BufferService b,
+            ServerUploadLimiterService u,
+            IBrowsePageHtmlRenderer browsePageRenderer,
+            ILogger<ModernHTTPHandler> logger)
         {
             infoService = i;
             model = m;
             bufferService = b;
             uploadLimiter = u;
+            this.browsePageRenderer = browsePageRenderer;
             this.logger = logger;
         }
 
@@ -83,6 +92,11 @@ namespace FAP.Domain.Handlers
                         ? decodedPath.Replace("#", "%23")
                         : (decodedPath + "/").Replace("#", "%23");
 
+                    int queueLength = uploadLimiter.GetQueueLength();
+                    string searchQuery = (e.Request.Query["q"].ToString() ?? string.Empty).Trim();
+                    bool scopeHere = string.Equals(e.Request.Query["scope"], "here", StringComparison.OrdinalIgnoreCase);
+                    const int guestSearchLimit = 500;
+
                     var pageData = new BrowsePageData
                     {
                         Nickname = model.LocalNode?.Nickname ?? string.Empty,
@@ -91,9 +105,13 @@ namespace FAP.Domain.Handlers
                         FreeLimit = Utility.FormatBytes(Model.FREE_FILE_LIMIT),
                         MaxUploadSlots = model.MaxUploads,
                         FreeUploadSlots = freeslots,
-                        QueueInfo = freeslots > 0 ? "" : "  Queue length: " + uploadLimiter.GetQueueLength() + ".",
+                        QueueLength = queueLength,
+                        QueueInfo = freeslots > 0 ? string.Empty : $"Queue length: {queueLength}.",
                         SlotColour = freeslots > 0 ? "green" : "red",
-                        CurrentPath = currentPath
+                        CurrentPath = currentPath,
+                        SearchQuery = searchQuery,
+                        IsSearch = searchQuery.Length > 0,
+                        SearchScopeHere = scopeHere
                     };
 
                     // Build path breadcrumb segments
@@ -109,57 +127,48 @@ namespace FAP.Domain.Handlers
                         pageData.PathSegments.Add(new PathSegment { Name = split[i], Path = sb.ToString() });
                     }
 
-                    // Build file listing
                     long totalSize = 0;
-                    List<BrowsingFile> results;
-                    if (infoService.GetPath(decodedPath, false, true, out results))
+                    if (pageData.IsSearch)
                     {
-                        foreach (var browsingFile in results)
+                        pageData.PathResolved = true;
+                        var hits = infoService.Search(searchQuery, guestSearchLimit, 0, 0, 0, 0);
+                        string scopePrefix = string.Join('/', split);
+                        if (scopeHere && scopePrefix.Length > 0)
                         {
-                            var entry = new BrowseFileEntry
-                            {
-                                Name = browsingFile.Name,
-                                Size = browsingFile.Size,
-                                SizeText = Utility.FormatBytes(browsingFile.Size),
-                                LastModifiedText = browsingFile.LastModified.ToShortDateString(),
-                                LastModified = browsingFile.LastModified
-                            };
-
-                            if (browsingFile.IsFolder)
-                            {
-                                entry.Path = Utility.EncodeURL(browsingFile.Name);
-                                entry.Icon = "folder";
-                                entry.HasIcon = true;
-                                entry.IconHtml = $"<img height=\"16px\" width=\"16px\" src=\"{WEB_ICON_PREFIX}folder\" alt=\"icon\" />";
-                            }
-                            else
-                            {
-                                string ext = Path.GetExtension(browsingFile.Name);
-                                if (ext != null && ext.StartsWith("."))
-                                    ext = ext.Substring(1);
-
-                                string name = browsingFile.Name;
-                                if (!string.IsNullOrEmpty(name))
-                                    name = name.Replace("#", "%23");
-
-                                entry.Path = name;
-                                entry.Icon = ext ?? string.Empty;
-                                entry.HasIcon = !string.IsNullOrEmpty(ext);
-                                entry.IconHtml = !string.IsNullOrEmpty(ext)
-                                    ? $"<img height=\"16px\" width=\"16px\" src=\"{WEB_ICON_PREFIX}{ext}\" alt=\"icon\" />"
-                                    : string.Empty;
-                            }
-
-                            pageData.Files.Add(entry);
-                            totalSize += browsingFile.Size;
+                            hits = hits.FindAll(h => IsUnderSharePrefix(h, scopePrefix));
                         }
-                        results.Clear();
+
+                        pageData.SearchResultCount = hits.Count;
+                        pageData.SearchTruncated = hits.Count >= guestSearchLimit;
+
+                        foreach (var hit in hits)
+                        {
+                            var entry = CreateSearchEntry(hit, currentPath);
+                            pageData.Files.Add(entry);
+                            totalSize += hit.Size;
+                        }
+                    }
+                    else
+                    {
+                        // Build directory listing
+                        List<BrowsingFile> results;
+                        pageData.PathResolved = infoService.GetPath(decodedPath, false, true, out results);
+                        if (pageData.PathResolved)
+                        {
+                            foreach (var browsingFile in results)
+                            {
+                                var entry = CreateBrowseEntry(browsingFile, currentPath);
+                                pageData.Files.Add(entry);
+                                totalSize += browsingFile.Size;
+                            }
+                            results.Clear();
+                        }
                     }
 
                     pageData.TotalSize = Utility.FormatBytes(totalSize);
 
                     logger.LogDebug("Rendering browse page for path '{Path}' with {FileCount} entries", decodedPath, pageData.Files.Count);
-                    string page = BrowsePageRenderer.Render(pageData);
+                    string page = await browsePageRenderer.RenderAsync(pageData);
 
                     data = Encoding.UTF8.GetBytes(page);
                     e.Response.ContentType = "text/html";
@@ -188,6 +197,100 @@ namespace FAP.Domain.Handlers
             // Prefer fire-and-forget async path to avoid blocking threads
             _ = HandleAsync(path, e);
             return true;
+        }
+
+        private static bool IsUnderSharePrefix(SearchResult hit, string scopePrefix)
+        {
+            if (string.IsNullOrEmpty(scopePrefix))
+                return true;
+            string parent = (hit.Path ?? string.Empty).Trim('/');
+            string full = string.IsNullOrEmpty(parent) ? hit.FileName : parent + "/" + hit.FileName;
+            return full.Equals(scopePrefix, StringComparison.OrdinalIgnoreCase)
+                   || full.StartsWith(scopePrefix + "/", StringComparison.OrdinalIgnoreCase)
+                   || parent.Equals(scopePrefix, StringComparison.OrdinalIgnoreCase)
+                   || parent.StartsWith(scopePrefix + "/", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string FormatModified(DateTime modified) =>
+            modified == default || modified.Year < 2 ? "—" : modified.ToShortDateString();
+
+        private BrowseFileEntry CreateBrowseEntry(BrowsingFile browsingFile, string currentPath)
+        {
+            var entry = new BrowseFileEntry
+            {
+                Name = browsingFile.Name,
+                Size = browsingFile.Size,
+                SizeText = Utility.FormatBytes(browsingFile.Size),
+                LastModifiedText = FormatModified(browsingFile.LastModified),
+                LastModified = browsingFile.LastModified
+            };
+
+            if (browsingFile.IsFolder)
+            {
+                string segment = Utility.EncodeURL(browsingFile.Name);
+                entry.Path = segment;
+                entry.Href = currentPath + segment;
+                entry.Icon = "folder";
+                entry.HasIcon = true;
+                entry.IconHtml = $"<img height=\"16\" width=\"16\" src=\"{WEB_ICON_PREFIX}folder\" alt=\"Folder\" />";
+            }
+            else
+            {
+                string ext = Path.GetExtension(browsingFile.Name);
+                if (ext != null && ext.StartsWith("."))
+                    ext = ext.Substring(1);
+
+                string name = browsingFile.Name;
+                if (!string.IsNullOrEmpty(name))
+                    name = name.Replace("#", "%23");
+
+                entry.Path = name;
+                entry.Href = currentPath + name;
+                entry.Icon = ext ?? string.Empty;
+                entry.HasIcon = !string.IsNullOrEmpty(ext);
+                entry.IconHtml = !string.IsNullOrEmpty(ext)
+                    ? $"<img height=\"16\" width=\"16\" src=\"{WEB_ICON_PREFIX}{ext}\" alt=\"\" />"
+                    : string.Empty;
+            }
+
+            return entry;
+        }
+
+        private BrowseFileEntry CreateSearchEntry(SearchResult hit, string _)
+        {
+            string parent = (hit.Path ?? string.Empty).Trim('/');
+            string encodedParent = string.IsNullOrEmpty(parent)
+                ? string.Empty
+                : string.Join('/', parent.Split('/', StringSplitOptions.RemoveEmptyEntries).Select(Utility.EncodeURL));
+            string encodedName = hit.IsFolder
+                ? Utility.EncodeURL(hit.FileName)
+                : hit.FileName.Replace("#", "%23");
+            string href = "/" + (string.IsNullOrEmpty(encodedParent) ? encodedName : encodedParent + "/" + encodedName);
+            if (hit.IsFolder && !href.EndsWith('/'))
+                href += "/";
+
+            string ext = hit.IsFolder ? "folder" : (Path.GetExtension(hit.FileName) ?? string.Empty);
+            if (ext.StartsWith('.'))
+                ext = ext.Substring(1);
+
+            return new BrowseFileEntry
+            {
+                Name = hit.FileName,
+                Path = encodedName,
+                Href = href,
+                LocationText = string.IsNullOrEmpty(parent) ? "/" : "/" + parent,
+                Size = hit.Size,
+                SizeText = Utility.FormatBytes(hit.Size),
+                LastModifiedText = FormatModified(hit.Modified),
+                LastModified = hit.Modified,
+                Icon = hit.IsFolder ? "folder" : ext,
+                HasIcon = hit.IsFolder || !string.IsNullOrEmpty(ext),
+                IconHtml = hit.IsFolder
+                    ? $"<img height=\"16\" width=\"16\" src=\"{WEB_ICON_PREFIX}folder\" alt=\"Folder\" />"
+                    : (!string.IsNullOrEmpty(ext)
+                        ? $"<img height=\"16\" width=\"16\" src=\"{WEB_ICON_PREFIX}{ext}\" alt=\"\" />"
+                        : string.Empty)
+            };
         }
 
         private string GetContentType(string extension)

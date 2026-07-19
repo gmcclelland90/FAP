@@ -451,3 +451,13 @@ logs/
 temp/
 cache/
 OLD PROJECT/
+
+# Impeccable runtime/critiques (keep design + loop schema/example tracked)
+.impeccable/**
+!.impeccable/design.json
+!.impeccable/live/
+!.impeccable/live/config.json
+!.impeccable/winui-critique-loop/
+!.impeccable/winui-critique-loop/README.md
+!.impeccable/winui-critique-loop/state.example.json
+!.impeccable/winui-critique-loop/state.schema.json

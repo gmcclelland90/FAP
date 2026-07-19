@@ -31,8 +31,8 @@ using FAP.Domain.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
-using System.Windows.Threading;
 using FAP.Application.Controllers;
+using FAP.Application.Services;
 using FAP.Application.ViewModel;
 using FAP.Application.ViewModels;
 using FAP.Domain;
@@ -40,11 +40,14 @@ using FAP.Domain.Entities;
 using FAP.Domain.Services;
 using FAP.Domain.Verbs;
 using Fap.Foundation;
+using Fap.Foundation.Hosting;
 using Fap.Foundation.RegistryServices;
 using Fap.Foundation.Services;
+using Fap.Foundation.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using FAP.Network.Entities; // For RemoteClient
+using FAP.Shared.ConnectTiming;
 
 namespace FAP.Application
 {
@@ -57,21 +60,23 @@ namespace FAP.Application
         private readonly Model model;
         private readonly OverlordManagerService overlordManagerService;
         private readonly RegisterProtocolService registerProtocolService;
-        private readonly SingleInstanceService singleInstanceService;
+        private SingleInstanceService? singleInstanceService;
         private readonly UpdateCheckerService updateChecker;
         private readonly IServiceProvider serviceProvider; // For resolving services that can't be injected directly
+        private readonly IAppLifetime appLifetime;
+        private readonly IConnectTimingProbe connectTiming;
         private ListenerService client = null!;
         private CompareController compareController = null!;
-        private ConversationController conversationController = null!;
+        private IConversationController conversationController = null!;
         private DownloadQueueController downloadQueueController = null!;
         private MainWindowViewModel mainWindowModel = null!;
-        private IPopupWindowController popupController = null!;
         private SearchController searchController = null!;
         private SettingsController settingsController = null!;
         private SharesController shareController = null!;
         private ShareInfoService shareInfo = null!;
         private TrayIconViewModel trayIcon = null!;
         private WatchdogController watchdogController = null!;
+        private IShellNavigation shellNavigation = null!;
 
         public ApplicationCore(
             Model model,
@@ -80,7 +85,9 @@ namespace FAP.Application
             UpdateCheckerService updateChecker,
             InterfaceController interfaceController,
             OverlordManagerService overlordManagerService,
-            IServiceProvider serviceProvider)
+            IServiceProvider serviceProvider,
+            IAppLifetime appLifetime,
+            IConnectTimingProbe connectTiming)
         {
             this.model = model;
             this.logger = logger;
@@ -90,17 +97,20 @@ namespace FAP.Application
             this.interfaceController = interfaceController;
             this.overlordManagerService = overlordManagerService;
             this.serviceProvider = serviceProvider;
+            this.appLifetime = appLifetime;
+            this.connectTiming = connectTiming;
             
             //Note: ServicePointManager settings are deprecated in .NET 9
             //These settings no longer affect HttpClient or SslStream
             //Connection limits and other settings are now handled by HttpClient configuration
             //System.Net.ServicePointManager.MaxServicePointIdleTime = 20000000;
-            singleInstanceService = new SingleInstanceService("FAP");
+            // Lazy: only create the named mutex when CheckSingleInstance runs (avoids test host clashes).
             registerProtocolService = new RegisterProtocolService();
         }
 
         public bool CheckSingleInstance()
         {
+            singleInstanceService ??= new SingleInstanceService("FAP");
             return singleInstanceService.GetLock();
         }
 
@@ -121,22 +131,32 @@ namespace FAP.Application
                 client.Stop();
 
             //Kill UI
-            SafeObservableStatic.Dispatcher.Invoke(DispatcherPriority.Normal,
-                                                   new Action(
-                                                       delegate
-                                                           {
-                                                               if (null != mainWindowModel)
-                                                               {
-                                                                   popupController.Close();
-                                                                   mainWindowModel.Close();
-                                                                   trayIcon.Dispose();
+            void ShutdownUi()
+            {
+                if (null != mainWindowModel)
+                {
+                    try
+                    {
+                        serviceProvider.GetService<IChatSession>()?.SavePeerHistory();
+                    }
+                    catch
+                    {
+                        // best-effort
+                    }
+                    mainWindowModel.Close();
+                    trayIcon.Dispose();
 
-                                                                   model.GetShutdownLock();
-                                                                   singleInstanceService.Dispose();
-                                                                   System.Windows.Application.Current.Shutdown(0);
-                                                               }
-                                                           }
-                                                       ));
+                    model.GetShutdownLock();
+                    singleInstanceService?.Dispose();
+                    appLifetime.Shutdown(0);
+                }
+            }
+
+            var ui = SafeObservableStatic.UiDispatcher;
+            if (ui != null)
+                ui.Invoke(ShutdownUi);
+            else
+                ShutdownUi();
         }
 
         public void StartGUI(bool showWindow)
@@ -151,10 +171,22 @@ namespace FAP.Application
             trayIcon.Shares = new RelayCommand(EditShares);
             trayIcon.ViewShare = new RelayCommand<object?>(viewShare);
             trayIcon.Compare = new RelayCommand(Compare);
+            trayIcon.Search = new RelayCommand(Search);
+            trayIcon.Chat = new RelayCommand(OpenChat);
             trayIcon.OpenExternal = new RelayCommand<object?>(OpenExternal);
             trayIcon.ShowIcon = true;
+            shellNavigation = serviceProvider.GetRequiredService<IShellNavigation>();
+            serviceProvider.GetRequiredService<IChatSession>().Load();
             if (showWindow)
                 ShowMainWindow();
+            if (!model.DisplayedHelp)
+            {
+                try { ShowQuickStart(); }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Quick Start failed; continuing without help dialog");
+                }
+            }
             _ = System.Threading.Tasks.Task.Run(() => MainWindowUpdaterAsync(System.Threading.CancellationToken.None));
         }
 
@@ -192,23 +224,14 @@ namespace FAP.Application
                 // Get SharesController from DI container
                 shareController = serviceProvider.GetRequiredService<SharesController>();
                 shareController.Initalise();
-                popupController = serviceProvider.GetRequiredService<IPopupWindowController>();
-                conversationController = (ConversationController) serviceProvider.GetRequiredService<IConversationController>();
+                conversationController = serviceProvider.GetRequiredService<IConversationController>();
                 watchdogController = serviceProvider.GetRequiredService<WatchdogController>();
 
                 // Run as a standard client by default; allow watchdog to start an overlord via election
                 model.IsDedicated = false;
                 watchdogController.Start();
-
-                if (!model.DisplayedHelp)
-                {
-                    try { ShowQuickStart(); }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "Quick Start failed; continuing without help window");
-                    }
-                }
             }
+            connectTiming.Mark(ConnectTimingPhases.LoadDone);
             return true;
         }
 
@@ -226,41 +249,10 @@ namespace FAP.Application
 
         public void ShowQuickStart()
         {
+            var ui = serviceProvider.GetRequiredService<IGettingStartedUi>();
+            ui.ShowGettingStarted();
             model.DisplayedHelp = true;
-            var helpWindow = serviceProvider.GetRequiredService<WebViewModel>();
-
-            if (null != helpWindow)
-            {
-                try
-                {
-                    var baseDir = AppContext.BaseDirectory ?? string.Empty;
-                    if (string.IsNullOrWhiteSpace(baseDir))
-                    {
-                        baseDir = Path.GetDirectoryName(Assembly.GetEntryAssembly()?.Location ?? string.Empty) ?? string.Empty;
-                        if (string.IsNullOrWhiteSpace(baseDir))
-                            baseDir = Environment.CurrentDirectory ?? string.Empty;
-                    }
-                    if (string.IsNullOrWhiteSpace(baseDir))
-                    {
-                        logger.LogWarning("Base directory is empty; skipping Quick Start help");
-                        return;
-                    }
-                    var helpPath = Path.Combine(baseDir, "Web.Help", "help.html");
-                    if (System.IO.File.Exists(helpPath))
-                    {
-                        helpWindow.Location = helpPath;
-                        popupController.AddWindow(helpWindow.View, "Quick Start");
-                    }
-                    else
-                    {
-                        logger.LogWarning("Quick Start help not found at {Path}; skipping help window", helpPath);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to show Quick Start help; continuing without it");
-                }
-            }
+            model.Save();
         }
 
         public void AddDownloadUrlWhenConnected(string url)
@@ -280,10 +272,11 @@ namespace FAP.Application
         {
             logger.LogDebug("ApplicationCore.StartClient: Starting client on port {Port}", model.LocalNode.Port);
             
-            // Create ListenerService with IServiceProvider instead of IContainer
-            client = new ListenerService(serviceProvider, false, serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ListenerService>>());
+            client = serviceProvider.GetRequiredService<FAP.Domain.Services.IListenerServiceFactory>().Create(false);
             client.Start(model.LocalNode.Port);
             connectionController.Start();
+            connectTiming.Mark(ConnectTimingPhases.ClientListen);
+            watchdogController?.OnClientListening();
             
             logger.LogDebug("ApplicationCore.StartClient: Client started successfully");
         }
@@ -294,8 +287,26 @@ namespace FAP.Application
             
             model.IsDedicated = true;
             overlordManagerService.Start();
-            
-            await Task.Delay(1000);
+
+            // Wait until :40 answers health instead of a fixed 1s sleep
+            using (var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromMilliseconds(300) })
+            {
+                var deadline = DateTime.UtcNow.AddSeconds(10);
+                while (DateTime.UtcNow < deadline)
+                {
+                    try
+                    {
+                        var resp = await http.GetAsync("http://127.0.0.1:40/Fap.api/health");
+                        if (resp.IsSuccessStatusCode)
+                            break;
+                    }
+                    catch
+                    {
+                        // not ready yet
+                    }
+                    await Task.Delay(50);
+                }
+            }
             
             logger.LogDebug("ApplicationCore.StartOverlordServer: Starting client to connect to overlord");
             StartClient();
@@ -327,7 +338,9 @@ namespace FAP.Application
                 mainWindowModel.Search = new RelayCommand(Search);
 
                 var f = new SafeFilteredObservingCollection<Node>(new SafeObservingCollection<Node>(model.Network.Nodes));
-                f.Filter = s => s.NodeType != ClientType.Overlord;
+                // Peers list = remote clients only (not overlord, not self).
+                f.Filter = s => s.NodeType != ClientType.Overlord
+                    && !string.Equals(s.ID, model.LocalNode.ID, StringComparison.Ordinal);
                 mainWindowModel.Peers = f;
                 mainWindowModel.ChatMessages = new SafeObservingCollection<string>(model.Messages);
             }
@@ -373,14 +386,12 @@ namespace FAP.Application
 
         #region Main window Commands
 
-        private void Search()
+        private void Search() => NavigateShell("search");
+
+        private void OpenChat()
         {
-            if (null == searchController)
-            {
-                searchController = serviceProvider.GetRequiredService<SearchController>();
-                searchController.Initalize();
-            }
-            popupController.AddWindow(searchController.ViewModel.View, "Search");
+            ShowMainWindow();
+            EnsureShell().NavigateToChat();
         }
 
         private void showUserInfo(object? obj)
@@ -390,25 +401,31 @@ namespace FAP.Application
             {
                 var o = serviceProvider.GetRequiredService<UserInfoViewModel>();
                 o.Node = n;
-                // popupController.AddWindow(o.View, "User info (" + n.Nickname + ")");
             }
         }
 
         private void Chat(object? o)
         {
             var peer = o as Node;
-            if (null != peer)
-                conversationController.CreateConversation(peer);
+            if (peer == null)
+                return;
+            ShowMainWindow();
+            serviceProvider.GetRequiredService<IChatSession>().OpenPeer(peer);
+            EnsureShell().NavigateToChat(peer.ID);
         }
 
-        private void Compare()
+        private void Compare() => NavigateShell("compare");
+
+        private void NavigateShell(string tag)
         {
-            if (null == compareController)
-            {
-                compareController = serviceProvider.GetRequiredService<CompareController>();
-                CompareViewModel vm = compareController.Initalise();
-            }
-            popupController.AddWindow(compareController.ViewModel.View, "Compare");
+            ShowMainWindow();
+            EnsureShell().NavigateTag(tag);
+        }
+
+        private IShellNavigation EnsureShell()
+        {
+            shellNavigation ??= serviceProvider.GetRequiredService<IShellNavigation>();
+            return shellNavigation;
         }
 
         private void OpenExternal(object? o)
@@ -438,15 +455,7 @@ namespace FAP.Application
                 mainWindowModel = null!;
         }
 
-        private void ViewQueue()
-        {
-            if (null == downloadQueueController)
-            {
-                downloadQueueController = serviceProvider.GetRequiredService<DownloadQueueController>();
-                downloadQueueController.Initalise();
-            }
-            popupController.AddWindow(downloadQueueController.ViewModel.View, "Download Queue");
-        }
+        private void ViewQueue() => NavigateShell("queue");
 
         private void sendChatMessage()
         {
@@ -458,7 +467,12 @@ namespace FAP.Application
                     break;
                 default:
                     if (!string.IsNullOrEmpty(mainWindowModel.CurrentChatMessage))
+                    {
+                        // Local echo so the chat list updates even if overlord fan-out is delayed.
+                        model.Messages.AddRotate(model.Nickname + ":" + mainWindowModel.CurrentChatMessage, 50);
+                        SafeObservingCollectionManager.UpdateNowAsync();
                         connectionController.SendMessage(mainWindowModel.CurrentChatMessage);
+                    }
                     break;
             }
             mainWindowModel.CurrentChatMessage = string.Empty;
@@ -467,67 +481,30 @@ namespace FAP.Application
         private void viewShare(object? o)
         {
             logger.LogDebug("viewShare: Called with object={Type}", o?.GetType().Name ?? "null");
-            
+
             var rc = o as Node;
             logger.LogDebug("viewShare: Cast to Node result={Nickname}", rc?.Nickname ?? "null");
-            
-            if (null != rc)
-            {
-                try
-                {
-                        logger.LogDebug("viewShare: Original node - Nickname={Nickname}, Host={Host}, ID={Id}", rc.Nickname, rc.Host, rc.ID);
-                    
-                    // Create BrowserController with the specific node
-                    var browserViewModel = serviceProvider.GetRequiredService<BrowserViewModel>();
-                    var shareInfoService = serviceProvider.GetRequiredService<ShareInfoService>();
-                    
-                    // Create a proper node with all required properties
-                    var properNode = new Node();
-                    properNode.Host = !string.IsNullOrEmpty(rc.Host) ? rc.Host : model.LocalNode.Host;
-                    properNode.ID = !string.IsNullOrEmpty(rc.ID) ? rc.ID : model.LocalNode.ID;
-                    properNode.Nickname = !string.IsNullOrEmpty(rc.Nickname) ? rc.Nickname : model.Nickname;
-                    properNode.NodeType = rc.NodeType;
-                    properNode.Online = rc.Online;
-                    
-                    // Copy any additional data from the original node
-                    foreach (var kvp in rc.Data)
-                    {
-                        properNode.SetData(kvp.Key, kvp.Value);
-                    }
-                    
-                        logger.LogDebug("viewShare: Created proper node - Nickname={Nickname}, Host={Host}, ID={Id}", properNode.Nickname, properNode.Host, properNode.ID);
-                    
-                    var bc = new BrowserController(browserViewModel, model, properNode, shareInfoService,
-                        serviceProvider.GetRequiredService<IHttpClientFactory>(),
-                        serviceProvider.GetRequiredService<ILogger<ModernHttpClient>>());
-                    bc.Initalise();
-                    popupController.AddWindow(bc.ViewModel.View, "View share of " + properNode.Nickname);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Error creating browser controller for node: {Nickname}", rc?.Nickname ?? "unknown");
-                }
-            }
-            else
+
+            if (null == rc)
             {
                 logger.LogWarning("viewShare called with null node");
+                return;
             }
-        }
 
-        private void EditShares()
-        {
-            popupController.AddWindow(shareController.ViewModel.View, "Edit shares");
-        }
-
-        private void Settings()
-        {
-            if (null == settingsController)
+            try
             {
-                settingsController = serviceProvider.GetRequiredService<SettingsController>();
-                settingsController.Initaize();
+                ShowMainWindow();
+                serviceProvider.GetRequiredService<IBrowseSessionHost>().OpenPeer(rc);
             }
-            popupController.AddWindow(settingsController.ViewModel.View, "Settings");
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error opening browse session for node: {Nickname}", rc.Nickname);
+            }
         }
+
+        private void EditShares() => NavigateShell("shares");
+
+        private void Settings() => NavigateShell("settings");
 
         #endregion
 
@@ -543,33 +520,43 @@ namespace FAP.Application
                 MainWindowViewModel? window = mainWindowModel;
                 if (null != window)
                 {
-                    window.Dispatcher.Invoke(DispatcherPriority.Background,
-                                             new Action(
-                                                 delegate
+                    SafeObservableStatic.UiDispatcher?.Invoke(
+                                                 () =>
                                                      {
                                                          if (null != mainWindowModel)
                                                          {
-                                                             //Update status line
+                                                             // Update status — one ConnectionState drives shell + home + InfoBar
                                                              {
-                                                                 var sbs = new StringBuilder();
-                                                                 sbs.Append("Status: ");
-                                                                 sbs.Append(model.Network.State);
-                                                                 sbs.Append(" as ");
-                                                                 sbs.Append(model.Nickname);
+                                                                 var state = model.Network.State;
+                                                                 var nick = model.Nickname ?? string.Empty;
+                                                                 window.IsMeshConnected = state == ConnectionState.Connected;
+                                                                 window.ShellStatus = string.IsNullOrWhiteSpace(nick)
+                                                                     ? state.ToString()
+                                                                     : $"{state} · {nick}";
 
-                                                                 if (overlordManagerService.IsOverlordActive)
-                                                                     sbs.Append(" (Overlord host)");
+                                                                 var primary = new StringBuilder();
+                                                                 primary.Append("Status: ");
+                                                                 primary.Append(state);
+                                                                 if (!string.IsNullOrWhiteSpace(nick))
+                                                                 {
+                                                                     primary.Append(" as ");
+                                                                     primary.Append(nick);
+                                                                 }
+                                                                 window.NodeStatus = primary.ToString();
 
-                                                                 if (model.Network.State == ConnectionState.Connected)
+                                                                 var detail = new StringBuilder();
+                                                                 if (state == ConnectionState.Connected)
                                                                  {
                                                                      if (model.Network.Overlord.Host ==
                                                                          model.LocalNode.Host)
                                                                      {
-                                                                         sbs.Append(" on yourself.");
+                                                                         detail.Append(overlordManagerService.IsOverlordActive
+                                                                             ? "Hosting the mesh on this machine."
+                                                                             : "Connected on yourself.");
                                                                      }
                                                                      else
                                                                      {
-                                                                         sbs.Append(" on ");
+                                                                         detail.Append("Mesh host: ");
                                                                          Node? search =
                                                                              model.Network.Nodes.ToList().Where(
                                                                                  n =>
@@ -577,15 +564,17 @@ namespace FAP.Application
                                                                                  n.NodeType == ClientType.Client).
                                                                                  FirstOrDefault();
                                                                          if (null == search)
-                                                                             sbs.Append(model.Network.Overlord.Host);
+                                                                             detail.Append(model.Network.Overlord.Host);
                                                                          else
-                                                                             sbs.Append(search.Nickname);
+                                                                             detail.Append(search.Nickname);
                                                                      }
                                                                  }
+                                                                 else if (overlordManagerService.IsOverlordActive)
+                                                                 {
+                                                                     detail.Append("Starting as mesh host…");
+                                                                 }
 
-                                                                 window.NodeStatus = sbs.ToString();
-                                                                 sbs.Length = 0;
-                                                                 sbs = null;
+                                                                 window.NodeStatusDetail = detail.ToString();
                                                              }
 
                                                              //Update stats line
@@ -692,8 +681,7 @@ namespace FAP.Application
                                                                  }
                                                              }
                                                          }
-                                                     }
-                                                 ));
+                                                     });
                 }
                 window = null!;
                 try { await System.Threading.Tasks.Task.Delay(333, token); } catch { }

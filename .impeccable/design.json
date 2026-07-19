@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-19T09:00:00.000Z",
+  "title": "Design System: FAP",
+  "extensions": {
+    "colorMeta": {
+      "system-blue": {
+        "role": "primary",
+        "displayName": "System Blue",
+        "canonical": "#0b57d0",
+        "tonalRamp": ["#0a2f6b", "#0b3d8c", "#0b4aab", "#0b57d0", "#3d7dde", "#6fa3eb", "#a1c4f5", "#d6e6fb"]
+      },
+      "slot-green": {
+        "role": "secondary",
+        "displayName": "Slot Green",
+        "canonical": "#0f7b3a",
+        "tonalRamp": ["#063d1d", "#0a5a2a", "#0f7b3a", "#2a9454", "#4fad72", "#7bc595", "#aeddbc", "#dff0e4"]
+      },
+      "slot-red": {
+        "role": "secondary",
+        "displayName": "Slot Red",
+        "canonical": "#b42318",
+        "tonalRamp": ["#5c120c", "#8a1a12", "#b42318", "#c84a3f", "#d9766d", "#e8a39c", "#f3ccc8", "#fbeceb"]
+      },
+      "ink-slate": {
+        "role": "neutral",
+        "displayName": "Ink Slate",
+        "canonical": "#1b1f24",
+        "tonalRamp": ["#0d0f12", "#1b1f24", "#2f363e", "#5c6570", "#9aa3ad", "#d7dde5", "#eef1f6", "#f6f7f9"]
+      },
+      "cool-paper": {
+        "role": "neutral",
+        "displayName": "Cool Paper",
+        "canonical": "#f6f7f9",
+        "tonalRamp": ["#121417", "#1b1f24", "#2f363e", "#5c6570", "#9aa3ad", "#d7dde5", "#eef1f6", "#f6f7f9"]
+      },
+      "mist-header": {
+        "role": "neutral",
+        "displayName": "Mist Header",
+        "canonical": "#eef1f6",
+        "tonalRamp": ["#1f242b", "#2f363e", "#5c6570", "#9aa3ad", "#d7dde5", "#eef1f6", "#f6f7f9", "#ffffff"]
+      },
+      "card-white": {
+        "role": "neutral",
+        "displayName": "Card White",
+        "canonical": "#ffffff",
+        "tonalRamp": ["#1b1f24", "#2f363e", "#5c6570", "#9aa3ad", "#d7dde5", "#eef1f6", "#f6f7f9", "#ffffff"]
+      },
+      "border-cool": {
+        "role": "neutral",
+        "displayName": "Border Cool",
+        "canonical": "#d7dde5",
+        "tonalRamp": ["#2f363e", "#5c6570", "#9aa3ad", "#b8c0cb", "#d7dde5", "#e4e9ef", "#eef1f6", "#f6f7f9"]
+      },
+      "muted-slate": {
+        "role": "neutral",
+        "displayName": "Muted Slate",
+        "canonical": "#5c6570",
+        "tonalRamp": ["#1b1f24", "#2f363e", "#5c6570", "#7a848f", "#9aa3ad", "#b8c0cb", "#d7dde5", "#eef1f6"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Guest share title only." },
+      "headline": { "displayName": "Headline", "purpose": "WinUI settings and feature page titles." },
+      "title": { "displayName": "Title", "purpose": "Connection status and section emphasis." },
+      "body": { "displayName": "Body", "purpose": "Primary UI and guest copy." },
+      "label": { "displayName": "Label", "purpose": "Table headers and compact meta." }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "state-standard",
+        "value": "150ms cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "State changes only; no page-load choreography. Honor prefers-reduced-motion."
+      }
+    ],
+    "breakpoints": [
+      { "name": "guest-max", "value": "1100px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Guest breadcrumb",
+      "kind": "nav",
+      "refersTo": "guest-breadcrumb",
+      "description": "Path strip on guest browse — Mist Header, 8px radius, System Blue links.",
+      "html": "<nav class=\"ds-breadcrumb\" aria-label=\"Path\"><a href=\"/\">Root</a><span class=\"ds-split\" aria-hidden=\"true\">/</span><a href=\"/share\">share</a></nav>",
+      "css": ".ds-breadcrumb { margin: 1.25rem 0; padding: 0.75rem 1rem; background: #eef1f6; border: 1px solid #d7dde5; border-radius: 8px; font-family: \"Segoe UI Variable\", \"Segoe UI\", system-ui, sans-serif; } .ds-breadcrumb a { color: #0b57d0; text-decoration: none; } .ds-breadcrumb a:hover { text-decoration: underline; } .ds-breadcrumb a:focus-visible { outline: 2px solid #0b57d0; outline-offset: 2px; } .ds-split { margin: 0 0.35rem; color: #5c6570; }"
+    },
+    {
+      "name": "Guest table wrap",
+      "kind": "card",
+      "refersTo": "guest-table-wrap",
+      "description": "Flat bordered file listing container — Card White, 10px radius, no shadow.",
+      "html": "<div class=\"ds-table-wrap\"><table class=\"ds-file-table\"><thead><tr><th>Name</th><th>Size</th></tr></thead><tbody><tr><td><a href=\"#\">readme.txt</a></td><td class=\"ds-size\">12 KB</td></tr></tbody></table></div>",
+      "css": ".ds-table-wrap { background: #ffffff; border: 1px solid #d7dde5; border-radius: 10px; overflow: auto; padding: 0.5rem; font-family: \"Segoe UI Variable\", \"Segoe UI\", system-ui, sans-serif; color: #1b1f24; } .ds-file-table { width: 100%; border-collapse: collapse; } .ds-file-table th, .ds-file-table td { padding: 0.55rem 0.65rem; border-bottom: 1px solid #d7dde5; text-align: left; } .ds-file-table th { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; color: #5c6570; } .ds-file-table tbody tr:hover { background: color-mix(in srgb, #0b57d0 8%, transparent); } .ds-file-table a { color: #0b57d0; text-decoration: none; } .ds-file-table a:hover { text-decoration: underline; } .ds-file-table a:focus-visible { outline: 2px solid #0b57d0; outline-offset: 2px; } .ds-size { text-align: right; }"
+    },
+    {
+      "name": "Guest link",
+      "kind": "button",
+      "refersTo": "guest-link",
+      "description": "Primary interactive text on guest web — System Blue, underline on hover.",
+      "html": "<a class=\"ds-link\" href=\"#\">Open share</a>",
+      "css": ".ds-link { color: #0b57d0; text-decoration: none; font-family: \"Segoe UI Variable\", \"Segoe UI\", system-ui, sans-serif; } .ds-link:hover { text-decoration: underline; } .ds-link:focus-visible { outline: 2px solid #0b57d0; outline-offset: 2px; }"
+    },
+    {
+      "name": "Slot status",
+      "kind": "chip",
+      "refersTo": null,
+      "description": "Upload-slot truth — Slot Green or Slot Red, never decorative.",
+      "html": "<p class=\"ds-slots\"><span class=\"ds-ok\">2 of 4 upload slots available</span>.</p>",
+      "css": ".ds-slots { font-family: \"Segoe UI Variable\", \"Segoe UI\", system-ui, sans-serif; color: #5c6570; margin: 0.25rem 0; } .ds-ok { color: #0f7b3a; font-weight: 600; } .ds-bad { color: #b42318; font-weight: 600; }"
+    },
+    {
+      "name": "WinUI status line",
+      "kind": "custom",
+      "refersTo": "winui-status",
+      "description": "Connection / mesh status — SemiBold title weight, louder than chrome.",
+      "html": "<p class=\"ds-status\">Connected — 3 peers online</p>",
+      "css": ".ds-status { margin: 0; font-family: \"Segoe UI Variable\", \"Segoe UI\", system-ui, sans-serif; font-size: 1.125rem; font-weight: 600; line-height: 1.35; color: #1b1f24; }"
+    },
+    {
+      "name": "WinUI page frame",
+      "kind": "card",
+      "refersTo": "winui-page",
+      "description": "Content page rhythm — 16px margin, calm unshadowed panel over Mica shell.",
+      "html": "<section class=\"ds-page\"><h2 class=\"ds-page-title\">Settings</h2><p class=\"ds-page-body\">User, folders, network, transfer limits.</p></section>",
+      "css": ".ds-page { margin: 16px; max-width: 560px; font-family: \"Segoe UI Variable\", \"Segoe UI\", system-ui, sans-serif; color: #1b1f24; } .ds-page-title { margin: 0 0 12px; font-size: 1.25rem; font-weight: 600; } .ds-page-body { margin: 0; font-size: 1rem; line-height: 1.45; color: #5c6570; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The LAN Console",
+    "overview": "FAP’s visual system is a status-first mesh console: restrained Fluent utility with readable density and chrome that never outranks connection, peers, or transfers. The desktop client is the primary surface — WinUI 3, Mica shell, NavigationView — patterned after Microsoft PowerToys Settings. Guest web is a thin share desk: cool neutrals, one system blue for links, semantic greens/reds for slot state, and a capable directory table — not a second full client.\n\nPersonality is fast, plain, capable. One Segoe family carries everything. Accent color marks actions, selection, and state — never decoration. Depth is a Fluent hybrid: shell materials and system elevation on desktop; flat bordered panels and tonal steps on guest web.\n\nThis system explicitly rejects legacy dense P2P clients — cluttered toolbars, tiny fonts, every control visible at once — and rejects consumer “drive” marketing chrome.",
+    "keyCharacteristics": [
+      "Status before chrome",
+      "PowerToys Settings structure on desktop; thin guest table on web",
+      "Cool Fluent neutrals + System Blue accent ≤10%",
+      "Flat guest surfaces; Mica/shell depth only where the OS provides it",
+      "WCAG 2.2 AA target on guest web; automation-friendly WinUI"
+    ],
+    "rules": [
+      { "name": "The One Accent Rule", "body": "System Blue (and OS accent on desktop) is used for interactive affordances and selection only — ≤10% of any screen. Neutrals carry the rest.", "section": "colors" },
+      { "name": "The Slot Signal Rule", "body": "Green and red mean upload-slot / transfer truth, never decorative badges or marketing highlights.", "section": "colors" },
+      { "name": "The One Family Rule", "body": "Never introduce a second typeface for UI labels, buttons, or data. Segoe (or Fluent theme fonts) only.", "section": "typography" },
+      { "name": "The Fixed Scale Rule", "body": "Product UI uses fixed rem/px steps, not clamp() display sizes that shrink awkwardly in panes.", "section": "typography" },
+      { "name": "The Flat Guest Rule", "body": "Guest surfaces stay flat at rest. If a panel needs separation, use border + surface step, not box-shadow with blur ≥16px.", "section": "elevation" },
+      { "name": "The Shell Depth Rule", "body": "Real depth belongs to the OS shell (Mica, NavigationView, TitleBar). Content pages stay calm and unshadowed.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep connection, peer, and transfer status visually louder than decorative chrome.",
+      "Do pattern desktop settings and nav after PowerToys Settings (microsoft/PowerToys src/settings-ui).",
+      "Do keep guest web thin: directory listing, breadcrumb, slot truth, download handoff.",
+      "Do use Cool Paper / Mist Header / Card White tonal steps and 1px Border Cool for structure on guest web.",
+      "Do meet WCAG 2.2 AA for guest text/contrast; keep WinUI AutomationIds and keyboard paths intact.",
+      "Do respect prefers-reduced-motion on web and system motion settings on desktop."
+    ],
+    "donts": [
+      "Don't recreate legacy dense P2P clients: cluttered toolbars, tiny fonts, every control visible at once.",
+      "Don't turn guest web into a second full client or a consumer cloud-drive marketing page.",
+      "Don't invent custom decorative shadows, glass stacks, or neon/RGB accents.",
+      "Don't use a second display typeface or File Explorer–style chrome as the product metaphor.",
+      "Don't spend System Blue / Slot Green / Slot Red on inactive decoration — they are interactive and semantic only.",
+      "Don't pair 1px borders with soft wide drop shadows (ghost-card) on guest panels."
+    ]
+  }
+}

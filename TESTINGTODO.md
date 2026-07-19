@@ -1,38 +1,74 @@
-## TESTINGTODO – Replacing Client.Console with Automated Integration Tests
+## TESTINGTODO – Automated regression + agent feedback
 
-We are deprecating `UI/Client.Console` and replacing it with automated tests and a reusable testing library. This section tracks what’s done and what remains.
+
 
 ### Deprecation plan for Client.Console
+
 - [ ] Mark `UI/Client.Console` as deprecated in repo docs (`docs/client-console.md`).
+
 - [ ] Ensure no projects reference `Client.Console`.
+
 - [ ] Remove `UI/Client.Console` from `Fap.sln`.
+
 - [ ] Delete `UI/Client.Console` after CI is green with the new tests.
 
+
+
 ### Implemented
-- [x] New test library `FAP.Testing` created; provides primitives and a default scenario runner (can expand later).
-- [x] Integration test project `tests/FAP.IntegrationTests` with fixtures:
-  - [x] Overlord fixture hosts server in-process on 127.0.0.1:40.
-  - [x] Client fixture hosts a client node with a temporary share, on a free port (8030).
-  - [x] Global non-parallel test execution to avoid port conflicts.
-  - [x] Quiet logging during tests; concise step markers printed.
-- Tests implemented and passing:
-  - [x] Overlord health: `GET /Fap.api/health`.
-  - [x] Overlord compare: `GET /Fap.api/compare/v1`.
-  - [x] Static file: `GET /Fap.app.web/template.html`.
-  - [x] Overlord protocol: CONNECT → INFO → NOOP → CHAT (with session secret).
-  - [x] Client node: SEARCH, BROWSE, direct GET download, Range GET.
 
-### Still to implement (kept from original intent)
-- [ ] Multicast scenarios (network discovery):
-  - [ ] HelloVerb (HELLO) and WhoVerb (WHO) over UDP multicast. Note: not HTTP; requires a dedicated harness or specialized fixture.
-- [ ] Multiplexor encode/decode smoke test (symmetry check across a small fixed set).
-- [ ] Broader verb coverage (optional next): UPDATE, ADDDOWNLOAD, error paths (bad/missing auth).
-- [ ] Concurrency scenarios (multi-client concurrent downloads/searches).
+- [x] Test library `FAP.Testing` with `DefaultScenarioRunner` (wired from xUnit).
 
-### CI/build integration
-- [x] `build.ps1` updated to optionally run `dotnet test` after build.
-- [ ] Add CI job to run integration tests on PRs; optionally a larger nightly scenario.
-- [ ] Document run commands and environment variables in `docs/testing-platform.md`.
+- [x] `tests/FAP.IntegrationTests` fixtures via shipping `AddFapCore`:
 
-### Notes
-- This testing replaces the need for `Client.Console`. It is more reliable, runs in CI, and is easy to extend.
+  - [x] Overlord on `127.0.0.1:40`
+
+  - [x] Client on `8030` with a temp share `hello.txt`
+
+  - [x] Non-parallel execution; quiet logging; step markers
+
+- [x] Overlord: health, compare/v1, guest root, guest-ui, static assets, CONNECT→INFO→NOOP→CHAT
+
+- [x] Client: SEARCH, BROWSE, GET, Range GET, ETag/If-None-Match, ADDDOWNLOAD auth
+
+- [x] Shipping composition smoke (`AddFapCore` + `AddFapClient` + UI stubs)
+
+- [x] `tests/FAP.UnitTests` (ViewModels + Multiplexor)
+
+- [x] `tests/FAP.GuestWeb.UITests` (Playwright)
+
+- [x] Guest/WinUI capture scripts under `scripts/`
+
+- [x] WinUI AutomationIds + `tests/FAP.WinUI.UITests` (FlaUI, Category=UI)
+
+- [x] CI: `.github/workflows/test.yml` (unit + integration + guest UI)
+
+- [x] Docs: must-not-break matrix in `docs/testing-platform.md`
+
+- [x] Time-to-connected harness (`TimeToConnected` collection + `IConnectTimingProbe` + JSON artifacts)
+
+- [x] `FapElectionOptions.DiscoveryGraceMs` + Watchdog uses `LANPeerFinderService.Peers`
+
+- [x] `scripts/sweep-discovery-grace.ps1` + multi_cold_start repeats
+
+- [x] `scripts/bench-connect-timing.ps1` / `scripts/compare-connect-timing.ps1` (Framework A/B via `FAP_LEGACY_ROOT`)
+
+
+
+### Still to implement
+
+- [x] `multi_cold_start` TimeToConnected (N clients race; OverlordCount=1 oracle)
+
+- [ ] Multicast HELLO/WHO harness beyond join_existing / multi_cold_start
+
+- [ ] Broader verb coverage (UPDATE error paths)
+
+- [ ] Concurrency / nightly load scenarios
+
+- [ ] Nightly WinUI FlaUI CI job
+
+- [ ] Finish Client.Console deprecation
+
+- [ ] Tighten TimeToConnected CI budgets toward agent targets (solo &lt; 3s, join &lt; 1.5s, multi &lt; 5s, dedicated &lt; 2.5s) — agent targets already green with DiscoveryGraceMs=0
+
+- [ ] Legacy solo_elect process timing (beyond Server.Console dedicated)
+

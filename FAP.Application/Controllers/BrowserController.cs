@@ -25,7 +25,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Threading;
+using Fap.Foundation.Threading;
 using FAP.Application.ViewModels;
 using FAP.Domain;
 using FAP.Domain.Entities;
@@ -87,8 +87,9 @@ namespace FAP.Application.Controllers
         {
             var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
             logger.LogDebug("Populate: Starting with path='{Path}'", ent);
-            
-            ent = ent.Replace('/', '\\');
+
+            // Normalize to forward slashes for BrowsingFile.FullPath / BrowseVerb paths.
+            ent = (ent ?? string.Empty).Replace('\\', '/').Trim('/');
             bvm.IsBusy = true;
             if (string.IsNullOrEmpty(ent))
             {
@@ -97,7 +98,7 @@ namespace FAP.Application.Controllers
                 _ = Task.Run(() => PopulateAsync(null));
                 return;
             }
-            string[] items = ent.Split('\\');
+            string[] items = ent.Split('/', StringSplitOptions.RemoveEmptyEntries);
             logger.LogDebug("Populate: Split path into {Count} items: [{Items}]", items.Length, string.Join(", ", items));
             BrowsingFile? parent = bvm.Root.Where(n => n.Name == items[0]).FirstOrDefault();
             logger.LogDebug("Populate: Found parent in Root: {Parent}", parent?.Name ?? "null");
@@ -108,7 +109,6 @@ namespace FAP.Application.Controllers
                 // Create a temporary BrowsingFile to represent this share
                 logger.LogDebug("Populate: Parent not found in Root, creating temporary share for '{Item}'", items[0]);
                 var tempShare = new BrowsingFile();
-                tempShare.Name = items[0];
                 tempShare.FullPath = ent;
                 tempShare.IsFolder = true;
                 _ = Task.Run(() => PopulateAsync(tempShare));
@@ -140,8 +140,11 @@ namespace FAP.Application.Controllers
                 BrowsingFile? search = parent.Items.Where(n => n.Name == items[i]).FirstOrDefault();
                 if (null == search)
                 {
-                    var fse = new BrowsingFile();
-                    fse.FullPath = ent;
+                    var fse = new BrowsingFile
+                    {
+                        IsFolder = true,
+                        FullPath = string.Join('/', items.Take(i + 1))
+                    };
                     parent.Items.Add(fse);
                     parent = fse;
                 }
@@ -176,8 +179,7 @@ namespace FAP.Application.Controllers
                 if (client == null)
                 {
                     logger.LogWarning("PopulateAsync: Client is null");
-                    SafeObservableStatic.Dispatcher.Invoke(DispatcherPriority.Normal,
-                                                           new Action(
+                    SafeObservableStatic.UiDispatcher?.Invoke(new Action(
                                                                delegate
                                                                    {
                                                                        bvm.Status = "Error: No client available for browsing.";
@@ -190,8 +192,7 @@ namespace FAP.Application.Controllers
                 if (model?.LocalNode == null)
                 {
                     logger.LogWarning("PopulateAsync: Model or LocalNode is null");
-                    SafeObservableStatic.Dispatcher.Invoke(DispatcherPriority.Normal,
-                                                           new Action(
+                    SafeObservableStatic.UiDispatcher?.Invoke(new Action(
                                                                delegate
                                                                    {
                                                                        bvm.Status = "Error: Local node not available.";
@@ -223,8 +224,7 @@ namespace FAP.Application.Controllers
                              logger.LogDebug("PopulateAsync: Command executed successfully, Results count = {Count}", cmd.Results?.Count ?? 0);
                              try
                              {
-                                 SafeObservableStatic.Dispatcher.Invoke(DispatcherPriority.Normal,
-                                                                        new Action(
+                                 SafeObservableStatic.UiDispatcher?.Invoke(new Action(
                                                                             delegate
                                                                                 {
                                                                                     try
@@ -269,10 +269,9 @@ namespace FAP.Application.Controllers
                          }
                         else
                         {
-                            if (SafeObservableStatic.Dispatcher != null)
+                            if (SafeObservableStatic.UiDispatcher != null)
                             {
-                                SafeObservableStatic.Dispatcher.Invoke(DispatcherPriority.Normal,
-                                                                       new Action(
+                                SafeObservableStatic.UiDispatcher?.Invoke(new Action(
                                                                            delegate
                                                                                {
                                                                                    if (bvm != null)
@@ -285,16 +284,15 @@ namespace FAP.Application.Controllers
                             }
                             else
                             {
-                            logger.LogWarning("PopulateAsync: SafeObservableStatic.Dispatcher is null, cannot update UI for failed browse command");
+                            logger.LogWarning("PopulateAsync: SafeObservableStatic.UiDispatcher is null, cannot update UI for failed browse command");
                             }
                         }
                     }
                     catch (Exception ex)
                     {
-                        if (SafeObservableStatic.Dispatcher != null)
+                        if (SafeObservableStatic.UiDispatcher != null)
                         {
-                            SafeObservableStatic.Dispatcher.Invoke(DispatcherPriority.Normal,
-                                                                   new Action(
+                            SafeObservableStatic.UiDispatcher?.Invoke(new Action(
                                                                        delegate
                                                                            {
                                                                                if (bvm != null)
@@ -307,7 +305,7 @@ namespace FAP.Application.Controllers
                         }
                         else
                         {
-                            logger.LogWarning("PopulateAsync: SafeObservableStatic.Dispatcher is null, cannot update UI for browse command error");
+                            logger.LogWarning("PopulateAsync: SafeObservableStatic.UiDispatcher is null, cannot update UI for browse command error");
                         }
                     }
                 }
@@ -329,14 +327,13 @@ namespace FAP.Application.Controllers
                              logger.LogDebug("PopulateAsync: Root command executed successfully, Results count = {Count}", cmd.Results?.Count ?? 0);
                              try
                              {
-                                 if (SafeObservableStatic.Dispatcher == null)
+                                 if (SafeObservableStatic.UiDispatcher == null)
                                  {
-                                    logger.LogWarning("PopulateAsync: SafeObservableStatic.Dispatcher is null, cannot update UI");
+                                    logger.LogWarning("PopulateAsync: SafeObservableStatic.UiDispatcher is null, cannot update UI");
                                      return;
                                  }
                                  
-                                 SafeObservableStatic.Dispatcher.Invoke(DispatcherPriority.Normal,
-                                                                        new Action(
+                                 SafeObservableStatic.UiDispatcher?.Invoke(new Action(
                                                                             delegate
                                                                                 {
                                                                                     try
@@ -389,12 +386,11 @@ namespace FAP.Application.Controllers
                              catch (Exception ex)
                              {
                  logger.LogError(ex, "PopulateAsync: Error invoking dispatcher for root browse UI update");
-                                 if (bvm != null && SafeObservableStatic.Dispatcher != null)
+                                 if (bvm != null && SafeObservableStatic.UiDispatcher != null)
                                  {
                                      try
                                      {
-                                         SafeObservableStatic.Dispatcher.Invoke(DispatcherPriority.Normal,
-                                                                                new Action(
+                                         SafeObservableStatic.UiDispatcher?.Invoke(new Action(
                                                                                     delegate
                                                                                         {
                                                                                             bvm.Status = $"Error updating UI: {ex.Message}";
@@ -411,8 +407,7 @@ namespace FAP.Application.Controllers
                          }
                         else
                         {
-                            SafeObservableStatic.Dispatcher.Invoke(DispatcherPriority.Normal,
-                                                                   new Action(
+                            SafeObservableStatic.UiDispatcher?.Invoke(new Action(
                                                                        delegate
                                                                            {
                                                                                bvm.Status = "Failed to execute browse command.";
@@ -423,10 +418,9 @@ namespace FAP.Application.Controllers
                     }
                     catch (Exception ex)
                     {
-                        if (SafeObservableStatic.Dispatcher != null)
+                        if (SafeObservableStatic.UiDispatcher != null)
                         {
-                            SafeObservableStatic.Dispatcher.Invoke(DispatcherPriority.Normal,
-                                                                   new Action(
+                            SafeObservableStatic.UiDispatcher?.Invoke(new Action(
                                                                        delegate
                                                                            {
                                                                                if (bvm != null)
@@ -439,17 +433,16 @@ namespace FAP.Application.Controllers
                         }
                         else
                         {
-                    logger.LogWarning("PopulateAsync: SafeObservableStatic.Dispatcher is null, cannot update UI for browse command error");
+                    logger.LogWarning("PopulateAsync: SafeObservableStatic.UiDispatcher is null, cannot update UI for browse command error");
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                if (SafeObservableStatic.Dispatcher != null)
+                if (SafeObservableStatic.UiDispatcher != null)
                 {
-                    SafeObservableStatic.Dispatcher.Invoke(DispatcherPriority.Normal,
-                                                           new Action(
+                    SafeObservableStatic.UiDispatcher?.Invoke(new Action(
                                                                delegate
                                                                    {
                                                                        if (bvm != null)
@@ -463,7 +456,7 @@ namespace FAP.Application.Controllers
                 else
                 {
                     var logger2 = Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
-                    logger2.LogWarning("PopulateAsync: SafeObservableStatic.Dispatcher is null, cannot update UI for browse operation error");
+                    logger2.LogWarning("PopulateAsync: SafeObservableStatic.UiDispatcher is null, cannot update UI for browse operation error");
                 }
             }
         }
@@ -536,8 +529,7 @@ namespace FAP.Application.Controllers
             /*  bvm.CurrentDirectory.Clear();
               if (c.Execute(cmd, client))
               {
-                  SafeObservableStatic.Dispatcher.Invoke(System.Windows.Threading.DispatcherPriority.Normal,
-                    new Action(
+                  SafeObservableStatic.UiDispatcher?.Invoke(new Action(
                      delegate()
                      {
                          bvm.Status = "Download complete (" + cmd.Results.Count + ").";
@@ -571,8 +563,7 @@ namespace FAP.Application.Controllers
             cmd.NoCache = bvm.NoCache;
             if (c.Execute(cmd, client))
             {
-                /*  SafeObservableStatic.Dispatcher.Invoke(System.Windows.Threading.DispatcherPriority.Normal,
-                 new Action(
+                /*  SafeObservableStatic.UiDispatcher?.Invoke(new Action(
                   delegate()
                   {
                       bvm.Status = "Download complete (" + cmd.Results.Count + " items).";

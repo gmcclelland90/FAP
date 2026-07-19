@@ -18,18 +18,10 @@
 #endregion
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
 using CommunityToolkit.Mvvm.Input;
-using System.Windows.Input;
-using System.Collections.Concurrent;
+using FAP.Application.Services;
 using FAP.Application.ViewModels;
 using FAP.Domain.Entities;
-using FAP.Domain;
-using FAP.Domain.Net;
-using FAP.Domain.Services;
-using FAP.Domain.Verbs;
 using Fap.Foundation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -38,24 +30,21 @@ namespace FAP.Application.Controllers
 {
     public class CompareController : AsyncControllerBase
     {
-        private static readonly ConcurrentDictionary<string, (CompareNode node, DateTime ts)> recentCache = new();
-        private static readonly TimeSpan cacheTtl = TimeSpan.FromSeconds(60);
         private readonly IServiceProvider serviceProvider;
-        private readonly Microsoft.Extensions.Logging.ILogger<CompareController> logger;
+        private readonly ILogger<CompareController> logger;
         private readonly Model model;
+        private readonly IPeerOrchestration peerOrchestration;
         private CompareViewModel viewModel = null!;
 
-        public CompareController(IServiceProvider serviceProvider, Model m)
+        public CompareController(IServiceProvider serviceProvider, Model m, IPeerOrchestration peerOrchestration)
         {
-            logger = serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<CompareController>>();
+            logger = serviceProvider.GetRequiredService<ILogger<CompareController>>();
             model = m;
             this.serviceProvider = serviceProvider;
+            this.peerOrchestration = peerOrchestration;
         }
 
-        public CompareViewModel ViewModel
-        {
-            get { return viewModel; }
-        }
+        public CompareViewModel ViewModel => viewModel;
 
         public CompareViewModel Initalise()
         {
@@ -77,89 +66,42 @@ namespace FAP.Application.Controllers
             viewModel.EnableRun = false;
             viewModel.Status = "Collecting...";
 
-            QueueWork(new RelayCommand(() =>
+            QueueWork(_ =>
             {
+                string status = "Idle";
                 try
                 {
-                    var peers = model.Network.Nodes
-                        .ToList()
-                        .Where(n => n.NodeType != ClientType.Overlord && n.Online)
-                        .ToList();
-
-                    if (peers.Count == 0)
-                    {
-                        viewModel.Status = "No peers online";
-                        return;
-                    }
-
-                    // Clear previous results
-                    viewModel.Data.Clear();
-
-                    var maxParallel = Math.Max(2, Environment.ProcessorCount);
-                    var options = new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = maxParallel };
-
                     var startedAt = DateTime.UtcNow;
-                    System.Threading.Tasks.Parallel.ForEach(peers, options, peer =>
+                    var results = peerOrchestration.ComparePeersAsync(model).GetAwaiter().GetResult();
+                    SafeObservableStatic.UiDispatcher?.Invoke(() =>
                     {
-                        try
-                        {
-                            var peerStart = DateTime.UtcNow;
-                            var cacheKey = string.IsNullOrWhiteSpace(peer.Location) ? (peer.Host ?? peer.Nickname ?? Guid.NewGuid().ToString()) : peer.Location;
-                            if (recentCache.TryGetValue(cacheKey, out var cached) && (DateTime.UtcNow - cached.ts) < cacheTtl)
-                            {
-                                var cachedNode = cached.node;
-                                cachedNode.Nickname = string.IsNullOrEmpty(peer.Nickname) ? peer.Host ?? string.Empty : peer.Nickname;
-                                cachedNode.Status = cachedNode.Status; // trigger change stamp
-                                cachedNode.LatencyMs = 0;
-                                viewModel.Data.Add(cachedNode);
-                                return;
-                            }
-                            var client = new Client(model.LocalNode);
-                            var verb = new CompareVerb();
-                            var ok = client.Execute(verb, peer, 7000);
-                            if (!ok)
-                            {
-                                var errorNode = new CompareNode
-                                {
-                                    Nickname = string.IsNullOrEmpty(peer.Nickname) ? peer.Host ?? string.Empty : peer.Nickname
-                                };
-                                errorNode.Status = "Error";
-                                errorNode.LatencyMs = (long)(DateTime.UtcNow - peerStart).TotalMilliseconds;
-                                viewModel.Data.Add(errorNode);
-                                return;
-                            }
-
-                            var result = verb.Node ?? new CompareNode();
-                            if (string.IsNullOrEmpty(result.Nickname))
-                                result.Nickname = string.IsNullOrEmpty(peer.Nickname) ? peer.Host ?? string.Empty : peer.Nickname;
-
-                            result.Status = verb.Allowed ? "OK" : "Denied";
-                            result.LatencyMs = (long)(DateTime.UtcNow - peerStart).TotalMilliseconds;
-                            viewModel.Data.Add(result);
-                            recentCache[cacheKey] = (result, DateTime.UtcNow);
-                        }
-                        catch (Exception ex)
-                        {
-                            logger.LogWarning(ex, "Compare failed for peer {Peer}", peer?.Nickname ?? peer?.Host ?? "unknown");
-                            var errorNode = new CompareNode
-                            {
-                                Nickname = peer?.Nickname ?? peer?.Host ?? string.Empty
-                            };
-                            errorNode.Status = "Error";
-                            // If we reached here we still have elapsed time for the attempt
-                            // Capture approximate latency for visibility
-                            errorNode.LatencyMs = 0;
-                            viewModel.Data.Add(errorNode);
-                        }
+                        viewModel.Data.Clear();
+                        foreach (var node in results)
+                            viewModel.Data.Add(node);
                     });
                     var totalMs = (long)(DateTime.UtcNow - startedAt).TotalMilliseconds;
-                    viewModel.Status = viewModel.Data.Count == 0 ? "No responses" : $"Complete in {totalMs} ms";
+                    status = results.Count == 0 ? "No responses" : $"Complete in {totalMs} ms";
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Compare operation failed");
+                    status = "Compare failed: " + ex.Message;
                 }
                 finally
                 {
-                    viewModel.EnableRun = true;
+                    var finalStatus = status;
+                    void Finish()
+                    {
+                        viewModel.Status = finalStatus;
+                        viewModel.EnableRun = true;
+                    }
+
+                    if (SafeObservableStatic.UiDispatcher != null)
+                        SafeObservableStatic.UiDispatcher.Invoke(Finish);
+                    else
+                        Finish();
                 }
-            }));
+            });
         }
 
         private void Reset()

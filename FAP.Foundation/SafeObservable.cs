@@ -17,45 +17,56 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Collections.Specialized;
-using System.Windows.Threading;
 using System.Threading;
 using System.Collections;
+using Fap.Foundation.Threading;
 
 namespace Fap.Foundation
 {
     public class SafeObservableStatic
     {
-        public static Dispatcher Dispatcher { set; get; }
+        public static IUiDispatcher? UiDispatcher { get; set; }
     }
+
     public class SafeObservable<T> : IList<T>, INotifyCollectionChanged
     {
         private IList<T> collection = new List<T>();
-        private  Dispatcher dispatcher;
+        private readonly IUiDispatcher? dispatcher;
         public event NotifyCollectionChangedEventHandler CollectionChanged;
         private ReaderWriterLock sync = new ReaderWriterLock();
 
         public SafeObservable()
         {
-            dispatcher = SafeObservableStatic.Dispatcher;
+            dispatcher = SafeObservableStatic.UiDispatcher;
+        }
+
+        private void RunOnUi(Action action)
+        {
+            if (dispatcher == null || dispatcher.CheckAccess())
+                action();
+            else
+                dispatcher.Invoke(action);
+        }
+
+        private TResult RunOnUi<TResult>(Func<TResult> func)
+        {
+            if (dispatcher == null || dispatcher.CheckAccess())
+                return func();
+
+            TResult result = default!;
+            dispatcher.Invoke(() => result = func());
+            return result;
         }
 
         public void Add(T item)
         {
-            if (Thread.CurrentThread == dispatcher.Thread)
-                DoAdd(item);
-            else
-                dispatcher.Invoke((Action)(() => { DoAdd(item); }));
+            RunOnUi(() => DoAdd(item));
         }
 
         public void AddRotate(T item, int max)
         {
-            if (Thread.CurrentThread == dispatcher.Thread)
-                DoAddRotate(item,max);
-            else
-                dispatcher.Invoke((Action)(() => { DoAddRotate(item,max); }));
-
+            RunOnUi(() => DoAddRotate(item, max));
         }
 
         private void DoAddRotate(T item, int max)
@@ -63,7 +74,7 @@ namespace Fap.Foundation
             T removed = default(T);
             sync.AcquireWriterLock(Timeout.Infinite);
             collection.Add(item);
-            if (collection.Count > max && max>0)
+            if (collection.Count > max && max > 0)
             {
                 removed = collection[0];
                 collection.RemoveAt(0);
@@ -77,16 +88,9 @@ namespace Fap.Foundation
                     new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, item));
         }
 
-        private delegate bool AddDele(T item);
-
         public bool AddUnique(T item)
         {
-            if (Thread.CurrentThread == dispatcher.Thread)
-                return doAddUnique(item);
-            else
-            {
-                return (bool)dispatcher.Invoke(new AddDele(doAddUnique), item);
-            }
+            return RunOnUi(() => doAddUnique(item));
         }
 
         private bool doAddUnique(T item)
@@ -135,10 +139,7 @@ namespace Fap.Foundation
 
         public void Clear()
         {
-            if (Thread.CurrentThread == dispatcher.Thread)
-                DoClear();
-            else
-                dispatcher.Invoke((Action)(() => { DoClear(); }));
+            RunOnUi(DoClear);
         }
 
         private void DoClear()
@@ -184,36 +185,24 @@ namespace Fap.Foundation
 
         public bool Remove(T item)
         {
-            if (Thread.CurrentThread == dispatcher.Thread)
-                return DoRemove(item);
-            else
-            {
-                return (bool)dispatcher.Invoke(new Func<T, bool>(DoRemove), item);
-            }
+            return RunOnUi(() => DoRemove(item));
         }
 
         public bool Remove(IList items)
         {
-            if (Thread.CurrentThread == dispatcher.Thread)
+            return RunOnUi(() =>
             {
                 sync.AcquireWriterLock(Timeout.Infinite);
                 foreach (var item in items)
                 {
-                    if (item is T)
-                    {
-                        if (collection.Contains((T)item))
-                            collection.Remove((T)item);
-                    }
+                    if (item is T t && collection.Contains(t))
+                        collection.Remove(t);
                 }
                 sync.ReleaseWriterLock();
-                    CollectionChanged(this, new
-                        NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
-                    return true;
-            }
-            else
-            {
-                return (bool)dispatcher.Invoke(new Func<T, bool>(DoRemove), items);
-            }
+                CollectionChanged?.Invoke(this, new
+                    NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
+                return true;
+            });
         }
 
         private bool DoRemove(T item)
@@ -229,7 +218,7 @@ namespace Fap.Foundation
             sync.ReleaseWriterLock();
             if (result && CollectionChanged != null)
                 CollectionChanged(this, new
-                    NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Remove,item,index));
+                    NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Remove, item, index));
             return result;
         }
 
@@ -253,10 +242,7 @@ namespace Fap.Foundation
 
         public void Insert(int index, T item)
         {
-            if (Thread.CurrentThread == dispatcher.Thread)
-                DoInsert(index, item);
-            else
-                dispatcher.Invoke((Action)(() => { DoInsert(index, item); }));
+            RunOnUi(() => DoInsert(index, item));
         }
 
         private void DoInsert(int index, T item)
@@ -271,10 +257,7 @@ namespace Fap.Foundation
 
         public void RemoveAt(int index)
         {
-            if (Thread.CurrentThread == dispatcher.Thread)
-                DoRemoveAt(index);
-            else
-                dispatcher.Invoke((Action)(() => { DoRemoveAt(index); }));
+            RunOnUi(() => DoRemoveAt(index));
         }
 
         private void DoRemoveAt(int index)
@@ -291,7 +274,6 @@ namespace Fap.Foundation
             if (CollectionChanged != null)
                 CollectionChanged(this,
                     new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Remove, item, index));
-
         }
 
         public T this[int index]
@@ -314,7 +296,6 @@ namespace Fap.Foundation
                 collection[index] = value;
                 sync.ReleaseWriterLock();
             }
-
         }
     }
 }

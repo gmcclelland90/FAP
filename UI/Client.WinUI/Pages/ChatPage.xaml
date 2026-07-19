@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="Fap.Client.WinUI.Pages.ChatPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+    <Grid Margin="16" ColumnSpacing="12">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="240" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Border
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="8"
+            Padding="0,8,0,8">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <TextBlock
+                    Margin="12,4,12,8"
+                    Style="{StaticResource BodyStrongTextBlockStyle}"
+                    Text="Conversations" />
+                <ListView
+                    x:Name="ThreadList"
+                    Grid.Row="1"
+                    AutomationProperties.AutomationId="chat.threads"
+                    SelectionChanged="ThreadList_SelectionChanged" />
+            </Grid>
+        </Border>
+
+        <Grid Grid.Column="1" RowSpacing="8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <StackPanel Spacing="2" Margin="4,0,4,0">
+                <TextBlock
+                    x:Name="ThreadTitle"
+                    Style="{StaticResource SubtitleTextBlockStyle}"
+                    Text="LAN" />
+                <TextBlock
+                    x:Name="ThreadSubtitle"
+                    AutomationProperties.AutomationId="chat.status"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    TextWrapping="WrapWholeWords" />
+            </StackPanel>
+
+            <Grid Grid.Row="1">
+                <ListView
+                    x:Name="MessageList"
+                    AutomationProperties.AutomationId="chat.messages"
+                    Padding="4,0"
+                    SelectionMode="None" />
+                <StackPanel
+                    x:Name="MessagesEmpty"
+                    AutomationProperties.AutomationId="chat.messagesEmpty"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Spacing="8"
+                    Padding="24"
+                    MaxWidth="360"
+                    Visibility="Collapsed">
+                    <FontIcon Glyph="&#xE8BD;" FontSize="32" Opacity="0.55" HorizontalAlignment="Center" />
+                    <TextBlock
+                        x:Name="MessagesEmptyTitle"
+                        Text="No messages yet"
+                        Style="{StaticResource BodyStrongTextBlockStyle}"
+                        HorizontalAlignment="Center" />
+                    <TextBlock
+                        x:Name="MessagesEmptyBody"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        TextWrapping="WrapWholeWords"
+                        HorizontalAlignment="Center"
+                        TextAlignment="Center"
+                        Text="LAN chat reaches every connected peer. Pick a peer conversation for a private message." />
+                </StackPanel>
+            </Grid>
+
+            <Grid Grid.Row="2" Margin="4,0,4,0" ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox
+                    x:Name="Composer"
+                    AutomationProperties.AutomationId="chat.composer"
+                    AutomationProperties.Name="Chat message"
+                    PlaceholderText="Message the LAN…"
+                    KeyDown="Composer_KeyDown" />
+                <Button
+                    x:Name="SendButton"
+                    Grid.Column="1"
+                    Content="Send"
+                    Style="{StaticResource AccentButtonStyle}"
+                    Click="SendButton_Click"
+                    MinWidth="88" />
+            </Grid>
+        </Grid>
+    </Grid>
+</Page>

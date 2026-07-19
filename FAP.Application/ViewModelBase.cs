@@ -1,8 +1,9 @@
 using System;
 using System.Threading;
-using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using FAP.Application.Views;
+using Fap.Foundation;
+using Fap.Foundation.Threading;
 
 namespace FAP.Application.ViewModels
 {
@@ -14,14 +15,13 @@ namespace FAP.Application.ViewModels
         {
             this.view = view ?? throw new ArgumentNullException(nameof(view));
 
-            if (SynchronizationContext.Current is DispatcherSynchronizationContext)
-            {
-                Dispatcher.CurrentDispatcher.BeginInvoke(() => view.DataContext = this);
-            }
+            var ui = SafeObservableStatic.UiDispatcher;
+            if (ui != null && !ui.CheckAccess())
+                ui.Invoke(() => this.view.DataContext = this);
+            else if (SynchronizationContext.Current != null)
+                SynchronizationContext.Current.Post(_ => this.view.DataContext = this, null);
             else
-            {
-                view.DataContext = this;
-            }
+                this.view.DataContext = this;
         }
 
         public object View => view;

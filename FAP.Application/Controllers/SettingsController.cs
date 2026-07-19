@@ -18,14 +18,11 @@
 #endregion
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using CommunityToolkit.Mvvm.Input;
-using System.Windows;
+using FAP.Application.Services;
 using FAP.Application.ViewModels;
 using FAP.Domain.Entities;
-using FAP.Domain.Services;
 using Fap.Foundation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -35,21 +32,18 @@ namespace FAP.Application.Controllers
     public class SettingsController : AsyncControllerBase
     {
         private readonly IServiceProvider serviceProvider;
-        private readonly Microsoft.Extensions.Logging.ILogger<SettingsController> logger;
+        private readonly ILogger<SettingsController> logger;
         private readonly Model model;
         private SettingsViewModel viewModel = null!;
 
         public SettingsController(IServiceProvider serviceProvider, Model m)
         {
-            logger = serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<SettingsController>>();
+            logger = serviceProvider.GetRequiredService<ILogger<SettingsController>>();
             model = m;
             this.serviceProvider = serviceProvider;
         }
 
-        public SettingsViewModel ViewModel
-        {
-            get { return viewModel; }
-        }
+        public SettingsViewModel ViewModel => viewModel;
 
         public void Initaize()
         {
@@ -59,10 +53,36 @@ namespace FAP.Application.Controllers
             viewModel.CancelCommand = new RelayCommand(CancelCommand);
             viewModel.ChangeAvatar = new RelayCommand(ChangeAvatar);
             viewModel.EditDownloadDir = new RelayCommand(EditDownloadDir);
+            viewModel.ResetInterface = new RelayCommand(RefreshNetworkInterfaces);
+            viewModel.DisplayQuickStart = new RelayCommand(ShowGettingStarted);
+            RefreshNetworkInterfaces();
+        }
+
+        private void ShowGettingStarted()
+        {
+            serviceProvider.GetRequiredService<IGettingStartedUi>().ShowGettingStarted();
+            model.DisplayedHelp = true;
+            model.Save();
+        }
+
+        private void RefreshNetworkInterfaces()
+        {
+            var list = NetworkInterfaceCatalog.ListIPv4(includeLoopback: true).ToList();
+            viewModel.AvailableInterfaces = list;
+            var host = model.LocalNode?.Host;
+            var match = NetworkInterfaceCatalog.FindByAddress(list, host);
+            viewModel.SelectedNetworkInterface = match ?? (list.Count > 0 ? list[0] : null);
+            if (viewModel.SelectedNetworkInterface?.Address != null &&
+                !string.Equals(model.LocalNode.Host, viewModel.SelectedNetworkInterface.Address.ToString(), StringComparison.OrdinalIgnoreCase))
+            {
+                model.LocalNode.Host = viewModel.SelectedNetworkInterface.Address.ToString();
+            }
         }
 
         private void SaveCommand()
         {
+            if (viewModel.SelectedNetworkInterface?.Address != null)
+                model.LocalNode.Host = viewModel.SelectedNetworkInterface.Address.ToString();
             model.Save();
             if (viewModel.View is System.Windows.Window window)
                 window.Close();
@@ -79,13 +99,10 @@ namespace FAP.Application.Controllers
             try
             {
                 var query = serviceProvider.GetRequiredService<QueryViewModel>();
-                string selectedFile;
-                if (query.SelectFile(out selectedFile))
+                if (query.SelectImageFile(out string selectedFile))
                 {
-                    // Read the image file and convert to base64
                     byte[] imageBytes = System.IO.File.ReadAllBytes(selectedFile);
                     string base64Image = Convert.ToBase64String(imageBytes);
-                    // Persist avatar to disk via model setter
                     model.Avatar = base64Image;
                     model.Save();
                     logger.LogDebug("Avatar changed to: {File}", selectedFile);
@@ -102,10 +119,12 @@ namespace FAP.Application.Controllers
             try
             {
                 var query = serviceProvider.GetRequiredService<QueryViewModel>();
-                string selectedFolder;
-                if (query.SelectFolder(out selectedFolder))
+                if (query.SelectFolder(out string selectedFolder))
                 {
                     model.DownloadFolder = selectedFolder;
+                    model.IncompleteFolder = System.IO.Path.Combine(selectedFolder, "Incomplete");
+                    try { System.IO.Directory.CreateDirectory(model.DownloadFolder); } catch { /* ignore */ }
+                    try { System.IO.Directory.CreateDirectory(model.IncompleteFolder); } catch { /* ignore */ }
                     model.Save();
                     logger.LogDebug("Download directory changed to: {Folder}", selectedFolder);
                 }

@@ -1,6 +1,4 @@
-using System.Collections.Generic;
-
-namespace FAP.Domain.Models
+namespace FAP.Shared.Models
 {
     public class BrowsePageData
     {
@@ -12,8 +10,15 @@ namespace FAP.Domain.Models
         public int FreeUploadSlots { get; set; }
         public string QueueInfo { get; set; } = string.Empty;
         public string SlotColour { get; set; } = "green";
+        public int QueueLength { get; set; }
+        public bool PathResolved { get; set; } = true;
         public string CurrentPath { get; set; } = "/";
         public string TotalSize { get; set; } = string.Empty;
+        public string SearchQuery { get; set; } = string.Empty;
+        public bool IsSearch { get; set; }
+        public bool SearchScopeHere { get; set; }
+        public int SearchResultCount { get; set; }
+        public bool SearchTruncated { get; set; }
         public List<PathSegment> PathSegments { get; set; } = new();
         public List<BrowseFileEntry> Files { get; set; } = new();
     }
@@ -27,7 +32,12 @@ namespace FAP.Domain.Models
     public class BrowseFileEntry
     {
         public string Name { get; set; } = string.Empty;
+        /// <summary>Relative name segment (browse) or encoded file name (legacy).</summary>
         public string Path { get; set; } = string.Empty;
+        /// <summary>Absolute site href for the name link (preferred).</summary>
+        public string Href { get; set; } = string.Empty;
+        /// <summary>Parent location shown under the name in search results.</summary>
+        public string LocationText { get; set; } = string.Empty;
         public string Icon { get; set; } = string.Empty;
         public string IconHtml { get; set; } = string.Empty;
         public bool HasIcon { get; set; }

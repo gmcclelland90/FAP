@@ -26,7 +26,8 @@ dotnet run --project UI/Server.Console -- --Fap:Web:Listen:Address 127.0.0.1 --F
 ### Health and smoke endpoints
 - `GET /Fap.api/health` → 200 OK
 - `GET /Fap.api/compare/v1` → JSON
-- `GET /Fap.app.web/template.html` → HTML
+- `GET /Fap.api/guest-ui` → Razor guest host OK
+- `GET /` → guest web share browse HTML (includes `browse.js`)
 
 ### Publish (self-contained, single-file) and smoke
 Publish:
@@ -44,8 +45,10 @@ artifacts/publish/server/win-x64/Release/Server.Console.exe \
 # in another shell
 curl http://127.0.0.1:4040/Fap.api/health
 curl http://127.0.0.1:4040/Fap.api/compare/v1
-curl http://127.0.0.1:4040/Fap.app.web/template.html
+curl http://127.0.0.1:4040/Fap.api/guest-ui
+curl http://127.0.0.1:4040/
 ```
+
 
 ### Notes
 - Default Overlord port is 40. Use CLI overrides to change.
