@@ -80,10 +80,6 @@ namespace Fap.Presentation
 
         protected override void OnStartup(StartupEventArgs e)
         {
-            // Intentionally block startup to allow the previous instance time to fully exit
-            if (e.Args.Contains("WAIT"))
-                Thread.Sleep(5000);
-
             this.DispatcherUnhandledException += new System.Windows.Threading.DispatcherUnhandledExceptionEventHandler(App_DispatcherUnhandledException);
             FrameworkElement.LanguageProperty.OverrideMetadata(typeof(FrameworkElement), new FrameworkPropertyMetadata(XmlLanguage.GetLanguage(CultureInfo.CurrentCulture.IetfLanguageTag)));
 
@@ -97,12 +93,6 @@ namespace Fap.Presentation
             
             if (Compose())
             {
-                if (e.Args.Length == 1 && e.Args[0] == "WAIT")
-                {
-                    // Allow previous instance time to release resources before we initialize
-                    Thread.Sleep(3000);
-                }
-
                 ApplicationCore core = serviceProvider.GetRequiredService<ApplicationCore>();
 
                 if (!core.CheckSingleInstance())

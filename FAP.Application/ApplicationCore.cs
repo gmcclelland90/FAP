@@ -168,7 +168,8 @@ namespace FAP.Application
 
             model.CheckSetDefaults();
 
-            updateChecker.Run();
+            // TODO: re-implement update checking against a new endpoint
+            // updateChecker.Run();
 
             //Immediatly send model upates
             model.LocalNode.PropertyChanged += LocalNode_PropertyChanged;

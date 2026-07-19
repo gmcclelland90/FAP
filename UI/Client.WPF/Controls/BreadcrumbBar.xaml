@@ -6,6 +6,7 @@
     <UserControl.Resources>
         <Style x:Key="SegmentButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="6,3" />
             <Setter Property="Cursor" Value="Hand" />
@@ -21,10 +22,12 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#E0E0E0" />
+                                <Setter TargetName="border" Property="Background"
+                                        Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#C0C0C0" />
+                                <Setter TargetName="border" Property="Background"
+                                        Value="{DynamicResource SubtleFillColorTertiaryBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -36,12 +39,15 @@
             <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
             <Setter Property="FontSize" Value="10" />
             <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="Foreground" Value="#888888" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
             <Setter Property="Margin" Value="0,0,0,0" />
         </Style>
     </UserControl.Resources>
     <Grid>
-        <Border BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="2" Background="White" Padding="2,0">
+        <Border BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                BorderThickness="1" CornerRadius="4"
+                Background="{DynamicResource ControlFillColorDefaultBrush}"
+                Padding="2,0">
             <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                 <StackPanel x:Name="SegmentsPanel" Orientation="Horizontal" />
             </ScrollViewer>

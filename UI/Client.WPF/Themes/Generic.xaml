@@ -1,4 +1,4 @@
-﻿<ResourceDictionary 
+<ResourceDictionary 
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:l="clr-namespace:Wpf.Controls">
@@ -8,17 +8,12 @@
 	<!-- 
 		Brushes used to define the Look of the TabControl & TabItem
 	-->
-	<!-- Border Brush for the TabItems and TabControl -->
-	<SolidColorBrush x:Key="TabBorderBrush" Color="LightGray"/>
-	<!-- Tab Text Colour when Not Selected-->
-	<SolidColorBrush x:Key="TabGrayTextBrush" Color="#FF444444"/>
-	<!-- TabItem CloseButton Brush-->
-	<SolidColorBrush x:Key="TabCloseButtonBrush" Color="#FFADADAD"/>
-
-	<!-- TabItem Brushes -->
-	<SolidColorBrush x:Key="TabItemNormalBackground" Color="WhiteSmoke"/>
-	<SolidColorBrush x:Key="TabItemHoverBackground" Color="LightGray"/>
-	<SolidColorBrush x:Key="TabItemSelectedBackground" Color="LightGray"/>
+	<!--
+		Tab brushes: referenced inline via DynamicResource to Fluent theme keys.
+		No SolidColorBrush resources are needed; the Fluent theme's own brushes
+		(TextFillColorPrimaryBrush, SubtleFillColorSecondaryBrush, etc.) adapt
+		automatically to the system light/dark mode setting.
+	-->
 
     <Style x:Key="textBoxInError" TargetType="TextBox">
         <Style.Triggers>
@@ -32,7 +27,7 @@
 
     <!-- Style for the Repeat Button used to scrool the Tabs to the Left-->
 	<Style x:Key="RepeatButtonScrollLeftOrUpStyle" TargetType="{x:Type RepeatButton}">
-		<Setter Property="Foreground" Value="{StaticResource TabGrayTextBrush}" />
+		<Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
 		<Setter Property="Background" Value="{Binding Path=TabItemNormalBackground, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type l:TabControl}}}"/>
 		<Setter Property="BorderBrush" Value="{Binding Path=BorderBrush, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type l:TabControl}}}" />
 		<Setter Property="SnapsToDevicePixels" Value="True"/>
@@ -57,13 +52,13 @@
 					<ControlTemplate.Triggers>
 						<Trigger Property="IsMouseOver" Value="true">
 							<Setter Property="Background" Value="{Binding Path=TabItemMouseOverBackground, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type l:TabControl}}}" />
-							<Setter Property="Foreground" Value="Black"/>
+							<Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
 						</Trigger>
 						<Trigger Property="IsPressed" Value="True">
 							<Setter Property="Background" Value="{Binding Path=TabItemMouseOverBackground, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type l:TabControl}}}" />
 							<Setter Property="Background" TargetName="innerBorder" Value="#11000000"/>
 							<Setter Property="BorderBrush" TargetName="innerBorder" Value="#66000000" />
-							<Setter Property="Foreground" Value="Black"/>
+							<Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
 							<Setter Property="CornerRadius" TargetName="innerBorder" Value="3,3,0,0"/>
 							<Setter Property="BorderThickness" TargetName="innerBorder" Value="1,2,1,0" />
 						</Trigger>
@@ -88,7 +83,7 @@
 
 	<!-- Style for the Repeat Button used to scrool the Tabs to the Right-->
 	<Style x:Key="RepeatButtonScrollRightOrDownStyle" TargetType="{x:Type RepeatButton}">
-		<Setter Property="Foreground" Value="{StaticResource TabGrayTextBrush}" />
+		<Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
 		<Setter Property="Background" Value="{Binding Path=TabItemNormalBackground, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type l:TabControl}}}"/>
 		<Setter Property="BorderBrush" Value="{Binding Path=BorderBrush, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type l:TabControl}}}" />
 		<Setter Property="SnapsToDevicePixels" Value="True"/>
@@ -111,13 +106,13 @@
 					<ControlTemplate.Triggers>
 						<Trigger Property="IsMouseOver" Value="true">
 							<Setter Property="Background" Value="{Binding Path=TabItemMouseOverBackground, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type l:TabControl}}}" />
-							<Setter Property="Foreground" Value="Black"/>
+							<Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
 						</Trigger>
 						<Trigger Property="IsPressed" Value="True">
 							<Setter Property="Background" Value="{Binding Path=TabItemMouseOverBackground, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type l:TabControl}}}" />
 							<Setter Property="Background" TargetName="innerBorder" Value="#11000000"/>
 							<Setter Property="BorderBrush" TargetName="innerBorder" Value="#66000000" />
-							<Setter Property="Foreground" Value="Black"/>
+							<Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
 							<Setter Property="CornerRadius" TargetName="innerBorder" Value="3,3,0,0"/>
 							<Setter Property="BorderThickness" TargetName="innerBorder" Value="1,2,1,0" />
 						</Trigger>
@@ -148,7 +143,7 @@
 	<Style x:Key="DropDownToggleButtonStyle" TargetType="{x:Type ToggleButton}">
 		<Setter Property="Background" Value="{Binding Path=TabItemNormalBackground, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type l:TabControl}}}"/>
 		<Setter Property="BorderBrush" Value="{Binding Path=BorderBrush, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type l:TabControl}}}"/>
-		<Setter Property="Foreground" Value="{StaticResource TabGrayTextBrush}"/>
+		<Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
 		<Setter Property="SnapsToDevicePixels" Value="True"/>
 		<Setter Property="Template">
 			<Setter.Value>
@@ -163,13 +158,13 @@
 					<ControlTemplate.Triggers>
 						<Trigger Property="IsMouseOver" Value="true">
 							<Setter Property="Background" Value="{Binding Path=TabItemMouseOverBackground, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type l:TabControl}}}" />
-							<Setter Property="Foreground" Value="Black"/>
+							<Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
 						</Trigger>
 						<Trigger Property="IsChecked" Value="True">
 							<Setter Property="Background" Value="{Binding Path=TabItemMouseOverBackground, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type l:TabControl}}}" />
 							<Setter Property="Background" TargetName="innerBorder" Value="#11000000"/>
 							<Setter Property="BorderBrush" TargetName="innerBorder" Value="#66000000" />
-							<Setter Property="Foreground" Value="Black"/>
+							<Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
 							<Setter Property="Margin" TargetName="innerBorder" Value="-1"/>
 							<Setter Property="CornerRadius" TargetName="innerBorder" Value="3,3,0,0"/>
 							<Setter Property="BorderThickness" TargetName="innerBorder" Value="1,2,1,0" />
@@ -189,7 +184,7 @@
 	<Style x:Key="NewTabButtonStyle" TargetType="{x:Type Button}">
 		<Setter Property="Background" Value="{Binding Path=TabItemNormalBackground, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type l:TabControl}}}"/>
 		<Setter Property="BorderBrush" Value="{Binding Path=BorderBrush, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type l:TabControl}}}"/>
-		<Setter Property="Foreground" Value="{StaticResource TabGrayTextBrush}"/>
+		<Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
 		<Setter Property="SnapsToDevicePixels" Value="True"/>
 		<Setter Property="Template">
 			<Setter.Value>
@@ -204,14 +199,14 @@
 					<ControlTemplate.Triggers>
 						<Trigger Property="IsMouseOver" Value="true">
 							<Setter Property="Background" Value="{Binding Path=TabItemMouseOverBackground, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type l:TabControl}}}" />
-							<Setter Property="Foreground" Value="Black"/>
+							<Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
 							<Setter Property="Opacity" TargetName="Cp" Value="1"/>
 						</Trigger>
 						<Trigger Property="IsPressed" Value="True">
 							<Setter Property="Background" Value="{Binding Path=TabItemMouseOverBackground, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type l:TabControl}}}" />
 							<Setter Property="Background" TargetName="innerBorder" Value="#11000000"/>
 							<Setter Property="BorderBrush" TargetName="innerBorder" Value="#66000000" />
-							<Setter Property="Foreground" Value="Black"/>
+							<Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
 							<Setter Property="Margin" TargetName="innerBorder" Value="-1"/>
 							<Setter Property="CornerRadius" TargetName="innerBorder" Value="3,3,0,0"/>
 							<Setter Property="BorderThickness" TargetName="innerBorder" Value="1,2,1,0" />
@@ -241,27 +236,19 @@
 						Width="16" Height="16" 
 						SnapsToDevicePixels="True">
 						<Grid Width="8" Height="8" HorizontalAlignment="Center" VerticalAlignment="Center">
-							<Path x:Name="path1" Stroke="{StaticResource TabCloseButtonBrush}" Data="M0,0 L8,8" StrokeThickness="2" />
-							<Path x:Name="path2" Stroke="{StaticResource TabCloseButtonBrush}" Data="M8,0 L0,8" StrokeThickness="2" />
+							<Path x:Name="path1" Stroke="{DynamicResource TextFillColorSecondaryBrush}" Data="M0,0 L8,8" StrokeThickness="2" />
+							<Path x:Name="path2" Stroke="{DynamicResource TextFillColorSecondaryBrush}" Data="M8,0 L0,8" StrokeThickness="2" />
 						</Grid>
 					</Border>
 					<ControlTemplate.Triggers>
 						<Trigger Property="IsMouseOver" Value="True">
-							<Setter Property="BorderBrush" Value="{StaticResource TabCloseButtonBrush}"/>
-							<Setter Property="Background" Value="WhiteSmoke"/>
+							<Setter Property="BorderBrush" Value="{DynamicResource TextFillColorSecondaryBrush}"/>
+							<Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}"/>
 							<Setter Property="Stroke" TargetName="path1" Value="DarkRed"/>
 							<Setter Property="Stroke" TargetName="path2" Value="DarkRed"/>
 						</Trigger>
 						<Trigger Property="IsPressed" Value="True">
-							<Setter Property="Background">
-								<Setter.Value>
-									<LinearGradientBrush EndPoint="0,1" StartPoint="0,0">
-										<GradientStop Color="#FFADADAD" Offset="0"/>
-										<GradientStop Color="White" Offset="0.5"/>
-										<GradientStop Color="White" Offset="1"/>
-									</LinearGradientBrush>
-								</Setter.Value>
-							</Setter>
+							<Setter Property="Background" Value="{DynamicResource SubtleFillColorTertiaryBrush}"/>
 						</Trigger>
 					</ControlTemplate.Triggers>
 				</ControlTemplate>
@@ -320,11 +307,11 @@
 					<ControlTemplate.Triggers>
 						<Trigger Property="IsMouseOver" Value="true">
 							<Setter Property="Background" Value="{Binding Path=TabItemMouseOverBackground, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type l:TabControl}}}" />
-							<Setter Property="Foreground" Value="Black"/>
+							<Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
 						</Trigger>
 						<Trigger Property="IsSelected" Value="true">
 							<Setter Property="Background" Value="{Binding Path=TabItemSelectedBackground, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type l:TabControl}}}" />
-							<Setter Property="Foreground" Value="Black"/>
+							<Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
 							<Setter Property="Margin" TargetName="Bd" Value="0"/>
 						</Trigger>
 
@@ -744,13 +731,13 @@
 		<Setter Property="KeyboardNavigation.TabNavigation" Value="Cycle"/>
 		<Setter Property="KeyboardNavigation.DirectionalNavigation" Value="Cycle"/>
 
-		<Setter Property="Background" Value="White"/>
-		<Setter Property="BorderBrush" Value="{StaticResource TabBorderBrush}"/>
+		<Setter Property="Background" Value="Transparent"/>
+		<Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}"/>
 		<Setter Property="BorderThickness" Value="1"/>
 
-		<Setter Property="TabItemNormalBackground" Value="{StaticResource TabItemNormalBackground}"/>
-		<Setter Property="TabItemMouseOverBackground" Value="{StaticResource TabItemHoverBackground}"/>
-		<Setter Property="TabItemSelectedBackground" Value="{StaticResource TabItemSelectedBackground}"/>
+		<Setter Property="TabItemNormalBackground" Value="Transparent"/>
+		<Setter Property="TabItemMouseOverBackground" Value="{DynamicResource SubtleFillColorSecondaryBrush}"/>
+		<Setter Property="TabItemSelectedBackground" Value="{DynamicResource ControlFillColorDefaultBrush}"/>
 
 		<Setter Property="HorizontalContentAlignment" Value="Stretch" />
 		<Setter Property="VerticalContentAlignment" Value="Stretch" />
