@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Setup PowerShell 7
+        shell: pwsh
+        run: |
+          Write-Host "PowerShell version: $($PSVersionTable.PSVersion)"
+          Write-Host ".NET SDK version:"
+          dotnet --version
+
+      - name: Build client and server artifacts
+        shell: pwsh
+        run: |
+          pwsh -File .\build.ps1 -Configuration Release -Runtime win-x64 -IncludeServer
+
+      - name: Prepare release artifacts
+        id: artifacts
+        shell: pwsh
+        run: |
+          $clientZip = Get-ChildItem -Path artifacts/release/FAP-Client-*.zip | Select-Object -First 1
+          $serverZip = Get-ChildItem -Path artifacts/release/FAP-Server-*.zip | Select-Object -First 1
+          
+          if (-not $clientZip) {
+            throw "Client zip not found in artifacts/release/"
+          }
+          if (-not $serverZip) {
+            throw "Server zip not found in artifacts/release/"
+          }
+          
+          Write-Host "Client artifact: $($clientZip.FullName)"
+          Write-Host "Server artifact: $($serverZip.FullName)"
+          
+          # Output for GitHub Actions
+          "client_zip=$($clientZip.Name)" >> $env:GITHUB_OUTPUT
+          "server_zip=$($serverZip.Name)" >> $env:GITHUB_OUTPUT
+          "client_path=$($clientZip.FullName)" >> $env:GITHUB_OUTPUT
+          "server_path=$($serverZip.FullName)" >> $env:GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/release/FAP-Client-*.zip
+            artifacts/release/FAP-Server-*.zip
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
