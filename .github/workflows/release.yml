@@ -56,11 +56,17 @@ jobs:
           Write-Host "Client artifact: $($clientZip.FullName)"
           Write-Host "Server artifact: $($serverZip.FullName)"
           
+          # Detect pre-release tags (contain hyphen after version, e.g. v10.0.0-beta)
+          $tagName = "$env:GITHUB_REF_NAME"
+          $isPrerelease = $tagName -match '-'
+          Write-Host "Tag: $tagName, Is pre-release: $isPrerelease"
+          
           # Output for GitHub Actions
           "client_zip=$($clientZip.Name)" >> $env:GITHUB_OUTPUT
           "server_zip=$($serverZip.Name)" >> $env:GITHUB_OUTPUT
           "client_path=$($clientZip.FullName)" >> $env:GITHUB_OUTPUT
           "server_path=$($serverZip.FullName)" >> $env:GITHUB_OUTPUT
+          "is_prerelease=$($isPrerelease.ToString().ToLower())" >> $env:GITHUB_OUTPUT
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
@@ -70,7 +76,7 @@ jobs:
             artifacts/release/FAP-Client-*.zip
             artifacts/release/FAP-Server-*.zip
           draft: false
-          prerelease: false
+          prerelease: ${{ steps.artifacts.outputs.is_prerelease == 'true' }}
           generate_release_notes: true
           fail_on_unmatched_files: true
         env:
