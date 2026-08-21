@@ -68,8 +68,9 @@ Additional output:
 - artifacts/release/FAP-Server-win-x64-Release-YYYYMMDD-HHMM.zip
 
 ### Notes
-- The client publish is self-contained, single-file, ReadyToRun, target win-x64.
-- System tray icon is loaded via WPF pack URI, so it works in single-file publish.
+- The WinUI client publish is self-contained for win-x64 (includes .NET runtime and Windows App SDK).
+- The publish output is a multi-file layout (not single-file) with the executable and supporting assemblies.
+- The server publish uses single-file packaging via `PublishSingleFile=true`.
 - You can override Configuration/Runtime, e.g. `-Configuration Debug`.
 - The CI workflow uses the same `build.ps1` script to ensure consistency between local and automated builds.
 
