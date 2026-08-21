@@ -14,10 +14,11 @@ Runtime improvements in 10 directly benefit high-bandwidth transfers:
 
 ## Upgrade Scope
 
-### 1. Retarget TFMs
+### 1. Retarget TFMs (COMPLETED)
 - Core projects: `net9.0` → `net10.0`
-- WinUI client: `net9.0-windows10.0.19041.0` → `net10.0-windows10.0.19041.0`
-  - WinUI 3 remains on Windows App SDK; the TFM is not a new WinUI generation
+- Core Windows projects: `net9.0-windows` → `net10.0-windows`
+- WinUI client: `net9.0-windows10.0.26100.0` → `net10.0-windows10.0.26100.0`
+  - WinUI 3 remains on Windows App SDK; the TFM change is version-only, not a new WinUI generation
 
 ### 2. Runtime Validation
 **Do not assume** JIT wins translate to real FAP workload gains. Measure:
@@ -32,20 +33,24 @@ Capture baseline from 9.0.0 master before merge.
 - **C# 14 / Span**: First-class `Span` conversions on buffer paths (`FAP.Network`, `FAP.Domain` transfer sessions)
   - Target: eliminate allocations in `SessionTransmitter`, `SessionReceiver`, multicast send/receive
 
-### 4. Pick ONE Beta Goal
-Do not start both:
+### 4. Beta Goal: Kill Framework-Era Allocations
 
-**Option A**: Native AOT for `Server.Console`  
-- Headless server; no WinUI/WPF → good AOT candidate
-- Measure startup time and steady-state memory vs JIT baseline
-- Blocked by: any remaining reflection (DI, JSON serialization, protobuf-net)
+**DECISION (2026-08-21)**: Option B is chosen for FAP 10.0.0 beta.
 
 **Option B**: Kill Framework-Era Allocations  
-- Close existing GitHub issues #3–#7 (memory, ValueTask, Channels, SIMD)
-- Audit: `MemoryPool<byte>`, `IAsyncEnumerable`, `ValueTask` conversions
-- Focus: hot paths (file read/write, HTTP handlers, multicast)
+- Focus on GitHub issues #3 (Memory), #4 (ValueTask), #5 (Channels), #6 (SIMD)
+- Issue #7 (Native AOT) is **OUT OF SCOPE** for this beta
+- Target hot paths: file read/write, HTTP handlers, multicast, transfer sessions
+- Replace Framework-era patterns:
+  - byte[] churn → `ArrayPool<byte>` / `MemoryPool<byte>` / `Span<T>`
+  - sync-over-async → proper async/await
+  - Fixed allocations → pooled buffers
+  - Encoding.GetBytes allocations → stack-allocated spans where possible
 
-**Decision**: TBD in beta iteration. Do not attempt both for 10.0.0 beta.
+**Option A (Native AOT)**: **DEFERRED** to future release  
+- Native AOT for `Server.Console` remains a valid goal but requires more work
+- Blocked by: reflection in DI, JSON serialization, protobuf-net
+- Will be revisited post-10.0.0
 
 ### 5. NOT in Scope
 - This is **not** a product rewrite

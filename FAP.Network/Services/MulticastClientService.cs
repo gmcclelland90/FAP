@@ -17,6 +17,7 @@
 
 #endregion
 
+using System.Buffers;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -33,7 +34,7 @@ namespace FAP.Network.Services
 
         #endregion
 
-        private readonly byte[] buffer = new byte[50000];
+        private const int BufferSize = 50000;
 
         private Socket listenSocket;
         private readonly ILogger<MulticastClientService> logger;
@@ -57,8 +58,8 @@ namespace FAP.Network.Services
                                              new MulticastOption(broadcastAddress, IPAddress.Any));
                 listenSocket.Bind(new IPEndPoint(IPAddress.Any, broadcastPort));
 
-                listenSocket.ReceiveBufferSize = buffer.Length;
-                listenSocket.SendBufferSize = buffer.Length;
+                listenSocket.ReceiveBufferSize = BufferSize;
+                listenSocket.SendBufferSize = BufferSize;
 
                 _ = Task.Run(() => Process(null));
                 //  listenSocket.Connect(broadcastAddress, broadcastPort);
@@ -67,11 +68,19 @@ namespace FAP.Network.Services
 
         private void Process(object o)
         {
-            while (true)
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(BufferSize);
+            try
             {
-                int length = listenSocket.Receive(buffer);
-                if (null != OnMultiCastRX)
-                    OnMultiCastRX(Encoding.UTF8.GetString(buffer, 0, length));
+                while (true)
+                {
+                    int length = listenSocket.Receive(buffer);
+                    if (null != OnMultiCastRX)
+                        OnMultiCastRX(Encoding.UTF8.GetString(buffer, 0, length));
+                }
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
             }
         }
 
