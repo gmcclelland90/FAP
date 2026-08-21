@@ -1,9 +1,9 @@
 name: Release
 
 # FAP versioning: Major version tracks .NET TFM
-# - v9.x.x = .NET 9 releases (this branch after merge)
-# - v10.x.x-beta = .NET 10 pre-releases (future net10 branch)
-# - v10.x.x = .NET 10 stable releases (after net10 merge)
+# - v9.x.x = .NET 9 releases (master branch)
+# - v10.x.x-beta = .NET 10 pre-releases (migration/net10-upgrade branch)
+# - v10.x.x = .NET 10 stable releases (after net10 merge to master)
 
 on:
   push:
@@ -25,7 +25,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Setup PowerShell 7
         shell: pwsh

@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.IO;
 using System.Text;
 using FAP.Network.Server;
@@ -64,14 +65,23 @@ namespace FAP.Domain.Handlers
         {
             try
             {
-                byte[] buffer = encoding.GetBytes(data);
-                
-                // Set content length before writing
-                var response = context.AspNetCoreContext.Response;
-                response.ContentLength = buffer.Length;
-                
-                await context.Stream.WriteAsync(buffer, 0, buffer.Length);
-                await context.Stream.FlushAsync();
+                int maxByteCount = encoding.GetMaxByteCount(data.Length);
+                byte[] buffer = ArrayPool<byte>.Shared.Rent(maxByteCount);
+                try
+                {
+                    int bytesWritten = encoding.GetBytes(data, 0, data.Length, buffer, 0);
+                    
+                    // Set content length before writing
+                    var response = context.AspNetCoreContext.Response;
+                    response.ContentLength = bytesWritten;
+                    
+                    await context.Stream.WriteAsync(buffer.AsMemory(0, bytesWritten));
+                    await context.Stream.FlushAsync();
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(buffer);
+                }
             }
             catch (Exception ex)
             {
@@ -94,7 +104,7 @@ namespace FAP.Domain.Handlers
                     var response = context.AspNetCoreContext.Response;
                     response.ContentLength = data.Length;
                     
-                    await context.Stream.WriteAsync(data, 0, data.Length);
+                    await context.Stream.WriteAsync(data.AsMemory(0, data.Length));
                     await context.Stream.FlushAsync();
                 }
             }
