@@ -331,7 +331,7 @@ namespace FAP.Domain.Handlers
                 logger.LogError(ex, "Failed to get resource: {Name}", name);
             }
 
-            return new byte[0];
+            return Array.Empty<byte>();
         }
 
         private async Task<bool> SendIconAsync(RequestEventArgs e, string ext)
