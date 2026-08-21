@@ -4,20 +4,17 @@ This repo includes a PowerShell script to publish and package the Windows client
 
 ### Requirements
 - PowerShell 7+
-- .NET 9 SDK
+- .NET 10 SDK
 
 ### Versioning Scheme
 
 **FAP's major version tracks the .NET TFM:**
 
-- **FAP 9.x** = .NET 9 (`migration/net9-upgrade` branch after merge)
-  - First release: `v9.0.0`
-  - Patches: `v9.0.1`, `v9.0.2`, etc.
-  - Minor releases: `v9.1.0`, `v9.2.0`, etc.
-
-- **FAP 10.x** = .NET 10 (future `migration/net10-upgrade` branch)
+- **FAP 10.x** = .NET 10 (`migration/net10-upgrade` branch, current)
   - Pre-releases: `v10.0.0-beta`, `v10.0.0-beta.1`, `v10.0.0-rc1`
-  - First release: `v10.0.0` (after merge and stabilization)
+  - First stable release: `v10.0.0` (after merge to master and stabilization)
+
+- **FAP 9.x** = .NET 9 (master branch)
 
 This contract keeps version numbers aligned with the underlying framework version.
 
@@ -27,13 +24,13 @@ To create and publish a release with GitHub artifacts:
 
 1. **Tag the release version:**
    ```bash
-   # For the first .NET 9 release:
-   git tag v9.0.0
-   git push origin v9.0.0
+   # For the first .NET 10 beta release:
+   git tag v10.0.0-beta
+   git push origin v10.0.0-beta
    
-   # For subsequent patches or features:
-   git tag v9.1.0
-   git push origin v9.1.0
+   # For subsequent betas:
+   git tag v10.0.0-beta.2
+   git push origin v10.0.0-beta.2
    ```
 
 2. **Automated build:** The GitHub Actions workflow (`.github/workflows/release.yml`) will automatically:
@@ -41,7 +38,7 @@ To create and publish a release with GitHub artifacts:
    - Create a GitHub Release for the tag
    - Attach `FAP-Client-win-x64-Release-*.zip` and `FAP-Server-win-x64-Release-*.zip`
 
-3. **Release artifacts:** Find the release at `https://github.com/[owner]/[repo]/releases/tag/v9.0.0`
+3. **Release artifacts:** Find the release at `https://github.com/[owner]/[repo]/releases/tag/v10.0.0-beta`
 
 **Tag format:** Use `v<major>.<minor>.<patch>` where major matches the .NET TFM. Pre-releases use suffix notation (e.g., `v10.0.0-beta.1`).
 

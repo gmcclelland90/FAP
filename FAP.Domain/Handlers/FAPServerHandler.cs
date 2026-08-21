@@ -18,6 +18,7 @@
 #endregion
 
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
@@ -1126,27 +1127,33 @@ namespace FAP.Domain.Handlers
                 ftp = "FTP";
                 var sb = new StringBuilder();
                 long start = Environment.TickCount + 3000;
-                var data = new byte[20000];
-                client.ReceiveBufferSize = data.Length;
-
-                while (start > Environment.TickCount && client.Connected)
+                var data = ArrayPool<byte>.Shared.Rent(20000);
+                try
                 {
-                    if (client.GetStream().DataAvailable)
-                    {
-                        int length = client.GetStream().Read(data, 0, data.Length);
-                        sb.Append(Encoding.ASCII.GetString(data, 0, length));
-                    }
-                    else
-                    {
-                        await Task.Delay(50);
-                    }
-                }
-                client.Close();
+                    client.ReceiveBufferSize = 20000;
 
-                string title = sb.ToString();
-                if (!string.IsNullOrEmpty(title))
-                    ftp = title;
-                data = null;
+                    while (start > Environment.TickCount && client.Connected)
+                    {
+                        if (client.GetStream().DataAvailable)
+                        {
+                            int length = client.GetStream().Read(data, 0, 20000);
+                            sb.Append(Encoding.ASCII.GetString(data, 0, length));
+                        }
+                        else
+                        {
+                            await Task.Delay(50);
+                        }
+                    }
+                    client.Close();
+
+                    string title = sb.ToString();
+                    if (!string.IsNullOrEmpty(title))
+                        ftp = title;
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(data);
+                }
             }
             catch
             {

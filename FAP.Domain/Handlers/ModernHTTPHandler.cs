@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -177,7 +178,7 @@ namespace FAP.Domain.Handlers
 
                 if (data != null)
                 {
-                    await e.Response.Body.WriteAsync(data, 0, data.Length);
+                    await e.Response.Body.WriteAsync(data.AsMemory(0, data.Length));
                     e.IsHandled = true;
                     return true;
                 }
@@ -330,7 +331,7 @@ namespace FAP.Domain.Handlers
                 logger.LogError(ex, "Failed to get resource: {Name}", name);
             }
 
-            return new byte[0];
+            return Array.Empty<byte>();
         }
 
         private async Task<bool> SendIconAsync(RequestEventArgs e, string ext)
@@ -453,7 +454,7 @@ namespace FAP.Domain.Handlers
                 // Cache for 30 days (icons rarely change)
                 e.Response.Headers["Cache-Control"] = "public,max-age=2592000";
                 e.Response.ContentType = "image/png";
-                await e.Response.Body.WriteAsync(data, 0, data.Length);
+                await e.Response.Body.WriteAsync(data.AsMemory(0, data.Length));
                 e.IsHandled = true;
                 return true;
             }
@@ -612,14 +613,21 @@ namespace FAP.Domain.Handlers
 
                         fs.Position = start;
                         var remaining = length;
-                        var buffer = new byte[64 * 1024];
-                        while (remaining > 0)
+                        var buffer = ArrayPool<byte>.Shared.Rent(64 * 1024);
+                        try
                         {
-                            int toRead = (int)Math.Min(buffer.Length, remaining);
-                            int bytesRead = await fs.ReadAsync(buffer, 0, toRead);
-                            if (bytesRead <= 0) break;
-                            await e.Response.Body.WriteAsync(buffer, 0, bytesRead);
-                            remaining -= bytesRead;
+                            while (remaining > 0)
+                            {
+                                int toRead = (int)Math.Min(buffer.Length, remaining);
+                                int bytesRead = await fs.ReadAsync(buffer.AsMemory(0, toRead));
+                                if (bytesRead <= 0) break;
+                                await e.Response.Body.WriteAsync(buffer.AsMemory(0, bytesRead));
+                                remaining -= bytesRead;
+                            }
+                        }
+                        finally
+                        {
+                            ArrayPool<byte>.Shared.Return(buffer);
                         }
                     }
                     else
@@ -641,11 +649,18 @@ namespace FAP.Domain.Handlers
                             return true;
                         }
                         // Stream full file
-                        var buffer = new byte[64 * 1024];
-                        int bytesRead;
-                        while ((bytesRead = await fs.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                        var buffer = ArrayPool<byte>.Shared.Rent(64 * 1024);
+                        try
                         {
-                            await e.Response.Body.WriteAsync(buffer, 0, bytesRead);
+                            int bytesRead;
+                            while ((bytesRead = await fs.ReadAsync(buffer.AsMemory(0, buffer.Length))) > 0)
+                            {
+                                await e.Response.Body.WriteAsync(buffer.AsMemory(0, bytesRead));
+                            }
+                        }
+                        finally
+                        {
+                            ArrayPool<byte>.Shared.Return(buffer);
                         }
                     }
 
