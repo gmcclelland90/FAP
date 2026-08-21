@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -19,24 +19,23 @@
 
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Waf.Applications;
 using System.Windows.Input;
 using FAP.Application.Views;
 using FAP.Domain.Entities.FileSystem;
 
 namespace FAP.Application.ViewModels
 {
-    public class BrowserViewModel : ViewModel<IBrowserView>
+    public class BrowserViewModel : ViewModelBase<IBrowserView>
     {
-        private BrowsingFile currentItem;
-        private string currentPath;
-        private ICommand download;
+        private BrowsingFile currentItem = null!;
+        private string currentPath = string.Empty;
+        private ICommand download = null!;
         private bool isBusy;
-        private List<BrowsingFile> lastSelectedEntity;
+        private List<BrowsingFile> lastSelectedEntity = null!;
         private bool noCache;
-        private ICommand refresh;
+        private ICommand refresh = null!;
         private ObservableCollection<BrowsingFile> root = new ObservableCollection<BrowsingFile>();
-        private string status;
+        private string status = string.Empty;
 
         public BrowserViewModel(IBrowserView view)
             : base(view)
@@ -48,7 +47,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 noCache = value;
-                RaisePropertyChanged("NoCache");
+                OnPropertyChanged("NoCache");
             }
             get { return noCache; }
         }
@@ -58,7 +57,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 isBusy = value;
-                RaisePropertyChanged("IsBusy");
+                OnPropertyChanged("IsBusy");
             }
             get { return isBusy; }
         }
@@ -68,7 +67,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 root = value;
-                RaisePropertyChanged("Root");
+                OnPropertyChanged("Root");
             }
             get { return root; }
         }
@@ -78,7 +77,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 status = value;
-                RaisePropertyChanged("Status");
+                OnPropertyChanged("Status");
             }
             get { return status; }
         }
@@ -88,7 +87,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 download = value;
-                RaisePropertyChanged("Download");
+                OnPropertyChanged("Download");
             }
             get { return download; }
         }
@@ -98,7 +97,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 refresh = value;
-                RaisePropertyChanged("Refresh");
+                OnPropertyChanged("Refresh");
             }
             get { return refresh; }
         }
@@ -109,7 +108,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 lastSelectedEntity = value;
-                RaisePropertyChanged("LastSelectedEntity");
+                OnPropertyChanged("LastSelectedEntity");
             }
         }
 
@@ -119,7 +118,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 currentItem = value;
-                RaisePropertyChanged("CurrentItem");
+                OnPropertyChanged("CurrentItem");
             }
         }
 
@@ -129,7 +128,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 currentPath = value;
-                RaisePropertyChanged("CurrentPath");
+                OnPropertyChanged("CurrentPath");
             }
         }
     }

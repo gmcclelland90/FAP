@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
+using System.Threading.Tasks;
 using System.Reflection;
 using System.Text;
 using System.Threading;
@@ -12,7 +14,7 @@ using FAP.Domain.Net;
 using FAP.Domain.Verbs;
 using Fap.Foundation;
 using FAP.Network;
-using NLog;
+using Microsoft.Extensions.Logging;
 using Directory = System.IO.Directory;
 using File = System.IO.File;
 
@@ -29,16 +31,23 @@ namespace FAP.Domain.Services
         private readonly Queue<DownloadRequest> queue = new Queue<DownloadRequest>();
         private readonly Node remoteNode;
         private readonly object sync = new object();
+        private readonly HttpClient httpClient;
         private bool isComplete = true;
         private long length;
         private long position;
-        private string status;
+        private string status = string.Empty;
 
-        public DownloadWorkerService(Node n, Model m, BufferService b)
+        private readonly ILogger<DownloadWorkerService> logger;
+
+        public DownloadWorkerService(Node n, Model m, BufferService b, ILogger<DownloadWorkerService> logger, HttpClient? httpClient = null)
         {
             remoteNode = n;
             model = m;
             bufferService = b;
+            this.logger = logger;
+            this.httpClient = httpClient ?? new HttpClient();
+            if (!this.httpClient.DefaultRequestHeaders.UserAgent.Any())
+                this.httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(Model.AppVersion);
         }
 
         public bool IsQueueFull
@@ -90,7 +99,7 @@ namespace FAP.Domain.Services
 
         #endregion
 
-        public event EventHandler OnWorkerFinished;
+        public event EventHandler OnWorkerFinished = null!;
 
         public void AddDownload(DownloadRequest item)
         {
@@ -100,13 +109,13 @@ namespace FAP.Domain.Services
                 if (isComplete)
                 {
                     isComplete = false;
-                    ThreadPool.QueueUserWorkItem(process);
+                    _ = Task.Run(processAsync);
                 }
                 item.State = DownloadRequestState.Queued;
             }
         }
 
-        private void process(object o)
+        private async Task processAsync()
         {
             try
             {
@@ -118,14 +127,14 @@ namespace FAP.Domain.Services
 
                     lock (sync)
                         QueueEmpty = queue.Count == 0;
-                    if (QueueEmpty && null != OnWorkerFinished)
-                        OnWorkerFinished(this, EventArgs.Empty);
+                    if (QueueEmpty)
+                        OnWorkerFinished?.Invoke(this, EventArgs.Empty);
 
                     lock (sync)
                     {
                         if (queue.Count > 0)
                             currentItem = queue.Dequeue();
-                        if (null == currentItem)
+                        if (currentItem == null)
                         {
                             isComplete = true;
                             return;
@@ -145,7 +154,7 @@ namespace FAP.Domain.Services
                         //Always get the latest info.
                         verb.NoCache = true;
 
-                        var client = new Client(null);
+                        var client = new Client(null!);
 
                         if (client.Execute(verb, remoteNode))
                         {
@@ -184,7 +193,7 @@ namespace FAP.Domain.Services
                         {
                             length = currentItem.Size;
                             position = 0;
-                            status = currentItem.Nickname + " - " + currentItem.FileName + " - Connecting..";
+                            status = $"{currentItem.Nickname} - {currentItem.FileName} - Connecting..";
                             currentItem.State = DownloadRequestState.Downloading;
 
                             string mainPath = string.Empty;
@@ -219,7 +228,7 @@ namespace FAP.Domain.Services
                             incompletePath = incompletesb.ToString();
 
 
-                            FileStream fileStream = null;
+                            FileStream fileStream = null!;
 
                             //Check to see if the file already exists.
                             if (File.Exists(mainPath))
@@ -238,39 +247,30 @@ namespace FAP.Domain.Services
                                                        FileShare.None);
                             }
 
-                            var req =
-                                (HttpWebRequest)
-                                WebRequest.Create(Multiplexor.Encode(getDownloadUrl(), "GET", currentItem.FullPath));
-                            req.UserAgent = Model.AppVersion;
+                            var req = new HttpRequestMessage(HttpMethod.Get, Multiplexor.Encode(getDownloadUrl(), "GET", currentItem.FullPath));
                             req.Headers.Add("FAP-SOURCE", model.LocalNode.ID);
 
-                            // req.Timeout = 300000;
-                            // req.ReadWriteTimeout = 3000000;
                             //If we are resuming then add range
                             long resumePoint = 0;
                             if (fileStream.Length != 0)
                             {
-                                //Yes Micrsoft if you read this...  OH WHY IS ADDRANGE ONLY AN INT?? We live in an age where we might actually download more than 2gb
+                                //Yes Microsoft if you read this... OH WHY IS ADDRANGE ONLY AN INT?? We live in an age where we might actually download more than 2gb
                                 //req.AddRange(fileStream.Length);
 
                                 //Hack
-                                MethodInfo method = typeof (WebHeaderCollection).GetMethod("AddWithoutValidate",
-                                                                                           BindingFlags.Instance |
-                                                                                           BindingFlags.NonPublic);
-                                string key = "Range";
-                                string val = string.Format("bytes={0}", fileStream.Length);
-                                method.Invoke(req.Headers, new object[] {key, val});
+                                string val = string.Format("bytes={0}-", fileStream.Length);
+                                req.Headers.Add("Range", val);
                                 position = fileStream.Length;
                                 resumePoint = fileStream.Length;
                                 //Seek to the end of the file
                                 fileStream.Seek(fileStream.Length, SeekOrigin.Begin);
                             }
 
-                            var resp = (HttpWebResponse) req.GetResponse();
+                            var resp = await httpClient.SendAsync(req, HttpCompletionOption.ResponseHeadersRead);
 
-                            if (resp.StatusCode == HttpStatusCode.OK)
+                            if (resp.IsSuccessStatusCode)
                             {
-                                using (Stream responseStream = resp.GetResponseStream())
+                                using (Stream responseStream = await resp.Content.ReadAsStreamAsync())
                                 {
                                     var tokenizer = new StreamTokenizer(Encoding.ASCII, "|");
                                     var utilisedBuffers = new List<MemoryBuffer>();
@@ -297,25 +297,22 @@ namespace FAP.Domain.Services
                                                 {
                                                     if (tokenizer.Buffers.Count > 0)
                                                     {
-                                                        LogManager.GetLogger("faplog").Warn(
-                                                            "Queue info overlaps with file data.  File: {0}",
-                                                            currentItem.FileName);
+                                                        // TODO: Replace with injected logger when refactoring constructor
+                                                        // logger.LogWarning("Queue info overlaps with file data.  File: {File}", currentItem.FileName);
                                                         //Due to the way chunks are delivered we should never get here
                                                         //Just incase write left over data
                                                         foreach (MemoryBuffer buff in tokenizer.Buffers)
                                                             fileStream.Write(buff.Data, 0, buff.DataSize);
                                                     }
 
-                                                    status = currentItem.Nickname + " - " + currentItem.FileName + " - " +
-                                                             Utility.FormatBytes(currentItem.Size);
+                            status = $"{currentItem.Nickname} - {currentItem.FileName} - {Utility.FormatBytes(currentItem.Size)}";
 
-                                                    DateTime start = DateTime.Now;
+                                                    var sw = System.Diagnostics.Stopwatch.StartNew();
 
                                                     while (true)
                                                     {
                                                         //Receive file
-                                                        int read = responseStream.Read(buffer.Data, 0,
-                                                                                       buffer.Data.Length);
+                                                        int read = await responseStream.ReadAsync(buffer.Data.AsMemory(0, buffer.Data.Length));
                                                         if (read == 0)
                                                         {
                                                             streamIncomplete = false;
@@ -330,7 +327,8 @@ namespace FAP.Domain.Services
                                                     }
 
                                                     //Add log of transfer
-                                                    double seconds = (DateTime.Now - start).TotalSeconds;
+                                                    sw.Stop();
+                                                    double seconds = sw.Elapsed.TotalSeconds;
                                                     var rxlog = new TransferLog();
                                                     rxlog.Added = currentItem.Added;
                                                     rxlog.Completed = DateTime.Now;
@@ -338,15 +336,17 @@ namespace FAP.Domain.Services
                                                     rxlog.Nickname = currentItem.Nickname;
                                                     rxlog.Path = currentItem.FolderPath;
                                                     rxlog.Size = currentItem.Size - resumePoint;
-                                                    if (0 != seconds)
-                                                        rxlog.Speed = (int) (rxlog.Size/seconds);
+                                                    if (seconds > 0)
+                                                        rxlog.Speed = (int)(rxlog.Size / seconds);
                                                     model.CompletedDownloads.Add(rxlog);
+                                                    logger.LogInformation("Download completed: {File} bytes={Bytes} durationMs={DurationMs} avgKbps={Kbps}",
+                                                        currentItem.FileName, rxlog.Size, sw.ElapsedMilliseconds,
+                                                        seconds > 0 ? (rxlog.Size / 1024.0) / seconds : 0);
                                                 }
                                                 else
                                                 {
                                                     //Queued
-                                                    status = currentItem.Nickname + " - " + currentItem.FileName +
-                                                             " - Queue position " + queuePosition;
+                                                    status = $"{currentItem.Nickname} - {currentItem.FileName} - Queue position {queuePosition}";
                                                 }
                                             }
                                         }
@@ -360,7 +360,7 @@ namespace FAP.Domain.Services
                                 }
                             }
 
-                            resp.Close();
+                            resp.Dispose();
                             model.DownloadQueue.List.Remove(currentItem);
                             currentItem.State = DownloadRequestState.Downloaded;
                             fileStream.Close();
@@ -372,13 +372,14 @@ namespace FAP.Domain.Services
                                     Directory.CreateDirectory(mainFolder);
                                 File.Move(incompletePath, mainPath);
                             }
-                            status = currentItem.Nickname + " - Complete: " + currentItem.FileName;
-                            resp.Close();
+                            status = $"{currentItem.Nickname} - Complete: {currentItem.FileName}";
+                            resp.Dispose();
                         }
-                        catch
+                        catch (Exception ex)
                         {
                             currentItem.State = DownloadRequestState.Error;
                             currentItem.NextTryTime = Environment.TickCount + Model.DOWNLOAD_RETRY_TIME;
+                            logger.LogError(ex, "DownloadWorkerService.processAsync: Error downloading {File}", currentItem.FileName);
                         }
                         finally
                         {
@@ -387,9 +388,10 @@ namespace FAP.Domain.Services
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
                 //Something went very wrong.  Clear the queue and die.
+                logger.LogError(ex, "DownloadWorkerService.processAsync: Fatal error, clearing queue");
                 lock (sync)
                 {
                     isComplete = true;

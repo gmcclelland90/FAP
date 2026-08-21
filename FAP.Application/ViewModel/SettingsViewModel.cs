@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -17,8 +17,8 @@
 
 #endregion
 
+using System.Collections.Generic;
 using System.Reflection;
-using System.Waf.Applications;
 using System.Windows.Input;
 using FAP.Application.Views;
 using FAP.Domain.Entities;
@@ -28,18 +28,46 @@ using System.ComponentModel;
 
 namespace FAP.Application.ViewModels
 {
-    public class SettingsViewModel : ViewModel<ISettingsView>, IDataErrorInfo
+    public class SettingsViewModel : ViewModelBase<ISettingsView>, IDataErrorInfo
     {
         private readonly string startupRegistryPath = "SOFTWARE/Microsoft/Windows/CurrentVersion/Run";
-        private ICommand changeAvatar;
-        private ICommand displayQuickStart;
-        private ICommand editDownloadDir;
-        private Model model;
-        private ICommand resetInterface;
+        private ICommand changeAvatar = null!;
+        private ICommand displayQuickStart = null!;
+        private ICommand editDownloadDir = null!;
+        private Model model = null!;
+        private ICommand resetInterface = null!;
+        private ICommand saveCommand = null!;
+        private ICommand cancelCommand = null!;
+        private IList<NetInterface> availableInterfaces = new List<NetInterface>();
+        private NetInterface? selectedNetworkInterface;
 
         public SettingsViewModel(ISettingsView view)
             : base(view)
         {
+        }
+
+        public IList<NetInterface> AvailableInterfaces
+        {
+            get => availableInterfaces;
+            set
+            {
+                availableInterfaces = value ?? new List<NetInterface>();
+                OnPropertyChanged(nameof(AvailableInterfaces));
+            }
+        }
+
+        public NetInterface? SelectedNetworkInterface
+        {
+            get => selectedNetworkInterface;
+            set
+            {
+                if (ReferenceEquals(selectedNetworkInterface, value))
+                    return;
+                selectedNetworkInterface = value;
+                if (model?.LocalNode != null && value?.Address != null)
+                    model.LocalNode.Host = value.Address.ToString();
+                OnPropertyChanged(nameof(SelectedNetworkInterface));
+            }
         }
 
         public ICommand ResetInterface
@@ -48,7 +76,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 resetInterface = value;
-                RaisePropertyChanged("ResetInterface");
+                OnPropertyChanged("ResetInterface");
             }
         }
 
@@ -58,7 +86,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 editDownloadDir = value;
-                RaisePropertyChanged("EditDownloadDir");
+                OnPropertyChanged("EditDownloadDir");
             }
         }
 
@@ -68,7 +96,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 displayQuickStart = value;
-                RaisePropertyChanged("DisplayQuickStart");
+                OnPropertyChanged("DisplayQuickStart");
             }
         }
 
@@ -78,7 +106,27 @@ namespace FAP.Application.ViewModels
             set
             {
                 changeAvatar = value;
-                RaisePropertyChanged("ChangeAvatar");
+                OnPropertyChanged("ChangeAvatar");
+            }
+        }
+
+        public ICommand SaveCommand
+        {
+            get { return saveCommand; }
+            set
+            {
+                saveCommand = value;
+                OnPropertyChanged("SaveCommand");
+            }
+        }
+
+        public ICommand CancelCommand
+        {
+            get { return cancelCommand; }
+            set
+            {
+                cancelCommand = value;
+                OnPropertyChanged("CancelCommand");
             }
         }
 
@@ -88,7 +136,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 model = value;
-                RaisePropertyChanged("Model");
+                OnPropertyChanged("Model");
             }
         }
 
@@ -100,7 +148,7 @@ namespace FAP.Application.ViewModels
                     RegistryHelper.SetRegistryData(Registry.CurrentUser, startupRegistryPath, "FAP", GetStartupCommand());
                 else
                     RegistryHelper.SetRegistryData(Registry.CurrentUser, startupRegistryPath, "FAP", string.Empty);
-                RaisePropertyChanged("RunOnStartUp");
+                OnPropertyChanged("RunOnStartUp");
             }
             get
             {
@@ -111,18 +159,18 @@ namespace FAP.Application.ViewModels
 
         private string GetStartupCommand()
         {
-            string location = Assembly.GetEntryAssembly().Location;
+            string location = Assembly.GetEntryAssembly()!.Location;
             return string.Format("\"{0}\" STARTUP", location);
         }
 
         public string Error
         {
-            get { return this[null]; }
+            get { return this[null!]; }
         }
 
         public string this[string columnName]
         {
-            get { return model[columnName]; }
+            get { return model[columnName] ?? string.Empty; }
         }
     }
 }

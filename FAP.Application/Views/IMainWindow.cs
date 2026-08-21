@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -17,14 +17,10 @@
 
 #endregion
 
-using System.Waf.Applications;
-using System.Windows.Threading;
-
 namespace FAP.Application.Views
 {
     public interface IMainWindow : IView
     {
-        Dispatcher Dispatcher { get; }
         void Show();
         void Close();
         void Flash();

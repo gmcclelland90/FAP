@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -20,11 +20,17 @@
 using System;
 using System.IO;
 using System.Net;
+using System.Net.Http;
 using System.Text;
+using System.Threading.Tasks;
 using FAP.Domain.Entities;
+using FAP.Domain.Net;
 using FAP.Domain.Verbs;
 using FAP.Network;
-using FAP.Network.Entities;
+using FAP.Shared.Entities;
+using FAP.Shared.Interfaces;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FAP.Domain.Net
 {
@@ -32,23 +38,27 @@ namespace FAP.Domain.Net
     {
         private readonly int DEFAULT_TIMEOUT = 30000; //30 seconds
         private readonly Node callingNode;
+        private readonly IHttpClientFactory? _httpClientFactory;
+        private readonly ILogger<ModernHttpClient> _httpLogger;
 
-        public Client(Node _callingNode)
+        public Client(Node _callingNode, IHttpClientFactory? httpClientFactory = null, ILogger<ModernHttpClient>? httpLogger = null)
         {
             callingNode = _callingNode;
+            _httpClientFactory = httpClientFactory;
+            _httpLogger = httpLogger ?? NullLogger<ModernHttpClient>.Instance;
         }
 
-        public bool Execute(IVerb verb, Node destinationNode)
+        public bool Execute(FAP.Shared.Interfaces.IVerb verb, Node destinationNode)
         {
             return Execute(verb, destinationNode, DEFAULT_TIMEOUT);
         }
 
-        public bool Execute(IVerb verb, string destination)
+        public bool Execute(FAP.Shared.Interfaces.IVerb verb, string destination)
         {
             return Execute(verb, destination, string.Empty, DEFAULT_TIMEOUT);
         }
 
-        public bool Execute(IVerb verb, string destination, int timeout)
+        public bool Execute(FAP.Shared.Interfaces.IVerb verb, string destination, int timeout)
         {
             return Execute(verb, destination, string.Empty, timeout);
         }
@@ -67,12 +77,12 @@ namespace FAP.Domain.Net
             return DoRequest(destination.Location, req, out output, timeout);
         }
 
-        public bool Execute(IVerb verb, string destination, string authKey, int timeout)
+        public bool Execute(FAP.Shared.Interfaces.IVerb verb, string destination, string authKey, int timeout)
         {
             return Execute(verb, new Node {Location = destination, Secret = authKey}, timeout);
         }
 
-        public bool Execute(IVerb verb, Node destination, int timeout)
+        public bool Execute(FAP.Shared.Interfaces.IVerb verb, Node destination, int timeout)
         {
             try
             {
@@ -105,70 +115,11 @@ namespace FAP.Domain.Net
 
             try
             {
-                var req = (HttpWebRequest) WebRequest.Create(Multiplexor.Encode(url, input.Verb, input.Param));
-                req.Timeout = timeout;
-
-                //Add headers
-                req.UserAgent = Model.AppVersion;
-                //Add fap headers
-                if (!string.IsNullOrEmpty(input.AuthKey))
-                    req.Headers.Add("FAP-AUTH", input.AuthKey);
-                if (!string.IsNullOrEmpty(input.SourceID))
-                    req.Headers.Add("FAP-SOURCE", input.SourceID);
-                if (!string.IsNullOrEmpty(input.OverlordID))
-                    req.Headers.Add("FAP-OVERLORD", input.OverlordID);
-
-                //If we need to send data then do a post
-                if (string.IsNullOrEmpty(input.Data))
-                {
-                    req.Method = "GET";
-                    req.ContentLength = 0;
-                }
-                else
-                {
-                    req.ContentType = "application/json";
-                    req.Method = "POST";
-                    byte[] bytes = Encoding.UTF8.GetBytes(input.Data);
-                    req.ContentLength = bytes.Length;
-                    Stream os = req.GetRequestStream();
-                    os.Write(bytes, 0, bytes.Length); //Push it out there
-                    os.Flush();
-                }
-
-                //Get the response
-                var resp = (HttpWebResponse) req.GetResponse();
-                req.Timeout = 100000;
-                if (resp == null)
-                    return false;
-                //If data was returned then get it from the stream
-                if (resp.ContentLength > 0)
-                {
-                    using (Stream s = resp.GetResponseStream())
-                    {
-                        using (var sr = new StreamReader(s, Encoding.UTF8))
-                        {
-                            result.Data = sr.ReadToEnd().Trim();
-                        }
-                    }
-                }
-
-                //Get the headers
-                foreach (string header in resp.Headers.AllKeys)
-                {
-                    switch (header)
-                    {
-                        case "FAP-AUTH":
-                            result.AuthKey = resp.Headers[header];
-                            break;
-                        case "FAP-SOURCE":
-                            result.SourceID = resp.Headers[header];
-                            break;
-                        case "FAP-OVERLORD":
-                            result.OverlordID = resp.Headers[header];
-                            break;
-                    }
-                }
-                return true;
+                var r = result;
+                var node = callingNode ?? throw new InvalidOperationException("Calling node cannot be null");
+                var httpClient = _httpClientFactory?.CreateClient("FapDefault") ?? new HttpClient { Timeout = TimeSpan.FromMilliseconds(timeout) };
+                var modernClient = new ModernHttpClient(node, _httpLogger, httpClient);
+                return Task.Run(() => modernClient.DoRequestAsync(url, input, r, timeout)).GetAwaiter().GetResult();
             }
             catch
             {

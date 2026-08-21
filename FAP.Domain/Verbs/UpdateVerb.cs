@@ -20,11 +20,12 @@
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using FAP.Domain.Entities;
-using FAP.Network.Entities;
+using FAP.Shared.Entities;
+using FAP.Shared.Interfaces;
 
 namespace FAP.Domain.Verbs
 {
-    public class UpdateVerb : BaseVerb, IVerb
+    public class UpdateVerb : BaseVerb, FAP.Shared.Interfaces.IVerb
     {
         private List<Node> nodes = new List<Node>();
 

@@ -1,31 +1,33 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading;
-using System.Waf.Applications;
-using Autofac;
+using System.Threading.Tasks;
+using CommunityToolkit.Mvvm.Input;
 using FAP.Application.ViewModel;
 using FAP.Domain;
 using FAP.Domain.Entities;
 using FAP.Domain.Net;
 using FAP.Domain.Verbs;
 using Fap.Foundation;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace FAP.Application.Controllers
 {
     public class SearchController
     {
-        private readonly IContainer container;
+        private readonly IServiceProvider serviceProvider;
         private readonly Model model;
         private readonly object sync = new object();
         private SafeObservedCollection<SearchResult> currentResults = new SafeObservedCollection<SearchResult>();
         private int outstandingrequests;
         private long startTime;
-        private SearchViewModel viewModel;
+        private SearchViewModel viewModel = null!;
 
-        public SearchController(IContainer c, Model m)
+        public SearchController(IServiceProvider serviceProvider, Model m)
         {
-            container = c;
+            this.serviceProvider = serviceProvider;
             model = m;
         }
 
@@ -39,11 +41,11 @@ namespace FAP.Application.Controllers
         {
             if (null == viewModel)
             {
-                viewModel = container.Resolve<SearchViewModel>();
-                viewModel.Search = new DelegateCommand(Search);
-                viewModel.Download = new DelegateCommand(Download);
-                viewModel.ViewShare = new DelegateCommand(ViewShare);
-                viewModel.Reset = new DelegateCommand(Reset);
+                viewModel = serviceProvider.GetRequiredService<SearchViewModel>();
+                viewModel.Search = new RelayCommand(Search);
+                viewModel.Download = new RelayCommand<object?>(Download);
+                viewModel.ViewShare = new RelayCommand<object?>(ViewShare);
+                viewModel.Reset = new RelayCommand(Reset);
             }
         }
 
@@ -63,11 +65,11 @@ namespace FAP.Application.Controllers
             viewModel.SizeText = null;
         }
 
-        private void ViewShare(object o)
+        private void ViewShare(object? o)
         {
         }
 
-        private void Download(object o)
+        private void Download(object? o)
         {
             viewModel.AllowSearch = false;
             var i = o as ObservableCollection<object>;
@@ -102,15 +104,16 @@ namespace FAP.Application.Controllers
         private void Search()
         {
             viewModel.AllowSearch = false;
-            ThreadPool.QueueUserWorkItem(EnableSearch);
             currentResults.Clear();
             currentResults = new SafeObservedCollection<SearchResult>();
             if (null != viewModel.Results)
                 viewModel.Results.Dispose();
             viewModel.Results = new SafeObservingCollection<SearchResult>(currentResults);
 
-            List<Node> peerlist = model.Network.Nodes.ToList();
-
+            List<Node> peerlist = model.Network.Nodes
+                .ToList()
+                .Where(n => n.NodeType != ClientType.Overlord && n.Online)
+                .ToList();
 
             outstandingrequests = 0;
             viewModel.LowerStatusMessage = string.Empty;
@@ -120,21 +123,95 @@ namespace FAP.Application.Controllers
             {
                 viewModel.UpperStatusMessage = "Please wait until your connected";
                 viewModel.LowerStatusMessage = "to a network prior to searching.";
+                viewModel.AllowSearch = true;
             }
             else
             {
                 viewModel.UpperStatusMessage = "Search running..";
-                viewModel.LowerStatusMessage = model.Network.Nodes.Count + " peers remaining..";
+                viewModel.LowerStatusMessage = peerlist.Count + " peers remaining..";
                 outstandingrequests = peerlist.Count;
                 startTime = Environment.TickCount;
-                foreach (Node peer in peerlist)
-                    ThreadPool.QueueUserWorkItem(RunAsync, new AsyncSearchParam {Node = peer, Results = currentResults});
+
+                var peersSnapshot = new List<Node>(peerlist);
+                var resultsRef = currentResults;
+
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    var options = new System.Threading.Tasks.ParallelOptions
+                    {
+                        MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount / 2)
+                    };
+                    System.Threading.Tasks.Parallel.ForEach(peersSnapshot, options, peer =>
+                    {
+                        try
+                        {
+                            var client = new Client(model.LocalNode);
+                            var verb = new SearchVerb(null!);
+                            verb.SearchString = viewModel.SearchString;
+
+                            switch (viewModel.SizeSearchType)
+                            {
+                                case "Less than":
+                                    verb.SmallerThan = GetSearchSize();
+                                    break;
+                                case "Greater than":
+                                    verb.LargerThan = GetSearchSize();
+                                    break;
+                            }
+
+                            switch (viewModel.ModifiedSearchType)
+                            {
+                                case "Before":
+                                    verb.ModifiedBefore = viewModel.ModifiedDate!.Value;
+                                    break;
+                                case "After":
+                                    verb.ModifiedAfter = viewModel.ModifiedDate!.Value;
+                                    break;
+                            }
+
+                            // 7s timeout per peer
+                            if (client.Execute(verb, peer, 7000))
+                            {
+                                if (verb.Results != null)
+                                {
+                                    foreach (SearchResult result in verb.Results)
+                                    {
+                                        result.User = peer.Nickname;
+                                        result.ClientID = peer.ID;
+                                    }
+                                    resultsRef.AddRange(verb.Results);
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            lock (sync)
+                            {
+                                if (ReferenceEquals(resultsRef, currentResults))
+                                {
+                                    outstandingrequests--;
+                                    if (outstandingrequests < 1)
+                                    {
+                                        viewModel.UpperStatusMessage = "Search complete in " + (Environment.TickCount - startTime) +
+                                                                       " ms";
+                                        viewModel.LowerStatusMessage = currentResults.Count + " results.";
+                                        viewModel.AllowSearch = true;
+                                    }
+                                    else
+                                    {
+                                        viewModel.LowerStatusMessage = outstandingrequests + " peers remaining..";
+                                    }
+                                }
+                            }
+                        }
+                    });
+                });
             }
         }
 
-        private void EnableSearch(object b)
+        private async void EnableSearch(object? b)
         {
-            Thread.Sleep(8000);
+            await Task.Delay(8000);
             viewModel.AllowSearch = true;
         }
 
@@ -143,24 +220,24 @@ namespace FAP.Application.Controllers
             switch (viewModel.SizeModifier)
             {
                 case "KB":
-                    return (double) viewModel.SizeText*1024;
+                    return (double)viewModel.SizeText! * 1024;
                 case "MB":
-                    return (double) viewModel.SizeText*1048576;
+                    return (double)viewModel.SizeText! * 1048576;
                 case "GB":
-                    return (double) viewModel.SizeText*1073741824;
+                    return (double)viewModel.SizeText! * 1073741824;
                 case "TB":
-                    return (double) viewModel.SizeText*1099511627776;
+                    return (double)viewModel.SizeText! * 1099511627776;
             }
             return 0;
         }
 
-        private void RunAsync(object o)
+        private void RunAsync(object? o)
         {
             var param = o as AsyncSearchParam;
             if (null != param && null != param.Node)
             {
                 var client = new Client(model.LocalNode);
-                var verb = new SearchVerb(null);
+                var verb = new SearchVerb(null!);
                 verb.SearchString = viewModel.SearchString;
 
                 switch (viewModel.SizeSearchType)
@@ -180,10 +257,10 @@ namespace FAP.Application.Controllers
                     case "Any":
                         break;
                     case "Before":
-                        verb.ModifiedBefore = (DateTime) viewModel.ModifiedDate;
+                        verb.ModifiedBefore = viewModel.ModifiedDate!.Value;
                         break;
                     case "After":
-                        verb.ModifiedAfter = (DateTime) viewModel.ModifiedDate;
+                        verb.ModifiedAfter = viewModel.ModifiedDate!.Value;
                         break;
                 }
 
@@ -204,7 +281,7 @@ namespace FAP.Application.Controllers
             lock (sync)
             {
                 //If we still on the same search then update the UI.
-                if (param.Results == currentResults)
+                if (param?.Results == currentResults)
                 {
                     outstandingrequests--;
                     if (outstandingrequests < 1)
@@ -225,8 +302,8 @@ namespace FAP.Application.Controllers
 
         private class AsyncSearchParam
         {
-            public SafeObservedCollection<SearchResult> Results { set; get; }
-            public Node Node { set; get; }
+            public SafeObservedCollection<SearchResult> Results { set; get; } = null!;
+            public Node Node { set; get; } = null!;
         }
 
         #endregion

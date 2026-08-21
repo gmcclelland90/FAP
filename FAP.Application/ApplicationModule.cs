@@ -17,23 +17,19 @@
 
 #endregion
 
-using Autofac;
 using FAP.Application.Controllers;
 using FAP.Domain.Verbs;
+using FAP.Domain;
+using FAP.Domain.Services;
+using FAP.Domain.Entities;
 
 namespace FAP.Application
 {
-    public class
-        ApplicationModule : Module
+    // This module is no longer needed as we're using Microsoft.Extensions.DependencyInjection
+    // Services are now registered directly in App.xaml.cs
+    public class ApplicationModule
     {
-        protected override void Load(ContainerBuilder builder)
-        {
-            builder.RegisterType<ConversationController>().As<IConversationController>().SingleInstance();
-            builder.RegisterType<PopupWindowController>().As<PopupWindowController>().SingleInstance();
-            builder.RegisterType<ConnectionController>().SingleInstance();
-            builder.RegisterType<WatchdogController>().SingleInstance();
-            builder.RegisterType<InterfaceController>();
-            builder.RegisterType<ApplicationCore>().SingleInstance();
-        }
+        // Migration note: This class is kept for reference but is no longer used
+        // All service registration is now done in App.xaml.cs using IServiceCollection
     }
 }

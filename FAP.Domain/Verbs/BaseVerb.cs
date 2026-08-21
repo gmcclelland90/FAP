@@ -17,34 +17,33 @@
 
 #endregion
 
-using Newtonsoft.Json;
+using System.Text.Json;
 
 namespace FAP.Domain.Verbs
 {
     public class BaseVerb
     {
-        public static T Deserialise<T>(string json)
+        public static T? Deserialise<T>(string json)
         {
-            return JsonConvert.DeserializeObject<T>(json);
-            /*T obj = Activator.CreateInstance<T>();
-            using (MemoryStream ms = new MemoryStream(Encoding.ASCII.GetBytes(json)))
+            var typeInfo = FAP.Domain.FapJsonContext.Default.GetTypeInfo(typeof(T));
+            if (typeInfo is null)
             {
-                DataContractJsonSerializer serializer = new DataContractJsonSerializer(obj.GetType());
-                obj = (T)serializer.ReadObject(ms); 
-                return obj;
-            }*/
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true, PropertyNamingPolicy = null };
+                return JsonSerializer.Deserialize<T>(json, options);
+            }
+            return (T?)JsonSerializer.Deserialize(json, typeInfo);
         }
 
         public static string Serialize<T>(T obj)
         {
-            return JsonConvert.SerializeObject(obj, Formatting.None,
-                                               new JsonSerializerSettings {NullValueHandling = NullValueHandling.Ignore});
-            /* DataContractJsonSerializer serializer = new DataContractJsonSerializer(obj.GetType());
-             using (MemoryStream ms = new MemoryStream())
-             {
-                 serializer.WriteObject(ms, obj);
-                 //return Encoding.ASCII.GetString(ms.ToArray());
-             }*/
+            var typeInfo = FAP.Domain.FapJsonContext.Default.GetTypeInfo(typeof(T));
+            if (typeInfo is null)
+            {
+                // Fallback to options if T wasn't registered in the context
+                var options = new JsonSerializerOptions { WriteIndented = false, PropertyNamingPolicy = null, DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull };
+                return JsonSerializer.Serialize(obj, options);
+            }
+            return JsonSerializer.Serialize(obj, typeInfo);
         }
     }
 }

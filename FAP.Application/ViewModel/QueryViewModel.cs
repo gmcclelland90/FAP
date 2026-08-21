@@ -42,6 +42,11 @@ namespace FAP.Application.ViewModels
             return brower.SelectFile(out result);
         }
 
+        public bool SelectImageFile(out string result)
+        {
+            return brower.SelectImageFile(out result);
+        }
+
         #endregion
     }
 }

@@ -24,9 +24,9 @@ namespace FAP.Domain.Entities
     public class Network : BaseEntity
     {
         private readonly SafeObservedCollection<Node> nodes = new SafeObservedCollection<Node>();
-        private string networkID;
-        private string networkName;
-        private Node overlord;
+        private string networkID = string.Empty;
+        private string networkName = string.Empty;
+        private Node overlord = null!;
         private ConnectionState state = ConnectionState.Disconnected;
 
         public ConnectionState State

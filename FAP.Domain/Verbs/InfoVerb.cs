@@ -19,11 +19,12 @@
 
 using System.Runtime.Serialization;
 using FAP.Domain.Entities;
-using FAP.Network.Entities;
+using FAP.Shared.Entities;
+using FAP.Shared.Interfaces;
 
 namespace FAP.Domain.Verbs
 {
-    public class InfoVerb : BaseVerb, IVerb
+    public class InfoVerb : BaseVerb, FAP.Shared.Interfaces.IVerb
     {
         private Node node = new Node();
 
@@ -53,7 +54,7 @@ namespace FAP.Domain.Verbs
         /// </summary>
         /// <param name="r"></param>
         /// <returns></returns>
-        public NetworkRequest ProcessRequest(NetworkRequest r)
+        public NetworkRequest? ProcessRequest(NetworkRequest r)
         {
             var inc = Deserialise<InfoVerb>(r.Data);
             Node = inc.Node;
@@ -76,14 +77,14 @@ namespace FAP.Domain.Verbs
 
         #endregion
 
-        public Node GetValidatedNode()
+        public Node? GetValidatedNode()
         {
             if (null != Node)
             {
-                if (!Node.ContainsKey("Nickname"))
-                    return null;
+                // Don't require nickname to be present - just check that the node exists
+                return Node;
             }
-            return Node;
+            return null;
         }
     }
 }

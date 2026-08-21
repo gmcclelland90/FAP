@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -18,130 +18,121 @@
 #endregion
 
 using System;
-using System.Diagnostics;
-using System.Drawing;
-using System.Drawing.Imaging;
-using System.IO;
-using System.Reflection;
-using System.Waf.Applications;
-using System.Waf.Applications.Services;
-using Autofac;
+using System.Linq;
+using CommunityToolkit.Mvvm.Input;
+using FAP.Application.Services;
 using FAP.Application.ViewModels;
 using FAP.Domain.Entities;
+using Fap.Foundation;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace FAP.Application.Controllers
 {
-    internal class SettingsController
+    public class SettingsController : AsyncControllerBase
     {
-        private readonly IContainer container;
-        private readonly ApplicationCore core;
+        private readonly IServiceProvider serviceProvider;
+        private readonly ILogger<SettingsController> logger;
         private readonly Model model;
-        private QueryViewModel browser;
-        private SettingsViewModel viewModel;
+        private SettingsViewModel viewModel = null!;
 
-        public SettingsController(IContainer c, Model m, ApplicationCore ac)
+        public SettingsController(IServiceProvider serviceProvider, Model m)
         {
-            container = c;
+            logger = serviceProvider.GetRequiredService<ILogger<SettingsController>>();
             model = m;
-            core = ac;
+            this.serviceProvider = serviceProvider;
         }
 
-        public SettingsViewModel ViewModel
-        {
-            get { return viewModel; }
-        }
+        public SettingsViewModel ViewModel => viewModel;
 
         public void Initaize()
         {
-            if (null == viewModel)
+            viewModel = serviceProvider.GetRequiredService<SettingsViewModel>();
+            viewModel.Model = model;
+            viewModel.SaveCommand = new RelayCommand(SaveCommand);
+            viewModel.CancelCommand = new RelayCommand(CancelCommand);
+            viewModel.ChangeAvatar = new RelayCommand(ChangeAvatar);
+            viewModel.EditDownloadDir = new RelayCommand(EditDownloadDir);
+            viewModel.ResetInterface = new RelayCommand(RefreshNetworkInterfaces);
+            viewModel.DisplayQuickStart = new RelayCommand(ShowGettingStarted);
+            RefreshNetworkInterfaces();
+        }
+
+        private void ShowGettingStarted()
+        {
+            serviceProvider.GetRequiredService<IGettingStartedUi>().ShowGettingStarted();
+            model.DisplayedHelp = true;
+            model.Save();
+        }
+
+        private void RefreshNetworkInterfaces()
+        {
+            var list = NetworkInterfaceCatalog.ListIPv4(includeLoopback: true).ToList();
+            viewModel.AvailableInterfaces = list;
+            var host = model.LocalNode?.Host;
+            var match = NetworkInterfaceCatalog.FindByAddress(list, host);
+            viewModel.SelectedNetworkInterface = match ?? (list.Count > 0 ? list[0] : null);
+            if (viewModel.SelectedNetworkInterface?.Address != null &&
+                !string.Equals(model.LocalNode.Host, viewModel.SelectedNetworkInterface.Address.ToString(), StringComparison.OrdinalIgnoreCase))
             {
-                browser = container.Resolve<QueryViewModel>();
-                viewModel = container.Resolve<SettingsViewModel>();
-                viewModel.Model = model;
-                viewModel.EditDownloadDir = new DelegateCommand(SettingsEditDownloadDir);
-                viewModel.ChangeAvatar = new DelegateCommand(ChangeAvatar);
-                viewModel.ResetInterface = new DelegateCommand(ResetInterface);
-                viewModel.DisplayQuickStart = new DelegateCommand(DisplayQuickStart);
+                model.LocalNode.Host = viewModel.SelectedNetworkInterface.Address.ToString();
             }
         }
 
-        private void DisplayQuickStart()
+        private void SaveCommand()
         {
-            core.ShowQuickStart();
+            if (viewModel.SelectedNetworkInterface?.Address != null)
+                model.LocalNode.Host = viewModel.SelectedNetworkInterface.Address.ToString();
+            model.Save();
+            if (viewModel.View is System.Windows.Window window)
+                window.Close();
         }
 
-        private void SettingsEditDownloadDir()
+        private void CancelCommand()
         {
-            string folder = string.Empty;
-            if (browser.SelectFolder(out folder))
-            {
-                model.DownloadFolder = folder;
-                model.IncompleteFolder = folder + "\\Incomplete";
-            }
+            if (viewModel.View is System.Windows.Window window)
+                window.Close();
         }
 
         private void ChangeAvatar()
         {
-            string path = string.Empty;
-
-            if (browser.SelectFile(out path))
+            try
             {
-                try
+                var query = serviceProvider.GetRequiredService<QueryViewModel>();
+                if (query.SelectImageFile(out string selectedFile))
                 {
-                    var ms = new MemoryStream();
-                    var stream = new FileStream(path, FileMode.Open, FileAccess.Read);
-                    ms.SetLength(stream.Length);
-                    stream.Read(ms.GetBuffer(), 0, (int) stream.Length);
-                    ms.Flush();
-                    stream.Close();
-                    //Resize
-                    var bitmap = new Bitmap(ms);
-                    Image thumbnail = ResizeImage(bitmap, 100, 100);
-                    ms = new MemoryStream();
-                    thumbnail.Save(ms, ImageFormat.Png);
-                    model.Avatar = Convert.ToBase64String(ms.ToArray());
+                    byte[] imageBytes = System.IO.File.ReadAllBytes(selectedFile);
+                    string base64Image = Convert.ToBase64String(imageBytes);
+                    model.Avatar = base64Image;
+                    model.Save();
+                    logger.LogDebug("Avatar changed to: {File}", selectedFile);
                 }
-                catch
-                {
-                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to change avatar");
             }
         }
 
-        private Image ResizeImage(Bitmap FullsizeImage, int NewWidth, int MaxHeight)
+        private void EditDownloadDir()
         {
-            // Prevent using images internal thumbnail
-            FullsizeImage.RotateFlip(RotateFlipType.Rotate180FlipNone);
-            FullsizeImage.RotateFlip(RotateFlipType.Rotate180FlipNone);
-
-            if (FullsizeImage.Width <= NewWidth)
-                NewWidth = FullsizeImage.Width;
-
-            int NewHeight = FullsizeImage.Height*NewWidth/FullsizeImage.Width;
-            if (NewHeight > MaxHeight)
+            try
             {
-                // Resize with height instead
-                NewWidth = FullsizeImage.Width*MaxHeight/FullsizeImage.Height;
-                NewHeight = MaxHeight;
+                var query = serviceProvider.GetRequiredService<QueryViewModel>();
+                if (query.SelectFolder(out string selectedFolder))
+                {
+                    model.DownloadFolder = selectedFolder;
+                    model.IncompleteFolder = System.IO.Path.Combine(selectedFolder, "Incomplete");
+                    try { System.IO.Directory.CreateDirectory(model.DownloadFolder); } catch { /* ignore */ }
+                    try { System.IO.Directory.CreateDirectory(model.IncompleteFolder); } catch { /* ignore */ }
+                    model.Save();
+                    logger.LogDebug("Download directory changed to: {Folder}", selectedFolder);
+                }
             }
-
-            Image NewImage = FullsizeImage.GetThumbnailImage(NewWidth, NewHeight, null, IntPtr.Zero);
-            // Clear handle to original file so that we can overwrite it if necessary
-            FullsizeImage.Dispose();
-            // Save resized picture
-            return NewImage;
-        }
-
-        private void ResetInterface()
-        {
-            model.LocalNode.Host = null;
-            model.Save();
-            container.Resolve<IMessageService>().ShowWarning("Interface selection reset.  FAP will now restart.");
-            var notePad = new Process();
-
-            notePad.StartInfo.FileName = Assembly.GetEntryAssembly().CodeBase;
-            notePad.StartInfo.Arguments = "WAIT";
-            notePad.Start();
-            core.Exit();
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to change download directory");
+            }
         }
     }
 }

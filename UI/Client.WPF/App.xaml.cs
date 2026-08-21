@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 /**
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -15,32 +15,40 @@
  * */
 #endregion
 using System;
-using System.Collections.Generic;
-using System.Configuration;
-using System.Data;
-using System.Linq;
-using System.Windows;
-using System.Reflection;
 using System.Collections;
-using System.Threading;
-using System.Windows.Markup;
+using System.Collections.Generic;
 using System.Globalization;
-using Autofac;
-using Fap.Presentation.Panels;
-using NLog;
-using NLog.Config;
-using System.Waf.Applications.Services;
-using System.Waf.Presentation.Services;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Threading;
+using System.Windows;
+using System.Windows.Markup;
+using System.Windows.Media;
+using System.Windows.Threading;
+using FAP.Application;
+using FAP.Application.ViewModels;
+using FAP.Application.ViewModel;
+using FAP.Application.Controllers;
 using FAP.Application.Views;
 using FAP.Domain;
-using FAP.Application;
-using FAP.Network;
-using Fap.Foundation;
-using BlogsPrajeesh.BlogSpot.WPFControls;
-using System.Text;
-using FAP.Domain.Net;
 using FAP.Domain.Entities;
+using FAP.Domain.Net;
+using FAP.Domain.Services;
 using FAP.Domain.Verbs;
+using FAP.Domain.Handlers;
+using FAP.Network;
+using FAP.Network.Services;
+using Fap.Foundation;
+using Fap.Foundation.Hosting;
+using Fap.Foundation.Threading;
+using Fap.Presentation.Panels;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using FAP.Application.Services;
+using FAP.Application.DependencyInjection;
+using Fap.Presentation.Services;
 
 namespace Fap.Presentation
 {
@@ -49,7 +57,9 @@ namespace Fap.Presentation
     /// </summary>
     public partial class App : System.Windows.Application
     {
-        private IContainer container;
+        private IServiceProvider serviceProvider;
+        private IHost host;
+        private SplashScreen appSplash;
 
         private string GetImage()
         {
@@ -72,25 +82,20 @@ namespace Fap.Presentation
 
         protected override void OnStartup(StartupEventArgs e)
         {
-            if(e.Args.Contains("WAIT"))
-                Thread.Sleep(5000);
-
-            SplashScreen appSplash = null;
-            Fap.Foundation.SafeObservableStatic.Dispatcher = System.Windows.Application.Current.Dispatcher;
-            SafeObservingCollectionManager.Start();
             this.DispatcherUnhandledException += new System.Windows.Threading.DispatcherUnhandledExceptionEventHandler(App_DispatcherUnhandledException);
             FrameworkElement.LanguageProperty.OverrideMetadata(typeof(FrameworkElement), new FrameworkPropertyMetadata(XmlLanguage.GetLanguage(CultureInfo.CurrentCulture.IetfLanguageTag)));
 
             base.OnStartup(e);
+            
+            // Initialize the SafeObservableStatic dispatcher for UI updates
+            SafeObservableStatic.UiDispatcher = new WpfUiDispatcher(Dispatcher);
+            
+            // Start the SafeObservingCollectionManager for UI collection synchronization
+            SafeObservingCollectionManager.Start();
+            
             if (Compose())
             {
-                if (e.Args.Length == 1 && e.Args[0] == "WAIT")
-                {
-                    //Delay the application starting up, used when restarting.
-                    Thread.Sleep(3000);
-                }
-
-                ApplicationCore core = container.Resolve<ApplicationCore>();
+                ApplicationCore core = serviceProvider.GetRequiredService<ApplicationCore>();
 
                 if (!core.CheckSingleInstance())
                 {
@@ -114,7 +119,7 @@ namespace Fap.Presentation
                         else
                         {
                             //Unsuccessful - Notify user
-                            WPFMessageBox.Show("FAP", "Failed to add download via RPC!");
+                            System.Windows.MessageBox.Show("Failed to add download via RPC!", "FAP", MessageBoxButton.OK, MessageBoxImage.Warning);
                             Shutdown(1);
                             return;
                         }
@@ -122,7 +127,7 @@ namespace Fap.Presentation
                     else
                     {
                         //Inform the user they cannot run multiple instances
-                        WPFMessageBox.Show("FAP", "An instance of FAP is already running");
+                        System.Windows.MessageBox.Show("An instance of FAP is already running", "FAP", MessageBoxButton.OK, MessageBoxImage.Information);
                         Shutdown(1);
                         return;
                     }
@@ -134,7 +139,7 @@ namespace Fap.Presentation
 
                 if (core.Load(false))
                 {
-
+                    // Start the client; allow election/watchdog to start an overlord when needed
                     core.StartClient();
                     core.StartGUI(!(e.Args.Contains("STARTUP")));
                     //Was a url passed on startup?
@@ -167,9 +172,11 @@ namespace Fap.Presentation
             }
             else
             {
-                Console.WriteLine(e.Exception.Message);
-                if (null != container)
-                    LogManager.GetLogger("faplog").Fatal("Unhandled dispatcher exception", e.Exception);
+                if (serviceProvider != null)
+                {
+                    var logger = serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<App>>();
+                    logger.LogCritical(e.Exception, "Unhandled dispatcher exception");
+                }
                 e.Handled = true;
             }
         }
@@ -185,32 +192,50 @@ namespace Fap.Presentation
             }
             else
             {
-                Console.WriteLine(e.Exception.Message);
-                if (null != container)
-                    LogManager.GetLogger("faplog").Fatal("Unhandled exception", e.Exception);
+                if (serviceProvider != null)
+                {
+                    var logger = serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<App>>();
+                    logger.LogCritical(e.Exception, "Unhandled exception");
+                }
                 e.Handled = true;
             }
         }
 
          private bool Compose()
         {
-             var builder = new ContainerBuilder();
              try
              {
-                 builder.RegisterAssemblyTypes((typeof(DomainModule).Assembly));
-                 builder.RegisterAssemblyTypes((typeof(NetworkModule).Assembly));
-                 builder.RegisterAssemblyTypes((typeof(ApplicationModule).Assembly));
-                 builder.RegisterAssemblyTypes((typeof(GUIModule).Assembly));
+                 var builder = Host.CreateApplicationBuilder();
+                 // Bind FAP web options from configuration if present
+                 builder.Services.Configure<FAP.Network.Server.FapWebOptions>(builder.Configuration.GetSection("Fap:Web"));
+                 builder.Services.Configure<FAP.Network.Server.FapListenOptions>(builder.Configuration.GetSection("Fap:Web:Listen"));
 
-                 builder.RegisterModule<DomainModule>();
-                 builder.RegisterModule<NetworkModule>();
-                 builder.RegisterModule<ApplicationModule>();
-                 builder.RegisterModule<GUIModule>();
+                 // Logging: MEL + optional NLog bridge during migration
+                 builder.Logging.ClearProviders();
+                 builder.Logging.AddConsole();
+                 builder.Logging.AddDebug();
+                 builder.Logging.AddEventLog(); // optional on Windows
+                 // Removed NLog bridge
+                 
+                 // Set minimum log level to Debug to see debug logs in Visual Studio
+                 builder.Logging.SetMinimumLevel(LogLevel.Debug);
 
-                 container = builder.Build();
-                 builder = new ContainerBuilder();
-                 builder.RegisterInstance<IContainer>(container).SingleInstance();
-                 builder.Update(container);
+                 var services = builder.Services;
+
+                 services.AddSingleton<Fap.Foundation.Threading.IUiDispatcher>(_ => new WpfUiDispatcher(Dispatcher));
+                 services.AddSingleton<Fap.Foundation.Hosting.IAppLifetime, WpfAppLifetime>();
+                 services.AddFapCore(builder.Configuration);
+                 services.AddFapClient();
+                 RegisterGUIServices(services);
+
+                 host = builder.Build();
+                 serviceProvider = host.Services;
+                 
+                 // Test logging to verify it's working
+                 var logger = serviceProvider.GetRequiredService<ILogger<App>>();
+                 logger.LogDebug("App startup - Debug logging is working!");
+                 logger.LogInformation("App startup - Information logging is working!");
+                 
                  return true;
              }
              catch
@@ -219,10 +244,91 @@ namespace Fap.Presentation
              }
         }
 
+        private void RegisterDomainServices(IServiceCollection services)
+        {
+            services.AddSingleton<ShareInfoService>();
+            services.AddSingleton<ListenerService>();
+            services.AddSingleton<Model>();
+            services.AddSingleton<ModernHTTPHandler>();
+            services.AddSingleton<LANPeerFinderService>();
+            services.AddSingleton<BufferService>();
+            services.AddSingleton<ServerUploadLimiterService>();
+            services.AddSingleton<OverlordManagerService>();
+            services.AddSingleton<UpdateCheckerService>();
+
+            // WMI and hardware info services
+            services.AddMemoryCache();
+            services.AddSingleton<WmiService>();
+            services.AddSingleton<IHardwareInfoService, HardwareInfoService>();
+            services.AddSingleton<ParallelWmiService>();
+        }
+
+        private void RegisterNetworkServices(IServiceCollection services)
+        {
+            services.AddSingleton<MulticastClientService>();
+            services.AddSingleton<MulticastServerService>();
+            // ModernHTTPHandler already registered in RegisterDomainServices
+        }
+
+        private void RegisterApplicationServices(IServiceCollection services)
+        {
+            services.AddSingleton<IConversationController, ConversationController>();
+            services.AddSingleton<ConnectionController>();
+            services.AddSingleton<WatchdogController>();
+            services.AddTransient<InterfaceController>();
+            services.AddSingleton<ApplicationCore>();
+            services.AddSingleton<DownloadQueueController>();
+            services.AddSingleton<BrowserController>();
+            services.AddSingleton<SharesController>();
+        }
+
+        private void RegisterGUIServices(IServiceCollection services)
+        {
+            // Register UI Controllers
+            services.AddSingleton<IPopupWindowController, ModernPopupWindowController>();
+            services.AddTransient<IPopupWindow, TabWindow>();
+            services.AddSingleton<ModernSystemTrayService>();
+            
+            // Register Views
+            services.AddTransient<MainWindow, MainWindow>();
+            services.AddTransient<MessageBox, MessageBox>();
+            services.AddTransient<IMessageBoxView, MessageBox>();
+            services.AddTransient<Fap.Presentation.Panels.DownloadQueue, Fap.Presentation.Panels.DownloadQueue>();
+            services.AddTransient<SettingsPanel, SettingsPanel>();
+            services.AddTransient<TabWindow, TabWindow>();
+            services.AddTransient<Query, Query>();
+            services.AddTransient<BrowsePanel, BrowsePanel>();
+            services.AddTransient<IBrowserView, BrowsePanel>();
+            services.AddTransient<LogPanel, LogPanel>();
+            services.AddTransient<SharesPanel, SharesPanel>();
+            services.AddTransient<TrayIcon, TrayIcon>();
+            services.AddTransient<ComparePanel, ComparePanel>();
+            services.AddTransient<Fap.Presentation.Panels.Conversation, Fap.Presentation.Panels.Conversation>();
+            services.AddTransient<UserInfoPanel, UserInfoPanel>();
+            services.AddTransient<InterfaceSelection, InterfaceSelection>();
+            services.AddTransient<SearchPanel, SearchPanel>();
+            services.AddTransient<WebPanel, WebPanel>();
+            services.AddTransient<IInterfaceSelectionView, InterfaceSelection>();
+            services.AddTransient<IMessageService, Fap.Presentation.Services.WpfMessageService>();
+            services.AddTransient<ISharesView, SharesPanel>();
+            services.AddTransient<IQuery, Query>();
+            services.AddTransient<IWebPanel, WebPanel>();
+            services.AddTransient<ITrayIconView, TrayIcon>();
+            services.AddTransient<IMainWindow, MainWindow>();
+            services.AddTransient<ISearchView, SearchPanel>();
+            services.AddTransient<IDownloadQueue, Fap.Presentation.Panels.DownloadQueue>();
+            services.AddTransient<ICompareView, ComparePanel>();
+            services.AddTransient<ISettingsView, SettingsPanel>();
+            services.AddTransient<IConverstationView, Fap.Presentation.Panels.Conversation>();
+		}
+
         protected override void OnExit(ExitEventArgs e)
         {
-            
-            container.Dispose();
+            SafeObservingCollectionManager.Stop();
+            if (serviceProvider is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
             base.OnExit(e);
         }
     }

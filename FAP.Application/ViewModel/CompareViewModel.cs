@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -17,7 +17,6 @@
 
 #endregion
 
-using System.Waf.Applications;
 using System.Windows.Input;
 using FAP.Application.Views;
 using FAP.Domain.Entities;
@@ -25,12 +24,13 @@ using Fap.Foundation;
 
 namespace FAP.Application.ViewModels
 {
-    public class CompareViewModel : ViewModel<ICompareView>
+    public class CompareViewModel : ViewModelBase<ICompareView>
     {
-        private SafeObservable<CompareNode> data;
+        private SafeObservable<CompareNode> data = null!;
         private bool enableStart = true;
-        private ICommand run;
-        private string status;
+        private ICommand run = null!;
+        private ICommand reset = null!;
+        private string status = string.Empty;
 
         public CompareViewModel(ICompareView view)
             : base(view)
@@ -43,7 +43,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 enableStart = value;
-                RaisePropertyChanged("EnableRun");
+                OnPropertyChanged("EnableRun");
             }
         }
 
@@ -53,7 +53,17 @@ namespace FAP.Application.ViewModels
             set
             {
                 run = value;
-                RaisePropertyChanged("Run");
+                OnPropertyChanged("Run");
+            }
+        }
+
+        public ICommand Reset
+        {
+            get { return reset; }
+            set
+            {
+                reset = value;
+                OnPropertyChanged("Reset");
             }
         }
 
@@ -63,7 +73,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 data = value;
-                RaisePropertyChanged("Data");
+                OnPropertyChanged("Data");
             }
         }
 
@@ -73,7 +83,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 status = value;
-                RaisePropertyChanged("Status");
+                OnPropertyChanged("Status");
             }
         }
     }

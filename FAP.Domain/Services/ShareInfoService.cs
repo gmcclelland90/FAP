@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -27,7 +27,7 @@ using FAP.Domain.Entities;
 using FAP.Domain.Entities.FileSystem;
 using Fap.Foundation;
 using Fap.Foundation.Sorting;
-using NLog;
+using Microsoft.Extensions.Logging;
 using Directory = FAP.Domain.Entities.FileSystem.Directory;
 using File = System.IO.File;
 
@@ -35,8 +35,8 @@ namespace FAP.Domain.Services
 {
     public class RootShare
     {
-        public string ID { set; get; }
-        public Directory Data { set; get; }
+        public string ID { set; get; } = string.Empty;
+        public Directory Data { set; get; } = null!;
     }
 
     public class ShareInfoService
@@ -45,11 +45,13 @@ namespace FAP.Domain.Services
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + @"\FAP\ShareInfo\";
 
         private readonly Model model;
+        private readonly ILogger<ShareInfoService> logger;
         private readonly List<RootShare> shares = new List<RootShare>();
 
-        public ShareInfoService(Model m)
+        public ShareInfoService(Model m, ILogger<ShareInfoService> logger)
         {
             model = m;
+            this.logger = logger;
         }
 
         public void Load()
@@ -66,13 +68,13 @@ namespace FAP.Domain.Services
                 }
                 catch (Exception e)
                 {
-                    LogManager.GetLogger("faplog").Debug("Failed to load share info for" + share.Name, e);
-                    ThreadPool.QueueUserWorkItem(DoRefreshPath, share);
+                    logger.LogDebug(e, "ShareInfoService.Load: Failed to load share {Id}, scheduling refresh", share.ID);
+                    _ = Task.Run(() => DoRefreshPath(share));
                 }
             }
         }
 
-        private void DoRefreshPath(object o)
+        private void DoRefreshPath(object? o)
         {
             var s = o as Share;
             if (null != s)
@@ -91,6 +93,7 @@ namespace FAP.Domain.Services
 
         public Directory RefreshPath(Share share)
         {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             try
             {
                 model.GetAntiShutdownLock();
@@ -115,8 +118,11 @@ namespace FAP.Domain.Services
                     }
                     catch (Exception e)
                     {
-                        LogManager.GetLogger("faplog").Warn("Failed save share info for " + share.Name, e);
+                        logger.LogWarning(e, "ShareInfoService.RefreshPath: Failed to save share {Id}", share.ID);
                     }
+                    sw.Stop();
+                    logger.LogDebug("ShareInfoService.RefreshPath: Refreshed {Id}:{Name} in {ElapsedMs} ms (size={Size}, items={ItemCount})",
+                        share.ID, share.Name, sw.ElapsedMilliseconds, rs.Data.Size, rs.Data.ItemCount);
                     return rs.Data;
                 }
             }
@@ -222,11 +228,14 @@ namespace FAP.Domain.Services
         /// <returns></returns>
         public bool GetPath(string path, bool noCache, bool distinct, out List<BrowsingFile> results)
         {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             results = new List<BrowsingFile>();
+            logger.LogDebug("GetPath: path='{Path}', noCache={NoCache}, distinct={Distinct}", path, noCache, distinct);
 
             //At the root so just return a list of shares
             if (string.IsNullOrEmpty(path) || path == "/")
             {
+                logger.LogDebug("GetPath: Processing root path, shares count={Count}", model.Shares.Count);
                 var ms = from s in model.Shares
                              orderby s.Name
                              group s by s.Name
@@ -240,15 +249,18 @@ namespace FAP.Domain.Services
 
                 foreach (var share in ms)
                 {
+                    logger.LogDebug("GetPath: Adding share '{Name}' with size {Size}", share.Name, share.Size);
                     results.Add(new BrowsingFile()
                                     {
                                         IsFolder = true,
                                         Size = share.Size,
                                         LastModified = share.LastModified,
-                                        Name = share.Name
+                                        Name = share.Name,
+                                        Path = ""  // Root shares should have empty path
                                     });
                 }
 
+                logger.LogDebug("GetPath: Root path complete, returning {Count} results", results.Count);
                 return true;
             }
 
@@ -401,6 +413,8 @@ namespace FAP.Domain.Services
                             results.Add(search);
                     }
                 }
+                sw.Stop();
+                logger.LogDebug("GetPath: Resolved '{Path}' -> {Count} items in {ElapsedMs} ms (virtual={Virtual})", path, results.Count, sw.ElapsedMilliseconds, isVirtual);
                 return true;
             }
 

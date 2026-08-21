@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.Threading;
 using FAP.Domain.Entities;
 using Fap.Foundation;
-using FAP.Network.Entities;
+using FAP.Shared.Entities;
 
 namespace FAP.Domain.Net
 {
@@ -61,7 +61,7 @@ namespace FAP.Domain.Net
 
         public void Start()
         {
-            ThreadPool.QueueUserWorkItem(Process);
+            _ = Task.Run(() => Process(null));
         }
 
         public void RecieveCommand()

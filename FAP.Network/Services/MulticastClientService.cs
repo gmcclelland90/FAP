@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -21,7 +21,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using NLog;
+using Microsoft.Extensions.Logging;
 
 namespace FAP.Network.Services
 {
@@ -36,11 +36,11 @@ namespace FAP.Network.Services
         private readonly byte[] buffer = new byte[50000];
 
         private Socket listenSocket;
-        private Logger logger;
+        private readonly ILogger<MulticastClientService> logger;
 
-        public MulticastClientService()
+        public MulticastClientService(ILogger<MulticastClientService> logger)
         {
-            logger = LogManager.GetLogger("faplog");
+            this.logger = logger;
         }
 
         public event MultiCastRX OnMultiCastRX;
@@ -50,16 +50,17 @@ namespace FAP.Network.Services
             if (null == listenSocket)
             {
                 listenSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+                // Must be Socket-level before Bind so multiple local listeners (client + overlord) can coexist.
+                listenSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                try { listenSocket.ExclusiveAddressUse = false; } catch { /* ignore on platforms that disallow */ }
                 listenSocket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.AddMembership,
                                              new MulticastOption(broadcastAddress, IPAddress.Any));
-                listenSocket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.ReuseAddress, true);
-                //  listenSocket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.MulticastInterface,);
                 listenSocket.Bind(new IPEndPoint(IPAddress.Any, broadcastPort));
 
                 listenSocket.ReceiveBufferSize = buffer.Length;
                 listenSocket.SendBufferSize = buffer.Length;
 
-                ThreadPool.QueueUserWorkItem(Process);
+                _ = Task.Run(() => Process(null));
                 //  listenSocket.Connect(broadcastAddress, broadcastPort);
             }
         }
@@ -77,6 +78,19 @@ namespace FAP.Network.Services
         public void StartListener()
         {
             ConnectListen();
+        }
+
+        public void Stop()
+        {
+            try
+            {
+                listenSocket?.Close();
+            }
+            catch
+            {
+                // ignore
+            }
+            listenSocket = null!;
         }
     }
 }

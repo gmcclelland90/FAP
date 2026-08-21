@@ -17,15 +17,16 @@
 
 #endregion
 
-using FAP.Network.Entities;
+using FAP.Shared.Entities;
+using FAP.Shared.Interfaces;
 
 namespace FAP.Domain.Verbs
 {
-    public class ChatVerb : BaseVerb, IVerb
+    public class ChatVerb : BaseVerb, FAP.Shared.Interfaces.IVerb
     {
-        public string Nickname { set; get; }
-        public string Message { set; get; }
-        public string SourceID { set; get; }
+        public string Nickname { set; get; } = string.Empty;
+        public string Message { set; get; } = string.Empty;
+        public string SourceID { set; get; } = string.Empty;
 
         #region IVerb Members
 

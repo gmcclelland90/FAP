@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -19,7 +19,6 @@
 
 using System.Collections.Specialized;
 using System.ComponentModel;
-using System.Waf.Applications;
 using System.Windows.Input;
 using FAP.Application.Views;
 using FAP.Domain.Entities;
@@ -27,14 +26,14 @@ using Fap.Foundation;
 
 namespace FAP.Application.ViewModels
 {
-    public class SharesViewModel : ViewModel<ISharesView>
+    public class SharesViewModel : ViewModelBase<ISharesView>
     {
-        private ICommand addCommand;
-        private ICommand refreshCommand;
-        private ICommand removeCommand;
-        private ICommand renameCommand;
-        private Share selectedShare;
-        private SafeObservingCollection<Share> shares;
+        private ICommand addCommand = null!;
+        private ICommand refreshCommand = null!;
+        private ICommand removeCommand = null!;
+        private ICommand renameCommand = null!;
+        private Share selectedShare = null!;
+        private SafeObservingCollection<Share> shares = null!;
 
         public SharesViewModel(ISharesView view)
             : base(view)
@@ -69,8 +68,8 @@ namespace FAP.Application.ViewModels
                     }
                 }
                 value.CollectionChanged += value_CollectionChanged;
-                RaisePropertyChanged("TotalShareSizeString");
-                RaisePropertyChanged("Shares");
+                OnPropertyChanged("TotalShareSizeString");
+                OnPropertyChanged("Shares");
             }
         }
 
@@ -80,7 +79,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 selectedShare = value;
-                RaisePropertyChanged("SelectedShare");
+                OnPropertyChanged("SelectedShare");
             }
         }
 
@@ -107,7 +106,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 addCommand = value;
-                RaisePropertyChanged("AddCommand");
+                OnPropertyChanged("AddCommand");
             }
         }
 
@@ -117,7 +116,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 renameCommand = value;
-                RaisePropertyChanged("RenameCommand");
+                OnPropertyChanged("RenameCommand");
             }
         }
 
@@ -127,7 +126,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 removeCommand = value;
-                RaisePropertyChanged("RemoveCommand");
+                OnPropertyChanged("RemoveCommand");
             }
         }
 
@@ -137,11 +136,11 @@ namespace FAP.Application.ViewModels
             set
             {
                 refreshCommand = value;
-                RaisePropertyChanged("RefreshCommand");
+                OnPropertyChanged("RefreshCommand");
             }
         }
 
-        private void value_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        private void value_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
             switch (e.Action)
             {
@@ -177,12 +176,12 @@ namespace FAP.Application.ViewModels
                     }
                     break;
             }
-            RaisePropertyChanged("TotalShareSizeString");
+            OnPropertyChanged("TotalShareSizeString");
         }
 
-        private void s_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        private void s_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            RaisePropertyChanged("TotalShareSizeString");
+            OnPropertyChanged("TotalShareSizeString");
         }
     }
 }

@@ -1,96 +1,97 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using Autofac;
-using FAP.Domain;
-using FAP.Domain.Services;
+using System;
+using System.Threading.Tasks;
 using FAP.Application;
-using FAP.Network;
-using System.Net;
-using System.Waf.Applications.Services;
+using FAP.Application.DependencyInjection;
+using FAP.Application.Services;
 using FAP.Application.Views;
-using NLog.Filters;
-using NLog;
 using FAP.Domain.Entities;
+using Fap.Foundation.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace Server.Console
 {
     class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
-
-            
             Program p = new Program();
-            p.Run();
+            await p.RunAsync(args);
         }
 
-        private IContainer container;
-        private LogService logService;
-        private Model model;
+        private IServiceProvider serviceProvider = null!;
+        private ILogger<Program> logger = null!;
+        private Model model = null!;
 
-        private void Run()
+        private async Task RunAsync(string[] args)
         {
-
-            if(Compose())
+            if (Compose(args))
             {
-                logService = container.Resolve<LogService>();
-                logService.Filter = LogLevel.Trace;
-                model = container.Resolve<Model>();
-                model.Messages.CollectionChanged += new System.Collections.Specialized.NotifyCollectionChangedEventHandler(Messages_CollectionChanged);
+                model = serviceProvider.GetRequiredService<Model>();
+                model.Messages.CollectionChanged += Messages_CollectionChanged;
 
-                ApplicationCore core = new ApplicationCore(container);
+                ApplicationCore core = serviceProvider.GetRequiredService<ApplicationCore>();
                 core.Load(true);
-                core.StartOverlordServer();
-               
-                System.Console.WriteLine("Server started");
+                await core.StartOverlordServerAsync();
+
+                logger?.LogInformation("Server started");
                 System.Console.ReadKey();
             }
             else
             {
-                System.Console.WriteLine("Program composition failed");
+                logger?.LogError("Program composition failed");
                 System.Console.ReadKey();
             }
         }
 
-        private void Messages_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        private void Messages_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
-            if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add)
+            if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add && e.NewItems != null)
             {
                 foreach (var item in e.NewItems)
-                    System.Console.WriteLine(item);
+                    logger?.LogInformation("{Message}", item?.ToString());
             }
         }
 
-        private bool Compose()
+        private bool Compose(string[] args)
         {
-             var builder = new ContainerBuilder();
-             try
-             {
-                 builder.RegisterAssemblyTypes((typeof(DomainModule).Assembly));
-                 builder.RegisterAssemblyTypes((typeof(NetworkModule).Assembly));
-                 builder.RegisterAssemblyTypes((typeof(ApplicationModule).Assembly));
+            try
+            {
+                var builder = Host.CreateApplicationBuilder(args);
+                builder.Services.AddOptions<FAP.Network.Server.FapWebOptions>()
+                    .Bind(builder.Configuration.GetSection("Fap:Web"))
+                    .Validate(o => o != null, "Fap:Web must be configured")
+                    .ValidateOnStart();
+                builder.Services.AddOptions<FAP.Network.Server.FapListenOptions>()
+                    .Bind(builder.Configuration.GetSection("Fap:Web:Listen"))
+                    .Validate(o => !string.IsNullOrWhiteSpace(o.Address) && o.Port > 0, "Listen Address and Port must be valid")
+                    .ValidateOnStart();
 
-                 builder.RegisterModule<DomainModule>();
-                 builder.RegisterModule<NetworkModule>();
-                 builder.RegisterModule<ApplicationModule>();
+                builder.Logging.ClearProviders();
+                builder.Logging.AddConsole();
+                builder.Logging.AddDebug();
+                builder.Logging.AddEventLog();
+                builder.Logging.SetMinimumLevel(LogLevel.Debug);
 
-                 builder.RegisterType<MessageService>().As<IMessageService>();
-                 builder.RegisterType<InterfaceSelectionView>().As<IInterfaceSelectionView>();
-                 builder.RegisterType<SharesView>().As<ISharesView>();
-                 builder.RegisterType<Query>().As<IQuery>();
+                var services = builder.Services;
+                services.AddSingleton<IAppLifetime, NoOpAppLifetime>();
+                services.AddFapCore(builder.Configuration);
+                services.AddFapClient();
 
-                 container = builder.Build();
-                 builder = new ContainerBuilder();
-                 builder.RegisterInstance<IContainer>(container).SingleInstance();
-                 builder.Update(container);
-                 return true;
-             }
-             catch
-             {
-                 return false;
-             }
+                services.AddTransient<IMessageService, MessageService>();
+                services.AddTransient<IInterfaceSelectionView, InterfaceSelectionView>();
+                services.AddTransient<ISharesView, SharesView>();
+                services.AddTransient<IQuery, Query>();
+
+                serviceProvider = builder.Build().Services;
+                logger = serviceProvider.GetRequiredService<ILogger<Program>>();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 }

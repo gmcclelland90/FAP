@@ -23,15 +23,14 @@ using System.Linq;
 using System.Net;
 using System.Security.Principal;
 using System.Threading;
-using System.Windows;
 using System.Xml.Serialization;
 using FAP.Domain.Entities.FileSystem;
 using FAP.Domain.Net;
 using FAP.Domain.Verbs;
 using Fap.Foundation;
 using Fap.Foundation.Services;
-using Newtonsoft.Json;
-using NLog;
+using System.Text.Json.Serialization;
+using Microsoft.Extensions.Logging;
 using Directory = System.IO.Directory;
 using File = System.IO.File;
 using System.ComponentModel;
@@ -41,7 +40,7 @@ namespace FAP.Domain.Entities
     [Serializable]
     public class Model : BaseEntity, IDataErrorInfo
     {
-        public static readonly string AppVersion = "FAP Beat 7.5ish";
+        public static readonly string AppVersion = "FAP Beta 8";
         public static readonly string ProtocolVersion = "FAP/1.0";
         public static int UPLINK_TIMEOUT = 60000; //1 minute
         public static int DOWNLOAD_RETRY_TIME = 120000; //2minutes
@@ -63,9 +62,10 @@ namespace FAP.Domain.Entities
         private bool alwaysNoCacheBrowsing;
         private bool disableCompare;
         private bool displayedHelp;
-        private string downloadFolder;
-        private DownloadQueue downloadQueue;
-        private string incompleteFolder;
+        private string downloadFolder = string.Empty;
+        private DownloadQueue downloadQueue = null!;
+        private readonly ILogger<Model> logger;
+        private string incompleteFolder = string.Empty;
         private int maxDownloads;
         private int maxDownloadsPerUser;
         private int maxUploads;
@@ -84,6 +84,13 @@ namespace FAP.Domain.Entities
             uiTransferSession = new SafeObservingCollection<TransferSession>(transferSessions);
             uiDownloads = new SafeObservingCollection<TransferLog>(downloads);
             uiUploads = new SafeObservingCollection<TransferLog>(uploads);
+            logger = Microsoft.Extensions.Logging.Abstractions.NullLogger<Model>.Instance;
+        }
+
+        public Model(ILogger<Model> logger)
+            : this()
+        {
+            this.logger = logger;
         }
 
         [JsonIgnore]
@@ -145,12 +152,14 @@ namespace FAP.Domain.Entities
             get { return displayedHelp; }
         }
 
+        [JsonIgnore]
         public string Avatar
         {
             set
             {
                 node.Avatar = value;
                 NotifyChange("Avatar");
+                TryPersistAvatarToDisk(value);
             }
             get { return node.Avatar; }
         }
@@ -327,7 +336,25 @@ namespace FAP.Domain.Entities
         {
             lock (downloadQueue)
             {
-                SafeSave(this, saveLocation, Formatting.Indented);
+                // Config should be human-readable and omit nulls
+                // Strip avatar blob from LocalNode before saving
+                bool hadAvatar = LocalNode.ContainsKey("Avatar");
+                string avatarBackup = hadAvatar ? LocalNode.Avatar : string.Empty;
+                if (hadAvatar)
+                {
+                    LocalNode.Data.Remove("Avatar");
+                }
+                try
+                {
+                    SafeSave(this, saveLocation, FAP.Domain.JsonConfiguration.IndentedOptions);
+                }
+                finally
+                {
+                    if (hadAvatar)
+                    {
+                        LocalNode.Data.Set("Avatar", avatarBackup);
+                    }
+                }
             }
         }
 
@@ -339,7 +366,7 @@ namespace FAP.Domain.Entities
                 {
                     if (File.Exists(DATA_FOLDER + saveLocation))
                     {
-                        var saved = SafeLoad<Model>(saveLocation);
+                        var saved = SafeLoad<Model>(saveLocation, FAP.Domain.JsonConfiguration.IndentedOptions);
 
                         Shares.Clear();
                         Shares.AddRange(saved.Shares.OrderBy(s => s.Name).ToList());
@@ -356,6 +383,12 @@ namespace FAP.Domain.Entities
                         AlwaysNoCacheBrowsing = saved.AlwaysNoCacheBrowsing;
                         OverlordPriority = saved.OverlordPriority;
                         DisplayedHelp = saved.DisplayedHelp;
+                        // Reload avatar from disk store (do not rely on JSON) and sync to LocalNode
+                        LoadAvatarFromDisk();
+                        if (!string.IsNullOrEmpty(Avatar))
+                        {
+                            LocalNode.Avatar = Avatar;
+                        }
                     }
                     else if (File.Exists(Legacy.Model.saveLocation))
                     {
@@ -379,12 +412,18 @@ namespace FAP.Domain.Entities
                             LocalNode.SetData(data.Key, data.Value);
                         AlwaysNoCacheBrowsing = oldmodel.AlwaysNoCacheBrowsing;
                         OverlordPriority = OverlordPriority.Normal;
+                        // Persist migrated avatar to disk store
+                        if (!string.IsNullOrEmpty(Avatar))
+                        {
+                            TryPersistAvatarToDisk(Avatar);
+                            LocalNode.Avatar = Avatar;
+                        }
                         Save();
                     }
                 }
                 catch (Exception e)
                 {
-                    LogManager.GetLogger("faplog").Warn("Failed to read config", e);
+                    logger.LogWarning(e, "Model.Load: Failed loading configuration from {Path}", DATA_FOLDER + saveLocation);
                 }
             }
         }
@@ -400,15 +439,12 @@ namespace FAP.Domain.Entities
             if (LocalNode.Port == 0)
                 LocalNode.Port = 30;
 
-            //If there is no avatar set then set the default
+            // If there is no avatar set then load from disk, else set the default asset
             if (string.IsNullOrEmpty(Avatar))
             {
-                Stream stream =
-                    Application.GetResourceStream(new Uri("Images/Default_Avatar.png", UriKind.Relative)).Stream;
-                var img = new byte[stream.Length];
-                stream.Read(img, 0, (int) stream.Length);
-                Avatar = Convert.ToBase64String(img);
-                Save();
+                LoadAvatarFromDisk();
+                // Default avatar is supplied by the presentation host when needed;
+                // Domain no longer loads WPF pack resources.
             }
             //Set default nick
             if (string.IsNullOrEmpty(Nickname))
@@ -471,7 +507,7 @@ namespace FAP.Domain.Entities
             int index = parentDir.LastIndexOf('/');
             if (index == -1)
             {
-                LogManager.GetLogger("faplog").Error("Unable to add download as an invalid url as passed!");
+                logger.LogError("Model.AddDownloadURL: Invalid URL, missing '/' separator: {Url}", url);
             }
             else
             {
@@ -485,7 +521,7 @@ namespace FAP.Domain.Entities
                 if (null == node)
                 {
                     //Node not found
-                    LogManager.GetLogger("faplog").Error("Unable to add download as node {0} was not found!", nodeId);
+                    logger.LogError("Model.AddDownloadURL: Node not found for id {NodeId}", nodeId);
                 }
                 else
                 {
@@ -515,19 +551,18 @@ namespace FAP.Domain.Entities
                         }
                         else
                         {
-                            LogManager.GetLogger("faplog").Error(
-                                "Unable to add download as {0} was not found on the remote server!", fileName);
+                            logger.LogError("Model.AddDownloadURL: File not found on remote server: {File}", fileName);
                         }
                     }
                     else
                     {
-                        LogManager.GetLogger("faplog").Error("Unable to add download as node {0} was not accessible!",
-                                                             nodeId);
+                        logger.LogError("Model.AddDownloadURL: Node was not accessible: {NodeId}", nodeId);
                     }
                 }
             }
         }
 
+        [JsonIgnore]
         public string Error
         {
             get { return this[null]; }
@@ -558,6 +593,45 @@ namespace FAP.Domain.Entities
                         return "You must allow atleast one upload!";
                 }
                 return null;
+            }
+        }
+
+        private string GetAvatarFilePath()
+        {
+            return Path.Combine(DATA_FOLDER, "Avatar.png");
+        }
+
+        private void LoadAvatarFromDisk()
+        {
+            try
+            {
+                var path = GetAvatarFilePath();
+                if (File.Exists(path))
+                {
+                    var bytes = File.ReadAllBytes(path);
+                    Avatar = Convert.ToBase64String(bytes);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Model.LoadAvatarFromDisk: Failed loading avatar from disk");
+            }
+        }
+
+        private void TryPersistAvatarToDisk(string base64)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(base64))
+                    return;
+                var path = GetAvatarFilePath();
+                var bytes = Convert.FromBase64String(base64);
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                File.WriteAllBytes(path, bytes);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Model.TryPersistAvatarToDisk: Failed saving avatar to disk");
             }
         }
     }

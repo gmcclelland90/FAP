@@ -19,161 +19,110 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Net;
 using System.Threading;
-using Autofac;
 using FAP.Domain.Entities;
 using FAP.Domain.Net;
-using NLog;
+using FAP.Domain.Services;
+using FAP.Network.Server;
+using FAP.Network.Services;
+using FAP.Shared.ConnectTiming;
+using Fap.Foundation;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace FAP.Domain.Services
 {
-    /// <summary>
-    /// A class designed to be called at regular intervals.  It checks to see if there are enough overlords running 
-    /// on the LAN or too many and responds as appropriate by launching or killing the local overlord.
-    /// </summary>
     public class OverlordManagerService
     {
-        private readonly IContainer container;
+        private readonly IServiceProvider serviceProvider;
+        private readonly ILogger<OverlordManagerService> logger;
         private readonly Model model;
-        private readonly object sync = new object();
-        private ListenerService overlord;
-        private LANPeerFinderService peerFinder;
+        private readonly IConnectTimingProbe connectTiming;
+        private ListenerService overlordListener = null!;
+        private bool isRunning;
 
-        private bool serverLaunching;
-
-        public OverlordManagerService(IContainer c)
+        public OverlordManagerService(IServiceProvider serviceProvider, Model m, ILogger<OverlordManagerService> logger,
+            IConnectTimingProbe connectTiming)
         {
-            container = c;
-            model = c.Resolve<Model>();
-        }
-
-        public bool IsOverlordActive
-        {
-            get { return overlord != null; }
+            model = m;
+            this.serviceProvider = serviceProvider;
+            this.logger = logger;
+            this.connectTiming = connectTiming;
         }
 
         public void Start()
         {
-            lock (sync)
+            try
             {
-                if (null == overlord)
+                // Check if already running
+                if (IsOverlordActive)
                 {
-                    LogManager.GetLogger("faplog").Info("Launching local overlord.");
-                    overlord = new ListenerService(container, true);
-                    overlord.Start(40);
+                    logger.LogDebug("Overlord manager is already running, skipping start");
+                    return;
                 }
+
+                logger.LogDebug("Starting overlord manager");
+                
+                // Start the overlord server on port 40
+                overlordListener = serviceProvider.GetRequiredService<IListenerServiceFactory>().Create(true);
+                overlordListener.Start(40);
+                
+                isRunning = true;
+                connectTiming.Mark(ConnectTimingPhases.OverlordBound);
+                logger.LogDebug("Overlord manager started successfully");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to start overlord manager");
+                try { overlordListener?.Stop(); } catch { /* ignore */ }
+                overlordListener = null!;
+                isRunning = false;
+                throw;
             }
         }
 
         public void Stop()
         {
-            lock (sync)
+            try
             {
-                if (null != overlord)
+                logger.LogDebug("Stopping overlord manager");
+                
+                if (overlordListener != null)
                 {
-                    overlord.Stop();
-                    overlord = null;
+                    overlordListener.Stop();
+                    overlordListener = null;
                 }
+                
+                isRunning = false;
+                logger.LogDebug("Overlord manager stopped");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error stopping overlord manager");
             }
         }
 
+        public bool IsOverlordActive
+        {
+            get 
+            { 
+                var result = isRunning && overlordListener != null && overlordListener.IsRunning;
+                return result;
+            }
+        }
 
         public void StartAndStopIfNeeded()
         {
-            lock (sync)
+            logger.LogDebug("Starting and stopping overlord if needed");
+            
+            if (!IsOverlordActive)
             {
-                if (overlord != null)
-                {
-                    //TODO: Stop if needed
-                    return;
-                }
-                //Dont allow multiple launchers
-                if (serverLaunching)
-                    return;
-                if (IsNewServerNeeded())
-                {
-                    //Launch a local overlord
-                    serverLaunching = true;
-                    ThreadPool.QueueUserWorkItem(LaunchOverlordWithDelay);
-                }
+                Start();
             }
-        }
-
-        private void LaunchOverlordWithDelay(object o)
-        {
-            try
-            {
-                var r = new Random();
-                int delay = 0;
-                switch (model.OverlordPriority)
-                {
-                        //case dedicated
-                        // 0-1.5 seconds
-                    case OverlordPriority.High:
-                        delay = r.Next(2000, 3000);
-                        break;
-                    case OverlordPriority.Normal:
-                        delay = r.Next(3000, 5000);
-                        break;
-                    case OverlordPriority.Low:
-                        delay = r.Next(5000, 8000);
-                        break;
-                }
-                LogManager.GetLogger("faplog").Debug("Overlord start delay: {0}", delay);
-                Thread.Sleep(delay);
-                //If a server is still needed - launch
-                if (IsNewServerNeeded())
-                    Start();
-            }
-            finally
-            {
-                serverLaunching = false;
-            }
-        }
-
-
-        private bool IsNewServerNeeded()
-        {
-            if (null == peerFinder)
-                peerFinder = container.Resolve<LANPeerFinderService>();
-
-            List<DetectedNode> localOverlords =
-                peerFinder.Peers.ToList().Where(p => (DateTime.Now - p.LastAnnounce).TotalSeconds < 60).ToList();
-
-
-            int overlords = localOverlords.Count;
-            int serversWithFreeSlots = 0;
-            int totalUsers = 0;
-            int totalSlots = 0;
-
-            foreach (DetectedNode overlord in localOverlords)
-            {
-                totalUsers += overlord.CurrentUsers;
-                totalSlots += overlord.MaxUsers;
-                if (overlord.MaxUsers - overlord.CurrentUsers > 5)
-                    serversWithFreeSlots++;
-            }
-
-            //Rule 1: Atleast one server
-            if (serversWithFreeSlots == 0)
-                return true;
-            else
-            {
-                //Rule 2: Atleast 1 server per 200 people
-                if (totalUsers > serversWithFreeSlots*200)
-                    return true;
-                else
-                {
-                    if (0 != totalUsers && 0 != totalSlots)
-                    {
-                        //Rule 3: Atleast 5% free slots
-                        if (((double) totalUsers/totalSlots) > 0.95)
-                            return true;
-                    }
-                }
-            }
-            return false;
         }
     }
 }

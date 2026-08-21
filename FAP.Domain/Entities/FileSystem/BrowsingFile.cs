@@ -2,7 +2,7 @@
 using System.Collections.ObjectModel;
 using System.Text;
 using Fap.Foundation;
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 namespace FAP.Domain.Entities.FileSystem
 {
@@ -10,8 +10,9 @@ namespace FAP.Domain.Entities.FileSystem
     {
         private bool populated;
         private ObservableCollection<BrowsingFile> subItems = new ObservableCollection<BrowsingFile>();
-        private BrowsingFile temp;
+        private BrowsingFile temp = null!;
 
+        [JsonIgnore]
         public ObservableCollection<BrowsingFile> Items
         {
             set { subItems = value; }
@@ -49,9 +50,13 @@ namespace FAP.Domain.Entities.FileSystem
             get { return populated; }
         }
 
+        [System.Runtime.Serialization.DataMember]
         public bool IsFolder { set; get; }
-        public string Name { set; get; }
+        [System.Runtime.Serialization.DataMember]
+        public string Name { set; get; } = string.Empty;
+        [System.Runtime.Serialization.DataMember]
         public long Size { set; get; }
+        [System.Runtime.Serialization.DataMember]
         public DateTime LastModified { set; get; }
 
         public string Extension
@@ -80,20 +85,29 @@ namespace FAP.Domain.Entities.FileSystem
             }
             set
             {
-                if (value.Contains("/"))
+                if (string.IsNullOrEmpty(value))
                 {
-                    int split = value.LastIndexOf("/");
-                    Path = value.Substring(0, split);
-                    Name = value.Substring(split + 1, value.Length - (split + 1));
+                    // Don't set anything if the value is null or empty
+                    return;
+                }
+
+                var normalized = value.Replace('\\', '/');
+                if (normalized.Contains('/'))
+                {
+                    int split = normalized.LastIndexOf('/');
+                    Path = normalized.Substring(0, split);
+                    Name = normalized.Substring(split + 1);
                 }
                 else
                 {
-                    Name = value;
+                    Path = string.Empty;
+                    Name = normalized;
                 }
             }
         }
 
-        public string Path { set; get; }
+        [System.Runtime.Serialization.DataMember]
+        public string Path { set; get; } = string.Empty;
 
         public void AddItem(BrowsingFile ent)
         {

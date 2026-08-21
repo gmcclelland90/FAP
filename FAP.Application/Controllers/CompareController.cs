@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -17,115 +17,99 @@
 
 #endregion
 
-using System.Collections.Generic;
-using System.Threading;
-using System.Waf.Applications;
-using Autofac;
+using System;
+using CommunityToolkit.Mvvm.Input;
+using FAP.Application.Services;
 using FAP.Application.ViewModels;
 using FAP.Domain.Entities;
-using FAP.Domain.Net;
-using FAP.Domain.Verbs;
 using Fap.Foundation;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace FAP.Application.Controllers
 {
-    public class CompareController
+    public class CompareController : AsyncControllerBase
     {
-        private readonly SafeObservable<CompareNode> data = new SafeObservable<CompareNode>();
+        private readonly IServiceProvider serviceProvider;
+        private readonly ILogger<CompareController> logger;
         private readonly Model model;
+        private readonly IPeerOrchestration peerOrchestration;
+        private CompareViewModel viewModel = null!;
 
-        private readonly object sync = new object();
-        private readonly CompareViewModel viewModel;
-        private int requests;
-
-        public CompareController(IContainer c)
+        public CompareController(IServiceProvider serviceProvider, Model m, IPeerOrchestration peerOrchestration)
         {
-            viewModel = c.Resolve<CompareViewModel>();
-            model = c.Resolve<Model>();
+            logger = serviceProvider.GetRequiredService<ILogger<CompareController>>();
+            model = m;
+            this.serviceProvider = serviceProvider;
+            this.peerOrchestration = peerOrchestration;
         }
 
-        public CompareViewModel ViewModel
-        {
-            get { return viewModel; }
-        }
+        public CompareViewModel ViewModel => viewModel;
 
         public CompareViewModel Initalise()
         {
-            viewModel.Run = new DelegateCommand(Run);
-            viewModel.Data = data;
-            viewModel.Status = "Status: click start to retrieve information.";
+            if (null == viewModel)
+            {
+                viewModel = serviceProvider.GetRequiredService<CompareViewModel>();
+                viewModel.Run = new RelayCommand(Compare);
+                viewModel.Reset = new RelayCommand(Reset);
+                viewModel.Data = new SafeObservable<CompareNode>();
+                viewModel.Status = "Idle";
+            }
             return viewModel;
         }
 
-        private void Run()
+        private void Compare()
         {
-            data.Clear();
+            logger.LogDebug("Compare operation started");
+            if (viewModel == null) return;
             viewModel.EnableRun = false;
-            List<Node> peerlist = model.Network.Nodes.ToList();
+            viewModel.Status = "Collecting...";
 
-            if (peerlist.Count == 0)
+            QueueWork(_ =>
             {
-                viewModel.Status = "Please wait until your connected to a network prior to running the compare tool";
-            }
-            else
-            {
-                viewModel.Status = "Status: Waiting for a response from " + model.Network.Nodes.Count + " peers..";
-                foreach (Node peer in peerlist)
-                    ThreadPool.QueueUserWorkItem(RunAsync, peer);
-            }
+                string status = "Idle";
+                try
+                {
+                    var startedAt = DateTime.UtcNow;
+                    var results = peerOrchestration.ComparePeersAsync(model).GetAwaiter().GetResult();
+                    SafeObservableStatic.UiDispatcher?.Invoke(() =>
+                    {
+                        viewModel.Data.Clear();
+                        foreach (var node in results)
+                            viewModel.Data.Add(node);
+                    });
+                    var totalMs = (long)(DateTime.UtcNow - startedAt).TotalMilliseconds;
+                    status = results.Count == 0 ? "No responses" : $"Complete in {totalMs} ms";
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Compare operation failed");
+                    status = "Compare failed: " + ex.Message;
+                }
+                finally
+                {
+                    var finalStatus = status;
+                    void Finish()
+                    {
+                        viewModel.Status = finalStatus;
+                        viewModel.EnableRun = true;
+                    }
+
+                    if (SafeObservableStatic.UiDispatcher != null)
+                        SafeObservableStatic.UiDispatcher.Invoke(Finish);
+                    else
+                        Finish();
+                }
+            });
         }
 
-        private void RunAsync(object o)
+        private void Reset()
         {
-            lock (sync)
-            {
-                requests++;
-            }
-
-            var node = o as Node;
-            if (null != node)
-            {
-                var client = new Client(model.LocalNode);
-                var verb = new CompareVerb(model);
-
-                if (client.Execute(verb, node))
-                {
-                    if (!verb.Allowed)
-                    {
-                        verb.Node.Nickname = node.Nickname;
-                        verb.Node.Location = node.Location;
-                        verb.Node.Status = "Denied";
-                        data.Add(verb.Node);
-                    }
-                    else
-                    {
-                        verb.Node.Nickname = node.Nickname;
-                        verb.Node.Location = node.Location;
-                        verb.Node.Status = "OK";
-                        data.Add(verb.Node);
-                    }
-                }
-                else
-                {
-                    verb.Node = new CompareNode();
-                    verb.Node.Nickname = node.Nickname;
-                    verb.Node.Location = node.Location;
-                    verb.Node.Status = "Error";
-                    data.Add(verb.Node);
-                }
-            }
-
-            lock (sync)
-            {
-                requests--;
-                viewModel.Status = "Status: Waiting for a response from " + requests + " peers..";
-                if (requests == 0)
-                {
-                    viewModel.EnableRun = true;
-                    viewModel.Status =
-                        "Status: All Information recieved, click start to refresh info (Note clients will cache information for 5 minutes).";
-                }
-            }
+            logger.LogDebug("Reset operation started");
+            if (viewModel == null) return;
+            viewModel.Data?.Clear();
+            viewModel.Status = "Idle";
         }
     }
 }

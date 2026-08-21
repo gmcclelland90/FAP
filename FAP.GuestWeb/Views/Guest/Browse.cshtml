@@ -1,0 +1,222 @@
+@model FAP.Shared.Models.BrowsePageData
+@{
+    var downloadsReady = Model.FreeUploadSlots > 0;
+    var parentHref = Model.PathSegments.Count > 1
+        ? Model.PathSegments[Model.PathSegments.Count - 2].Path
+        : "/";
+    var searchAction = Model.CurrentPath;
+    var atRoot = Model.PathSegments.Count == 0;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="shortcut icon" type="image/ico" href="/Fap.app.web/favicon.ico" />
+    <title>@(Model.IsSearch ? $"Search — {Model.Nickname}'s Shares" : $"{Model.Nickname}'s Shares")</title>
+    <link rel="stylesheet" href="/Fap.app.web/css/fap.css" />
+    <script defer src="/Fap.app.web/js/browse.js"></script>
+</head>
+<body>
+<main class="guest" title="@Model.AppVersion">
+    <header class="guest-header">
+        <h1>@Model.Nickname's Shares</h1>
+        <p class="slots">
+            @if (downloadsReady)
+            {
+                <span class="slot-state green">Ready</span>
+                <span class="queue-meta"> — @Model.FreeUploadSlots of @Model.MaxUploadSlots downloads free</span>
+                <span class="queue-meta"> · Files under @Model.FreeLimit start immediately</span>
+            }
+            else
+            {
+                <span class="slot-state red">Busy</span>
+                <span class="queue-meta"> — @Model.FreeUploadSlots of @Model.MaxUploadSlots free; larger files may wait</span>
+                @if (Model.QueueLength > 0)
+                {
+                    <span class="queue-meta"> · Waiting: @Model.QueueLength</span>
+                }
+                <span class="queue-meta"> · Files under @Model.FreeLimit still start immediately</span>
+            }
+        </p>
+        @if (!downloadsReady)
+        {
+            <p class="note">Larger downloads pause until a slot frees.</p>
+        }
+
+        <form class="guest-search" method="get" action="@searchAction" role="search">
+            <label class="visually-hidden" for="guest-q">Search shared files</label>
+            <div class="guest-search-primary">
+                <input id="guest-q" type="search" name="q" value="@Model.SearchQuery"
+                       placeholder="Search this host's shares…" autocomplete="off" />
+                <button type="submit" class="search-btn">Search</button>
+            </div>
+            @if (!atRoot || Model.IsSearch)
+            {
+                <div class="guest-search-secondary">
+                    @if (!atRoot)
+                    {
+                        <label class="search-scope">
+                            <input type="checkbox" name="scope" value="here"@(Model.SearchScopeHere ? " checked" : null) />
+                            This folder
+                        </label>
+                    }
+                    @if (Model.IsSearch)
+                    {
+                        <a class="search-clear" href="@searchAction" title="Clear search" aria-label="Clear search">Clear</a>
+                    }
+                </div>
+            }
+        </form>
+        <p id="fap-handoff-status" class="handoff-status" role="status" aria-live="polite" hidden></p>
+    </header>
+    <nav class="breadcrumb" aria-label="Path">
+        @if (atRoot && !Model.IsSearch)
+        {
+            <a href="/" aria-current="page">Root</a>
+        }
+        else
+        {
+            <a href="/">Root</a>
+        }
+        @for (var i = 0; i < Model.PathSegments.Count; i++)
+        {
+            var segment = Model.PathSegments[i];
+            var isLast = i == Model.PathSegments.Count - 1 && !Model.IsSearch;
+            <span class="PathSplitter" aria-hidden="true">/</span>
+            @if (isLast)
+            {
+                <a href="@segment.Path" aria-current="page">@segment.Name</a>
+            }
+            else
+            {
+                <a href="@segment.Path">@segment.Name</a>
+            }
+        }
+        @if (Model.IsSearch)
+        {
+            <span class="PathSplitter" aria-hidden="true">/</span>
+            <span aria-current="page">Search</span>
+        }
+    </nav>
+    <div class="fap-optin-row">
+        <div class="fap-optin-line">
+            <label class="fap-optin" for="fap-optin">
+                <input type="checkbox" id="fap-optin" aria-describedby="fap-optin-help" />
+                Show Open in FAP
+            </label>
+            <button type="button" id="fap-optin-whats" class="fap-optin-whats" hidden>What's this?</button>
+        </div>
+        <p id="fap-optin-help" class="fap-optin-help">
+            FAP is this host’s desktop app. Enable to add open links on each row. Leave off to download with the file name in your browser.
+        </p>
+    </div>
+    <div class="table-wrap">
+        @if (!Model.PathResolved)
+        {
+            <p class="empty-state" role="status">
+                Couldn't open this path.
+                <a href="@parentHref">Go up</a>
+                ·
+                <a href="/">Root</a>
+            </p>
+        }
+        else if (Model.Files.Count == 0)
+        {
+            <p class="empty-state" role="status">
+                @if (Model.IsSearch)
+                {
+                    <text>No matches for “@Model.SearchQuery”.</text>
+                    <a href="@searchAction">Back to folder</a>
+                }
+                else
+                {
+                    <text>This folder is empty.</text>
+                    @if (Model.PathSegments.Count > 0)
+                    {
+                        <a href="@parentHref">Go up</a>
+                        <span aria-hidden="true"> · </span>
+                    }
+                    <a href="/">Root</a>
+                }
+            </p>
+        }
+        else
+        {
+            @if (Model.IsSearch)
+            {
+                <p class="search-meta" role="status">
+                    @Model.SearchResultCount match@(Model.SearchResultCount == 1 ? "" : "es")
+                    @if (Model.SearchScopeHere && !atRoot)
+                    {
+                        <text> under this folder</text>
+                    }
+                    else
+                    {
+                        <text> on this host</text>
+                    }
+                    @if (Model.SearchTruncated)
+                    {
+                        <text> (showing first @Model.SearchResultCount)</text>
+                    }
+                </p>
+            }
+            <table id="files" class="file-table">
+                <caption class="visually-hidden">@(Model.IsSearch ? "Search results" : "Shared files and folders")</caption>
+                <colgroup>
+                    <col class="type-col" />
+                    <col class="name-col" />
+                    <col class="modified-col" />
+                    <col class="size-col-def" />
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th scope="col" data-sort="icon">
+                            <button type="button" class="sort-btn">Type</button>
+                        </th>
+                        <th scope="col" data-sort="name" aria-sort="ascending">
+                            <button type="button" class="sort-btn">Name</button>
+                        </th>
+                        <th scope="col" data-sort="modified">
+                            <button type="button" class="sort-btn">Modified</button>
+                        </th>
+                        <th scope="col" data-sort="size" class="size-col">
+                            <button type="button" class="sort-btn">Size</button>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var file in Model.Files)
+                {
+                    var href = string.IsNullOrEmpty(file.Href) ? Model.CurrentPath + file.Path : file.Href;
+                    <tr data-name="@file.Name" data-size="@file.Size" data-modified="@file.LastModified.Ticks" data-icon="@file.Icon">
+                        <td class="icon-cell">@Html.Raw(file.IconHtml)</td>
+                        <td class="name-cell">
+                            <div class="name-row">
+                                <div class="name-stack">
+                                    <a class="file-name" href="@href" title="@file.Name">@file.Name</a>
+                                    @if (!string.IsNullOrEmpty(file.LocationText))
+                                    {
+                                        <span class="file-location">@file.LocationText</span>
+                                    }
+                                    <span class="file-meta">@file.LastModifiedText</span>
+                                </div>
+                                <a class="fap-link"
+                                   href="fap://@(Model.NodeId)@href"
+                                   aria-label="Open in FAP desktop client"
+                                   title="Open in FAP desktop client"
+                                   data-fap-handoff="1">Open in FAP</a>
+                            </div>
+                        </td>
+                        <td class="modified-cell">@file.LastModifiedText</td>
+                        <td class="size-col">@file.SizeText</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+            <p class="footer-meta">Total size: @Model.TotalSize</p>
+        }
+    </div>
+</main>
+</body>
+</html>

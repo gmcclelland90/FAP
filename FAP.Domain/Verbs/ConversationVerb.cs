@@ -1,5 +1,6 @@
-﻿using FAP.Network.Entities;
-using Newtonsoft.Json;
+﻿using FAP.Shared.Entities;
+using FAP.Shared.Interfaces;
+using System.Text.Json.Serialization;
 
 namespace FAP.Domain.Verbs
 {
@@ -8,13 +9,13 @@ namespace FAP.Domain.Verbs
         bool HandleMessage(string id, string nickname, string message);
     }
 
-    public class ConversationVerb : BaseVerb, IVerb
+    public class ConversationVerb : BaseVerb, FAP.Shared.Interfaces.IVerb
     {
-        public string Nickname { set; get; }
-        public string Message { set; get; }
+        public string Nickname { set; get; } = string.Empty;
+        public string Message { set; get; } = string.Empty;
 
         [JsonIgnore]
-        public string SourceID { set; get; }
+        public string SourceID { set; get; } = string.Empty;
 
         #region IVerb Members
 

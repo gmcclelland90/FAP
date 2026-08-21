@@ -2,10 +2,13 @@
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
-using Autofac;
 using FAP.Domain.Verbs;
+using FAP.Domain.Verbs.Multicast;
 using Fap.Foundation;
 using FAP.Network.Services;
+using FAP.Shared.ConnectTiming;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace FAP.Domain.Net
 {
@@ -14,12 +17,18 @@ namespace FAP.Domain.Net
         private readonly BackgroundSafeObservable<DetectedNode> announcedAddresses =
             new BackgroundSafeObservable<DetectedNode>();
 
-        private readonly IContainer container;
-        private MulticastClientService mclient;
+        private readonly IServiceProvider serviceProvider;
+        private MulticastClientService mclient = null!;
+        private readonly Microsoft.Extensions.Logging.ILogger<LANPeerFinderService> logger;
+        private readonly IConnectTimingProbe connectTiming;
+        private int helloMarked;
 
-        public LANPeerFinderService(IContainer c)
+        public LANPeerFinderService(IServiceProvider serviceProvider, Microsoft.Extensions.Logging.ILogger<LANPeerFinderService> logger,
+            IConnectTimingProbe connectTiming)
         {
-            container = c;
+            this.serviceProvider = serviceProvider;
+            this.logger = logger;
+            this.connectTiming = connectTiming;
             announcedAddresses.CollectionChanged += announcedAddresses_CollectionChanged;
         }
 
@@ -28,7 +37,7 @@ namespace FAP.Domain.Net
             get { return announcedAddresses.ToList(); }
         }
 
-        private void announcedAddresses_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        private void announcedAddresses_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
             if (e.Action != NotifyCollectionChangedAction.Add)
             {
@@ -49,7 +58,7 @@ namespace FAP.Domain.Net
             {
                 if (null == mclient)
                 {
-                    mclient = container.Resolve<MulticastClientService>();
+                    mclient = serviceProvider.GetRequiredService<MulticastClientService>();
                     mclient.OnMultiCastRX += mclient_OnMultiCastRX;
                     mclient.StartListener();
                 }
@@ -58,29 +67,63 @@ namespace FAP.Domain.Net
 
         private void mclient_OnMultiCastRX(string cmd)
         {
-            if (cmd.StartsWith(HelloVerb.Preamble))
+            try
             {
-                var verb = new HelloVerb();
-                DetectedNode node = verb.ParseRequest(cmd);
-                if (null != node)
+                logger.LogDebug("Received multicast message: {Cmd}", cmd);
+                
+                if (cmd.StartsWith(HelloVerb.Preamble))
                 {
-                    DetectedNode search = announcedAddresses.Where(s => s.Address == node.Address).FirstOrDefault();
-                    if (null == search)
+                    var helloVerb = new HelloVerb();
+                    var detectedNode = helloVerb.ParseRequest(cmd);
+                    
+                    if (detectedNode != null)
                     {
-                        node.LastAnnounce = DateTime.Now;
-                        announcedAddresses.Add(node);
+                        logger.LogDebug("Parsed HelloVerb from {Address}", detectedNode.Address);
+                        
+                        announcedAddresses.Lock();
+                        
+                        // Check if we already have this node
+                        var existingNode = announcedAddresses.FirstOrDefault(n => n.Address == detectedNode.Address);
+                        if (existingNode != null)
+                        {
+                            // Update existing node
+                            existingNode.NetworkName = detectedNode.NetworkName;
+                            existingNode.OverlordID = detectedNode.OverlordID;
+                            existingNode.NetworkID = detectedNode.NetworkID;
+                            existingNode.Priority = detectedNode.Priority;
+                            existingNode.CurrentUsers = detectedNode.CurrentUsers;
+                            existingNode.MaxUsers = detectedNode.MaxUsers;
+                            logger.LogDebug("Updated existing node: {Address}", detectedNode.Address);
+                        }
+                        else
+                        {
+                            // Add new node
+                            announcedAddresses.Add(detectedNode);
+                            logger.LogDebug("Added new node: {Address}", detectedNode.Address);
+                            if (System.Threading.Interlocked.Exchange(ref helloMarked, 1) == 0)
+                                connectTiming.Mark(ConnectTimingPhases.HelloRx);
+                        }
+                        
+                        announcedAddresses.Unlock();
                     }
                     else
                     {
-                        search.LastAnnounce = DateTime.Now;
-                        search.OverlordID = node.OverlordID;
-                        search.NetworkName = node.NetworkName;
-                        search.NetworkID = node.NetworkID;
-                        search.Priority = node.Priority;
-                        search.CurrentUsers = node.CurrentUsers;
-                        search.MaxUsers = node.MaxUsers;
+                        logger.LogWarning("Failed to parse HelloVerb message: {Cmd}", cmd);
                     }
                 }
+                else if (cmd.StartsWith(WhoVerb.Message))
+                {
+                    logger.LogDebug("Received WhoVerb message");
+                    // WhoVerb is handled by the server to trigger announcements
+                }
+                else
+                {
+                    logger.LogDebug("Received unknown multicast message: {Cmd}", cmd);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error processing multicast message");
             }
         }
     }

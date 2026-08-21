@@ -34,6 +34,17 @@ namespace FAP.Domain.Entities
             }
         }
 
+        public long LatencyMs
+        {
+            get { return ParseString(data.SafeGet("COMP-LatencyMs")); }
+            set
+            {
+                data.Set("COMP-LatencyMs", value.ToString());
+                LastUpdate = Environment.TickCount;
+                NotifyChange("LatencyMs");
+            }
+        }
+
         public long CPUSpeed
         {
             get { return ParseString(data.SafeGet("COMP-CPUSpeed")); }

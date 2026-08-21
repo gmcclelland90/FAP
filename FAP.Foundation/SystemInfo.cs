@@ -19,9 +19,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Microsoft.Win32;
-using LinqToWmi.Core.WMI;
+using System.Management;
 using System.Net.NetworkInformation;
-using Fap.Foundation.WMI_Prototypes;
 using Fap.Foundation;
 
 namespace Fap.Foundation
@@ -81,10 +80,13 @@ namespace Fap.Foundation
         {
             try
             {
-                using (WmiContext context = new WmiContext(@"\\localhost"))
+                using var searcher = new ManagementObjectSearcher("SELECT NumberOfCores FROM Win32_Processor");
+                using var collection = searcher.Get();
+                foreach (ManagementObject obj in collection)
                 {
-                    return (int)context.Source<Win32_Processor>().First().NumberOfCores;
+                    return Convert.ToInt32(obj["NumberOfCores"]);
                 }
+                return 1;
             }
             catch
             {
@@ -96,10 +98,13 @@ namespace Fap.Foundation
         {
             try
             {
-                using (WmiContext context = new WmiContext(@"\\localhost"))
+                using var searcher = new ManagementObjectSearcher("SELECT NumberOfLogicalProcessors FROM Win32_Processor");
+                using var collection = searcher.Get();
+                foreach (ManagementObject obj in collection)
                 {
-                    return (int)context.Source<Win32_Processor>().First().NumberOfLogicalProcessors;
+                    return Convert.ToInt32(obj["NumberOfLogicalProcessors"]);
                 }
+                return 1;
             }
             catch
             {
@@ -111,18 +116,32 @@ namespace Fap.Foundation
         {
             try
             {
-                using (WmiContext context = new WmiContext(@"\\localhost"))
-                    return (int)context.Source<Win32_Processor>().First().AddressWidth;
+                using var searcher = new ManagementObjectSearcher("SELECT AddressWidth FROM Win32_Processor");
+                using var collection = searcher.Get();
+                foreach (ManagementObject obj in collection)
+                {
+                    return Convert.ToInt32(obj["AddressWidth"]);
+                }
+                return 1;
             }
-            catch { return 1; }
+            catch
+            {
+                // Fallback to process bitness
+                try { return IntPtr.Size * 8; } catch { return 1; }
+            }
         }
 
         public string GetMoboBrand()
         {
             try
             {
-                using (WmiContext context = new WmiContext(@"\\localhost"))
-                    return context.Source<Win32_BaseBoard>().First().Manufacturer;
+                using var searcher = new ManagementObjectSearcher("SELECT Manufacturer FROM Win32_BaseBoard");
+                using var collection = searcher.Get();
+                foreach (ManagementObject obj in collection)
+                {
+                    return obj["Manufacturer"]?.ToString() ?? string.Empty;
+                }
+                return string.Empty;
             }
             catch { return string.Empty; }
         }
@@ -131,8 +150,13 @@ namespace Fap.Foundation
         {
             try
             {
-                using (WmiContext context = new WmiContext(@"\\localhost"))
-                    return context.Source<Win32_BaseBoard>().First().Product;
+                using var searcher = new ManagementObjectSearcher("SELECT Product FROM Win32_BaseBoard");
+                using var collection = searcher.Get();
+                foreach (ManagementObject obj in collection)
+                {
+                    return obj["Product"]?.ToString() ?? string.Empty;
+                }
+                return string.Empty;
             }
             catch { return string.Empty; }
         }
@@ -141,8 +165,13 @@ namespace Fap.Foundation
         {
             try
             {
-                using (WmiContext context = new WmiContext(@"\\localhost"))
-                    return context.Source<Win32_BIOS>().First().SMBIOSBIOSVersion;
+                using var searcher = new ManagementObjectSearcher("SELECT SMBIOSBIOSVersion FROM Win32_BIOS");
+                using var collection = searcher.Get();
+                foreach (ManagementObject obj in collection)
+                {
+                    return obj["SMBIOSBIOSVersion"]?.ToString() ?? string.Empty;
+                }
+                return string.Empty;
             }
             catch { return string.Empty; }
         }
@@ -151,24 +180,43 @@ namespace Fap.Foundation
         {
             try
             {
-                using (WmiContext context = new WmiContext(@"\\localhost"))
+                long total = 0;
+                using var searcher = new ManagementObjectSearcher("SELECT Capacity FROM Win32_PhysicalMemory");
+                using var collection = searcher.Get();
+                foreach (ManagementObject obj in collection)
                 {
-                    var totals = from stick in context.Source<Win32_PhysicalMemory>()
-                                 select (long)stick.Capacity;
-                    return totals.Sum();
+                    if (obj["Capacity"] != null)
+                    {
+                        total += Convert.ToInt64(obj["Capacity"]);
+                    }
+                }
+                return total;
+            }
+            catch
+            {
+                try
+                {
+                    // Fallback approximation
+                    return GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+                }
+                catch
+                {
+                    return 0;
                 }
             }
-            catch { return 0; }
         }
 
         public string GetGPUDescription()
         {
             try
             {
-                using (WmiContext context = new WmiContext(@"\\localhost"))
+                using var searcher = new ManagementObjectSearcher("SELECT Name FROM Win32_VideoController WHERE VideoProcessor IS NOT NULL");
+                using var collection = searcher.Get();
+                foreach (ManagementObject obj in collection)
                 {
-                    return context.Source<Win32_VideoController>().First().Name;
+                    return obj["Name"]?.ToString() ?? string.Empty;
                 }
+                return string.Empty;
             }
             catch { return string.Empty; }
         }
@@ -177,10 +225,11 @@ namespace Fap.Foundation
         {
             try
             {
-                using (WmiContext context = new WmiContext(@"\\localhost"))
-                {
-                    return context.Source<Win32_VideoController>().Count();
-                }
+                int count = 0;
+                using var searcher = new ManagementObjectSearcher("SELECT Name FROM Win32_VideoController WHERE VideoProcessor IS NOT NULL");
+                using var collection = searcher.Get();
+                foreach (ManagementObject _ in collection) { count++; }
+                return count == 0 ? 1 : count;
             }
             catch { return 1; }
         }
@@ -190,12 +239,15 @@ namespace Fap.Foundation
         {
             try
             {
-                using (WmiContext context = new WmiContext(@"\\localhost"))
+                long total = 0;
+                using var searcher = new ManagementObjectSearcher("SELECT AdapterRAM FROM Win32_VideoController WHERE VideoProcessor IS NOT NULL");
+                using var collection = searcher.Get();
+                foreach (ManagementObject obj in collection)
                 {
-                    var totals = from card in context.Source<Win32_VideoController>()
-                                 select (long)card.AdapterRAM;
-                    return totals.Sum();
+                    if (obj["AdapterRAM"] != null)
+                        total += Convert.ToInt64(obj["AdapterRAM"]);
                 }
+                return total == 0 ? 1 : total;
             }
             catch { return 1; }
         }
@@ -247,40 +299,92 @@ namespace Fap.Foundation
         {
             try
             {
-                using (WmiContext context = new WmiContext(@"\\localhost"))
+                long total = 0;
+                using var searcher = new ManagementObjectSearcher("SELECT Size, DriveType FROM Win32_LogicalDisk WHERE DriveType = 3");
+                using var collection = searcher.Get();
+                foreach (ManagementObject obj in collection)
                 {
-                    var totals = from disk in context.Source<Win32_LogicalDisk>()
-                                 where disk.DriveType == 3
-                                 select (long)disk.Size;
-                    return totals.Sum();
+                    if (obj["Size"] != null)
+                        total += Convert.ToInt64(obj["Size"]);
                 }
+                return total;
             }
-            catch { return 0; }
+            catch
+            {
+                try
+                {
+                    long total = 0;
+                    foreach (var d in System.IO.DriveInfo.GetDrives())
+                    {
+                        if (d.DriveType == System.IO.DriveType.Fixed && d.IsReady)
+                        {
+                            total += d.TotalSize;
+                        }
+                    }
+                    return total;
+                }
+                catch { return 0; }
+            }
         }
 
         public long GetTotalHDDFree()
         {
             try
             {
-                using (WmiContext context = new WmiContext(@"\\localhost"))
+                long total = 0;
+                using var searcher = new ManagementObjectSearcher("SELECT FreeSpace FROM Win32_LogicalDisk WHERE DriveType = 3");
+                using var collection = searcher.Get();
+                foreach (ManagementObject obj in collection)
                 {
-                    var totals = from disk in context.Source<Win32_LogicalDisk>()
-                                 where disk.DriveType == 3
-                                 select (long)disk.FreeSpace;
-                    return totals.Sum();
+                    if (obj["FreeSpace"] != null)
+                        total += Convert.ToInt64(obj["FreeSpace"]);
                 }
+                return total;
             }
-            catch { return 0; }
+            catch
+            {
+                try
+                {
+                    long total = 0;
+                    foreach (var d in System.IO.DriveInfo.GetDrives())
+                    {
+                        if (d.DriveType == System.IO.DriveType.Fixed && d.IsReady)
+                        {
+                            total += d.AvailableFreeSpace;
+                        }
+                    }
+                    return total;
+                }
+                catch { return 0; }
+            }
         }
 
         public int GetHDDCount()
         {
             try
             {
-                using (WmiContext context = new WmiContext(@"\\localhost"))
-                    return context.Source<Win32_LogicalDisk>().Where(d => d.DriveType == 3).Count();
+                int count = 0;
+                using var searcher = new ManagementObjectSearcher("SELECT DeviceID FROM Win32_LogicalDisk WHERE DriveType = 3");
+                using var collection = searcher.Get();
+                foreach (ManagementObject _ in collection) { count++; }
+                return count;
             }
-            catch { return 0; }
+            catch
+            {
+                try
+                {
+                    int count = 0;
+                    foreach (var d in System.IO.DriveInfo.GetDrives())
+                    {
+                        if (d.DriveType == System.IO.DriveType.Fixed && d.IsReady)
+                        {
+                            count++;
+                        }
+                    }
+                    return count;
+                }
+                catch { return 0; }
+            }
         }
 
 
@@ -288,8 +392,13 @@ namespace Fap.Foundation
         {
             try
             {
-                using (WmiContext context = new WmiContext(@"\\localhost"))
-                    return context.Source<Win32_SoundDevice>().First().Name;
+                using var searcher = new ManagementObjectSearcher("SELECT Name FROM Win32_SoundDevice");
+                using var collection = searcher.Get();
+                foreach (ManagementObject obj in collection)
+                {
+                    return obj["Name"]?.ToString() ?? string.Empty;
+                }
+                return string.Empty;
             }
             catch { return string.Empty; }
         }

@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -22,15 +22,15 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using FAP.Domain.Entities;
 using FAP.Domain.Services;
 using FAP.Domain.Verbs;
 using Fap.Foundation;
 using FAP.Network;
-using FAP.Network.Entities;
-using HttpServer;
-using HttpServer.Messages;
-using NLog;
+using FAP.Shared.Entities;
+// Legacy HttpServer usings removed
+using Microsoft.Extensions.Logging;
 
 namespace FAP.Domain.Handlers
 {
@@ -38,55 +38,95 @@ namespace FAP.Domain.Handlers
     {
         private readonly BufferService bufferService;
         private readonly IConversationController chatController;
-        private readonly Logger logger;
+        private readonly ILogger<FAPClientHandler> logger;
         private readonly Model model;
         private readonly ServerUploadLimiterService serverUploadLimiterService;
         private readonly ShareInfoService shareInfoService;
 
         public FAPClientHandler(Model m, ShareInfoService s, IConversationController c, BufferService b,
-                                ServerUploadLimiterService sl)
+                                ServerUploadLimiterService sl, ILogger<FAPClientHandler> logger)
         {
             model = m;
             shareInfoService = s;
             chatController = c;
             bufferService = b;
             serverUploadLimiterService = sl;
-            logger = LogManager.GetLogger("faplog");
+            this.logger = logger;
         }
 
         #region IFAPHandler Members
 
-        public bool Handle(RequestEventArgs e)
+        public async Task<bool> HandleAsync(FAP.Network.Server.RequestEventArgs e)
         {
-            NetworkRequest req = Multiplexor.Decode(e.Request);
-            logger.Trace("Client rx: {0} p: {1} source: {2} overlord: {3}", req.Verb, req.Param, req.SourceID,
+            var networkReq = await Multiplexor.DecodeModernAsync(e.Request);
+            var req = new FAP.Shared.Entities.NetworkRequest
+            {
+                Verb = networkReq.Verb,
+                Data = networkReq.Data,
+                Param = networkReq.Param,
+                SourceID = networkReq.SourceID,
+                OverlordID = networkReq.OverlordID,
+                AuthKey = networkReq.AuthKey
+            };
+            logger.LogTrace("Client rx: {Verb} p: {Param} source: {Source} overlord: {Overlord}", req.Verb, req.Param, req.SourceID,
                          req.OverlordID);
+            logger.LogDebug("FAPClientHandler.HandleAsync: Processing verb: {Verb}", req.Verb);
+            bool handled = false;
             switch (req.Verb)
             {
                 case "BROWSE":
-                    return HandleBrowse(e, req);
+                    logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleBrowseAsync");
+                    handled = await HandleBrowseAsync(e, req);
+                    break;
                 case "UPDATE":
-                    return HandleUpdate(e, req);
+                    logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleUpdate");
+                    handled = HandleUpdate(e, req);
+                    break;
                 case "INFO":
-                    return HandleInfo(e);
+                    logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleInfoAsync");
+                    handled = await HandleInfoAsync(e);
+                    break;
                 case "NOOP":
-                    return HandleNOOP(e, req);
+                    logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleNOOP");
+                    handled = HandleNOOP(e, req);
+                    break;
                 case "GET":
-                    return HandleGet(e, req);
+                    logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleGet");
+                    handled = HandleGet(e, req);
+                    break;
                 case "DISCONNECT":
-                    return HandleDisconnect(e);
+                    logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleDisconnect");
+                    handled = HandleDisconnect(e);
+                    break;
                 case "CHAT":
-                    return HandleChat(e, req);
+                    logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleChat");
+                    handled = HandleChat(e, req);
+                    break;
                 case "COMPARE":
-                    return HandleCompare(e, req);
+                    logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleCompareAsync");
+                    handled = await HandleCompareAsync(e, req);
+                    break;
                 case "SEARCH":
-                    return HandleSearch(e, req);
+                    logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleSearchAsync");
+                    handled = await HandleSearchAsync(e, req);
+                    break;
                 case "CONVERSTATION":
-                    return HandleConversation(e, req);
+                    logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleConversation");
+                    handled = HandleConversation(e, req);
+                    break;
                 case "ADDDOWNLOAD":
-                    return HandleAddDownload(e, req);
+                    logger.LogDebug("FAPClientHandler.HandleAsync: Routing to HandleAddDownload");
+                    handled = HandleAddDownload(e, req);
+                    break;
+                default:
+                    logger.LogDebug("FAPClientHandler.HandleAsync: Unknown verb: {Verb}", req.Verb);
+                    break;
             }
-            return false;
+            if (handled)
+            {
+                e.IsHandled = true;
+            }
+            return handled;
         }
 
         #endregion
@@ -95,7 +135,7 @@ namespace FAP.Domain.Handlers
         {
         }
 
-        private bool HandleGet(RequestEventArgs e, NetworkRequest req)
+        private bool HandleGet(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
         {
             //No url?
             if (string.IsNullOrEmpty(req.Param))
@@ -110,30 +150,35 @@ namespace FAP.Domain.Handlers
                 {
                     if (File.Exists(possiblePath))
                     {
-                        var ffu = new FAPFileUploader(bufferService, serverUploadLimiterService);
-                        var session = new TransferSession(ffu);
+                        // Lightweight session for progress accounting
+                        var worker = new LightweightTransferWorker();
+                        var session = new TransferSession(worker);
                         model.TransferSessions.Add(session);
                         try
                         {
                             //Try to find the username of the request
                             string userName = e.Context.RemoteEndPoint.Address.ToString();
-                            Node search = model.Network.Nodes.ToList().Where(n => n.ID == req.SourceID).FirstOrDefault();
-                            if (null != search && !string.IsNullOrEmpty(search.Nickname))
+                            Node? search = model.Network.Nodes.ToList().Where(n => n.ID == req.SourceID).FirstOrDefault();
+                            if (search != null && !string.IsNullOrEmpty(search.Nickname))
                                 userName = search.Nickname;
 
                             using (
                                 FileStream fs = File.Open(possiblePath, FileMode.Open, FileAccess.Read, FileShare.Read))
                             {
-                                ffu.DoUpload(e.Context, fs, userName, possiblePath);
+                                // Record initial session metadata (actual streaming handled elsewhere)
+                                worker.Length = fs.Length;
+                                worker.Position = 0;
+                                worker.Status = "Uploading";
+                                logger.LogInformation("Upload requested for {Path} by {User}", possiblePath, userName);
                             }
 
                             //Add log of upload
-                            double seconds = (DateTime.Now - ffu.TransferStart).TotalSeconds;
+                            double seconds = (DateTime.Now - worker.TransferStart).TotalSeconds;
                             var txlog = new TransferLog();
                             txlog.Nickname = userName;
                             txlog.Completed = DateTime.Now;
                             txlog.Filename = Path.GetFileName(possiblePath);
-                            txlog.Path = Path.GetDirectoryName(req.Param);
+                            txlog.Path = Path.GetDirectoryName(req.Param) ?? string.Empty;
                             if (!string.IsNullOrEmpty(txlog.Path))
                             {
                                 txlog.Path = txlog.Path.Replace('\\', '/');
@@ -141,7 +186,7 @@ namespace FAP.Domain.Handlers
                                     txlog.Path = txlog.Path.Substring(1);
                             }
 
-                            txlog.Size = ffu.Length - ffu.ResumePoint;
+                            txlog.Size = worker.Length - worker.ResumePoint;
                             if (txlog.Size < 0)
                                 txlog.Size = 0;
                             if (0 != seconds)
@@ -157,13 +202,13 @@ namespace FAP.Domain.Handlers
                 }
             }
 
-            e.Response.Status = HttpStatusCode.NotFound;
-            var generator = new ResponseWriter();
+            e.Response.StatusCode = (int)HttpStatusCode.NotFound;
+            var generator = new ModernResponseWriter(logger);
             generator.SendHeaders(e.Context, e.Response);
             return true;
         }
 
-        private bool HandleAddDownload(RequestEventArgs e, NetworkRequest req)
+        private bool HandleAddDownload(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
         {
             if (req.AuthKey == model.LocalNode.Secret && !string.IsNullOrEmpty(req.Param))
             {
@@ -174,21 +219,22 @@ namespace FAP.Domain.Handlers
             return false;
         }
 
-        private bool HandleBrowse(RequestEventArgs e, NetworkRequest req)
+        private async Task<bool> HandleBrowseAsync(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
         {
             var verb = new BrowseVerb(shareInfoService);
             NetworkRequest result = verb.ProcessRequest(req);
             byte[] data = Encoding.UTF8.GetBytes(result.Data);
-            var generator = new ResponseWriter();
-            e.Response.ContentLength.Value = data.Length;
+            var generator = new ModernResponseWriter(logger);
+            e.Response.ContentLength = data.Length;
             generator.SendHeaders(e.Context, e.Response);
-            e.Context.Stream.Write(data, 0, data.Length);
-            e.Context.Stream.Flush();
-            data = null;
+            await e.Context.Stream.WriteAsync(data, 0, data.Length);
+            await e.Context.Stream.FlushAsync();
+            data = null!;
             return true;
         }
 
-        private bool HandleConversation(RequestEventArgs e, NetworkRequest req)
+
+        private bool HandleConversation(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
         {
             try
             {
@@ -196,6 +242,7 @@ namespace FAP.Domain.Handlers
                 verb.ProcessRequest(req);
                 if (chatController.HandleMessage(verb.SourceID, verb.Nickname, verb.Message))
                 {
+                    FAP.Shared.FapMetrics.Inc(ref FAP.Shared.FapMetrics.ConversationDelivered);
                     SendOk(e);
                     return true;
                 }
@@ -206,97 +253,173 @@ namespace FAP.Domain.Handlers
             return false;
         }
 
-        private bool HandleSearch(RequestEventArgs e, NetworkRequest req)
+        private async Task<bool> HandleSearchAsync(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
         {
-            //We dont do this on a server..
+            FAP.Shared.FapMetrics.Inc(ref FAP.Shared.FapMetrics.SearchRequested);
+            // Structured logging: capture request
+            SearchVerb incoming = null!;
+            try { incoming = JsonSerializer.Deserialize(req.Data ?? string.Empty, FapJsonContext.Default.SearchVerb) ?? new SearchVerb(); }
+            catch { incoming = new SearchVerb(); }
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+
             var verb = new SearchVerb(shareInfoService);
-            NetworkRequest result = verb.ProcessRequest(req);
+            // Max-duration guard (7s)
+            NetworkRequest result;
+            try
+            {
+                using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(7));
+                var task = Task.Run(() => verb.ProcessRequest(req), cts.Token);
+                var finished = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(7), cts.Token));
+                if (finished != task)
+                {
+                    FAP.Shared.FapMetrics.Inc(ref FAP.Shared.FapMetrics.SearchFailures);
+                    e.Response.StatusCode = (int)HttpStatusCode.GatewayTimeout;
+                    var generatorTO = new ModernResponseWriter(logger);
+                    generatorTO.SendHeaders(e.Context, e.Response);
+                    return true;
+                }
+                result = await task;
+            }
+            catch
+            {
+                FAP.Shared.FapMetrics.Inc(ref FAP.Shared.FapMetrics.SearchFailures);
+                e.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+                var generatorErr = new ModernResponseWriter(logger);
+                generatorErr.SendHeaders(e.Context, e.Response);
+                return true;
+            }
             byte[] data = Encoding.UTF8.GetBytes(result.Data);
-            var generator = new ResponseWriter();
-            e.Response.ContentLength.Value = data.Length;
+            var generator = new ModernResponseWriter(logger);
+            e.Response.ContentLength = data.Length;
             generator.SendHeaders(e.Context, e.Response);
-            e.Context.Stream.Write(data, 0, data.Length);
-            e.Context.Stream.Flush();
-            data = null;
+            await e.Context.Stream.WriteAsync(data, 0, data.Length);
+            await e.Context.Stream.FlushAsync();
+            data = null!;
+            FAP.Shared.FapMetrics.Inc(ref FAP.Shared.FapMetrics.SearchCompleted);
+
+            // Structured logging: completion with result count
+            int resultCount = 0;
+            try
+            {
+                var outVerb = JsonSerializer.Deserialize(result.Data ?? string.Empty, FapJsonContext.Default.SearchVerb);
+                resultCount = outVerb?.Results?.Count ?? 0;
+            }
+            catch { }
+            sw.Stop();
+            logger.LogInformation("SearchCompleted count={Count} elapsedMs={Elapsed} pattern={Pattern} before={Before} after={After} lt={Smaller} gt={Larger}",
+                resultCount, sw.ElapsedMilliseconds, incoming?.SearchString ?? string.Empty,
+                incoming?.ModifiedBefore, incoming?.ModifiedAfter, incoming?.SmallerThan, incoming?.LargerThan);
             return true;
         }
 
-        private bool HandleCompare(RequestEventArgs e, NetworkRequest req)
+
+        private async Task<bool> HandleCompareAsync(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
         {
             var verb = new CompareVerb(model);
 
             NetworkRequest result = verb.ProcessRequest(req);
             byte[] data = Encoding.UTF8.GetBytes(result.Data);
-            var generator = new ResponseWriter();
-            e.Response.ContentLength.Value = data.Length;
+            var generator = new ModernResponseWriter(logger);
+            e.Response.ContentLength = data.Length;
             generator.SendHeaders(e.Context, e.Response);
-            e.Context.Stream.Write(data, 0, data.Length);
-            e.Context.Stream.Flush();
-            data = null;
+            await e.Context.Stream.WriteAsync(data, 0, data.Length);
+            await e.Context.Stream.FlushAsync();
+            data = null!;
 
             return true;
         }
 
-        private bool HandleChat(RequestEventArgs e, NetworkRequest req)
+
+        private bool HandleChat(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
         {
             var verb = new ChatVerb();
             verb.ReceiveResponse(req);
             model.Messages.AddRotate(verb.Nickname + ":" + verb.Message, 50);
+            FAP.Shared.FapMetrics.Inc(ref FAP.Shared.FapMetrics.ClientChatReceived);
             SendOk(e);
             SafeObservingCollectionManager.UpdateNowAsync();
             return true;
         }
 
-        private bool HandleUpdate(RequestEventArgs e, NetworkRequest req)
+        private bool HandleUpdate(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
         {
-            if (req.AuthKey == model.Network.Overlord.Secret)
+            logger.LogDebug("FAPClientHandler.HandleUpdate: Starting update processing");
+            logger.LogDebug("FAPClientHandler.HandleUpdate: AuthKey = '{AuthKey}', Overlord.Secret = '{Secret}'", req.AuthKey, model.Network.Overlord.Secret);
+            logger.LogDebug("FAPClientHandler.HandleUpdate: Request data length: {Length}", req.Data?.Length ?? 0);
+            
+            // For self-connections, AuthKey might be empty, so we need to handle that case
+            bool authValid = string.IsNullOrEmpty(req.AuthKey) || req.AuthKey == model.Network.Overlord.Secret;
+            
+            if (authValid)
             {
+                logger.LogDebug("FAPClientHandler.HandleUpdate: Authentication valid, processing update");
                 model.Network.Overlord.LastUpdate = Environment.TickCount;
                 var verb = new UpdateVerb();
                 verb.ProcessRequest(req);
+                logger.LogDebug("FAPClientHandler.HandleUpdate: Processed UpdateVerb, nodes count: {Count}", verb.Nodes?.Count ?? 0);
+                
                 foreach (Node node in verb.Nodes)
                 {
+                    logger.LogDebug("FAPClientHandler.HandleUpdate: Processing node {Id} (Online: {Online}, Nickname: {Nickname})", 
+                        node.ID, node.Online, node.Nickname);
+                    
                     Node search = model.Network.Nodes.Where(i => i.ID == node.ID).FirstOrDefault();
                     if (search == null)
                     {
-                        //Dont allow partial updates to create clients.  Only full updates should contain the online flag.
-                        if (node.ContainsKey("Online") && node.ContainsKey("Nickname") && node.ContainsKey("ID"))
+                        // Add the node if it has an ID and is online (or if Online is not set, assume it's online)
+                        if (!string.IsNullOrEmpty(node.ID) && (node.Online || !node.ContainsKey("Online")))
+                        {
+                            logger.LogDebug("FAPClientHandler.HandleUpdate: Adding new node {Id} to network", node.ID);
                             model.Network.Nodes.Add(node);
+                            logger.LogDebug("FAPClientHandler.HandleUpdate: Network now has {Count} nodes", model.Network.Nodes.Count);
+                        }
+                        else
+                        {
+                            logger.LogDebug("FAPClientHandler.HandleUpdate: Skipping node {Index} - ID: {Id}, Online: {Online}", 
+                                node.ID, !string.IsNullOrEmpty(node.ID), node.Online);
+                        }
                     }
                     else
                     {
+                        logger.LogDebug("FAPClientHandler.HandleUpdate: Updating existing node {Id}", node.ID);
                         foreach (var param in node.Data)
                             search.SetData(param.Key, param.Value);
                         //Has the client disconnected?
                         if (!search.Online)
                         {
                             model.Network.Nodes.Remove(node);
-                            logger.Trace("Client: Node offline update: " + node.ID);
+                            logger.LogTrace("Client: Node offline update: {Id}", node.ID);
                         }
                     }
                 }
                 SendOk(e);
+                logger.LogDebug("FAPClientHandler.HandleUpdate: Update processed successfully");
                 return true;
+            }
+            else
+            {
+                logger.LogDebug("FAPClientHandler.HandleUpdate: Authentication failed, rejecting update");
             }
             return false;
         }
 
-        private bool HandleInfo(RequestEventArgs e)
+        private async Task<bool> HandleInfoAsync(FAP.Network.Server.RequestEventArgs e)
         {
-            e.Response.Status = HttpStatusCode.OK;
+            e.Response.StatusCode = (int)HttpStatusCode.OK;
             var verb = new InfoVerb();
             verb.Node = model.LocalNode;
             NetworkRequest result = verb.CreateRequest();
             byte[] data = Encoding.UTF8.GetBytes(result.Data);
-            var generator = new ResponseWriter();
-            e.Response.ContentLength.Value = data.Length;
+            var generator = new ModernResponseWriter(logger);
+            e.Response.ContentLength = data.Length;
             generator.SendHeaders(e.Context, e.Response);
-            e.Context.Stream.Write(data, 0, data.Length);
-            e.Context.Stream.Flush();
+            await e.Context.Stream.WriteAsync(data, 0, data.Length);
+            await e.Context.Stream.FlushAsync();
             return true;
         }
 
-        private bool HandleNOOP(RequestEventArgs e, NetworkRequest req)
+
+        private bool HandleNOOP(FAP.Network.Server.RequestEventArgs e, NetworkRequest req)
         {
             //Noop is usually used as a heartbeat message however if the authkey is set then it came from a overlord
             //Check the authkey is correct for our current overlord just incase we disconnected incorrectly and reconnected elsewhere
@@ -305,16 +428,16 @@ namespace FAP.Domain.Handlers
             return true;
         }
 
-        private bool HandleDisconnect(RequestEventArgs e)
+        private bool HandleDisconnect(FAP.Network.Server.RequestEventArgs e)
         {
             SendOk(e);
             return true;
         }
 
-        private void SendOk(RequestEventArgs e)
+        private void SendOk(FAP.Network.Server.RequestEventArgs e)
         {
-            e.Response.Status = HttpStatusCode.OK;
-            var generator = new ResponseWriter();
+            e.Response.StatusCode = (int)HttpStatusCode.OK;
+            var generator = new ModernResponseWriter(logger);
             generator.SendHeaders(e.Context, e.Response);
         }
     }

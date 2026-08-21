@@ -20,7 +20,7 @@
 using System;
 using System.IO;
 using System.Xml.Serialization;
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 namespace FAP.Domain.Entities
 {

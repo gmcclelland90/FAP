@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 /**
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@ using System.Text;
 using System.Collections.Specialized;
 using System.Collections;
 using System.Threading;
+using System.Threading.Tasks;
 using System.ComponentModel;
 
 namespace Fap.Foundation
@@ -33,7 +34,9 @@ namespace Fap.Foundation
         private static object sync = new object();
         private static List<ISafeObservingCollection> list = new List<ISafeObservingCollection>();
         private static bool running = false;
-        private static AutoResetEvent workerEvent = new AutoResetEvent(false);
+        private static SemaphoreSlim workerSignal = new SemaphoreSlim(0, 1);
+        private static CancellationTokenSource? shutdownCts;
+        private static Task? workerTask;
 
         public static void Start()
         {
@@ -42,26 +45,55 @@ namespace Fap.Foundation
                 if (!running)
                 {
                     running = true;
-                    ThreadPool.QueueUserWorkItem(new WaitCallback(DoWork));
+                    shutdownCts = new CancellationTokenSource();
+                    workerTask = Task.Run(() => DoWorkAsync(shutdownCts.Token));
                 }
             }
         }
-        public static void UpdateNowAsync()
+
+        public static void Stop()
         {
-            workerEvent.Set();
+            lock (sync)
+            {
+                if (running)
+                {
+                    shutdownCts?.Cancel();
+                    workerTask?.GetAwaiter().GetResult();
+                    shutdownCts?.Dispose();
+                    shutdownCts = null;
+                    workerTask = null;
+                    running = false;
+                }
+            }
         }
 
-        private static void DoWork(object o)
+        public static void UpdateNowAsync()
         {
-            while (true)
+            if (workerSignal.CurrentCount == 0)
+                workerSignal.Release();
+        }
+
+        private static async Task DoWorkAsync(CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested)
             {
-                SafeObservableStatic.Dispatcher.Invoke(System.Windows.Threading.DispatcherPriority.Background,
-                       new Action(
-                        delegate()
-                        {
-                            Sync();
-                        }));
-                workerEvent.WaitOne(333);
+                var ui = SafeObservableStatic.UiDispatcher;
+                if (ui != null)
+                    ui.Invoke(Sync);
+                else
+                    Sync();
+
+                try
+                {
+                    await Task.WhenAny(
+                        Task.Delay(333, cancellationToken),
+                        workerSignal.WaitAsync(cancellationToken)
+                    ).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
             }
         }
 

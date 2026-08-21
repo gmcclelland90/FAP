@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -17,23 +17,24 @@
 
 #endregion
 
-using System.Waf.Applications;
 using System.Windows.Input;
 using FAP.Application.Views;
 using FAP.Domain.Entities;
 
 namespace FAP.Application.ViewModels
 {
-    public class TrayIconViewModel : ViewModel<ITrayIconView>
+    public class TrayIconViewModel : ViewModelBase<ITrayIconView>
     {
-        private ICommand compare;
-        private ICommand exit;
-        private ICommand open;
-        private ICommand openExternal;
-        private ICommand queue;
-        private ICommand settings;
-        private ICommand shares;
-        private ICommand viewshare;
+        private ICommand compare = null!;
+        private ICommand exit = null!;
+        private ICommand open = null!;
+        private ICommand openExternal = null!;
+        private ICommand queue = null!;
+        private ICommand search = null!;
+        private ICommand chat = null!;
+        private ICommand settings = null!;
+        private ICommand shares = null!;
+        private ICommand viewshare = null!;
 
 
         public TrayIconViewModel(ITrayIconView view)
@@ -41,7 +42,7 @@ namespace FAP.Application.ViewModels
         {
         }
 
-        public Model Model { set; get; }
+        public Model Model { set; get; } = null!;
 
         public bool ShowIcon
         {
@@ -54,7 +55,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 openExternal = value;
-                RaisePropertyChanged("OpenExternal");
+                OnPropertyChanged("OpenExternal");
             }
             get { return openExternal; }
         }
@@ -64,7 +65,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 compare = value;
-                RaisePropertyChanged("Compare");
+                OnPropertyChanged("Compare");
             }
             get { return compare; }
         }
@@ -74,7 +75,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 viewshare = value;
-                RaisePropertyChanged("ViewShare");
+                OnPropertyChanged("ViewShare");
             }
             get { return viewshare; }
         }
@@ -84,9 +85,29 @@ namespace FAP.Application.ViewModels
             set
             {
                 queue = value;
-                RaisePropertyChanged("Queue");
+                OnPropertyChanged("Queue");
             }
             get { return queue; }
+        }
+
+        public ICommand Search
+        {
+            set
+            {
+                search = value;
+                OnPropertyChanged("Search");
+            }
+            get { return search; }
+        }
+
+        public ICommand Chat
+        {
+            set
+            {
+                chat = value;
+                OnPropertyChanged("Chat");
+            }
+            get { return chat; }
         }
 
         public ICommand Settings
@@ -94,7 +115,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 settings = value;
-                RaisePropertyChanged("Settings");
+                OnPropertyChanged("Settings");
             }
             get { return settings; }
         }
@@ -104,7 +125,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 shares = value;
-                RaisePropertyChanged("Shares");
+                OnPropertyChanged("Shares");
             }
             get { return shares; }
         }
@@ -115,7 +136,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 open = value;
-                RaisePropertyChanged("Open");
+                OnPropertyChanged("Open");
             }
             get { return open; }
         }
@@ -125,7 +146,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 exit = value;
-                RaisePropertyChanged("Exit");
+                OnPropertyChanged("Exit");
             }
             get { return exit; }
         }

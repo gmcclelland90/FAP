@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -18,19 +18,18 @@
 #endregion
 
 using System.ComponentModel;
-using System.Waf.Applications;
 using System.Windows.Input;
 using FAP.Application.Views;
 using FAP.Domain.Entities;
 
 namespace FAP.Application.ViewModels
 {
-    public class InterfaceSelectionViewModel : ViewModel<IInterfaceSelectionView>
+    public class InterfaceSelectionViewModel : ViewModelBase<IInterfaceSelectionView>
     {
-        private BindingList<NetInterface> interfaces;
-        private ICommand quit;
-        private ICommand select;
-        private NetInterface selectedInterface;
+        private BindingList<NetInterface> interfaces = null!;
+        private ICommand quit = null!;
+        private ICommand select = null!;
+        private NetInterface selectedInterface = null!;
 
         public InterfaceSelectionViewModel(IInterfaceSelectionView i) : base(i)
         {
@@ -41,7 +40,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 interfaces = value;
-                RaisePropertyChanged("Interfaces");
+                OnPropertyChanged("Interfaces");
             }
             get { return interfaces; }
         }
@@ -51,7 +50,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 selectedInterface = value;
-                RaisePropertyChanged("SelectedInterface");
+                OnPropertyChanged("SelectedInterface");
             }
             get { return selectedInterface; }
         }
@@ -61,7 +60,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 quit = value;
-                RaisePropertyChanged("Quit");
+                OnPropertyChanged("Quit");
             }
             get { return quit; }
         }
@@ -71,7 +70,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 select = value;
-                RaisePropertyChanged("Select");
+                OnPropertyChanged("Select");
             }
             get { return select; }
         }

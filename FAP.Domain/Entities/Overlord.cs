@@ -19,7 +19,7 @@
 
 using System;
 using Fap.Foundation;
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 namespace FAP.Domain.Entities
 {

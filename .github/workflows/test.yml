@@ -1,0 +1,41 @@
+name: Tests
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  unit-and-integration:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Unit tests
+        env:
+          DOTNET_ROLL_FORWARD: LatestMajor
+        run: dotnet test tests/FAP.UnitTests/FAP.UnitTests.csproj -c Debug --logger "trx;LogFileName=UnitTests.trx"
+
+      - name: Integration tests
+        env:
+          DOTNET_ROLL_FORWARD: LatestMajor
+        run: dotnet test tests/FAP.IntegrationTests/FAP.IntegrationTests.csproj -c Debug --logger "trx;LogFileName=IntegrationTests.trx"
+
+      - name: Guest web UI tests
+        env:
+          DOTNET_ROLL_FORWARD: LatestMajor
+        run: |
+          pwsh -File tests/FAP.GuestWeb.UITests/install-playwright.ps1
+          dotnet test tests/FAP.GuestWeb.UITests/FAP.GuestWeb.UITests.csproj -c Debug --logger "trx;LogFileName=GuestWebUITests.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: '**/TestResults/**/*.trx'

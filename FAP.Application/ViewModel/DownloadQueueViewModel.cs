@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -18,7 +18,6 @@
 #endregion
 
 using System.Collections;
-using System.Waf.Applications;
 using System.Windows.Input;
 using FAP.Application.Views;
 using FAP.Domain.Entities;
@@ -26,23 +25,23 @@ using Fap.Foundation;
 
 namespace FAP.Application.ViewModels
 {
-    public class DownloadQueueViewModel : ViewModel<IDownloadQueue>
+    public class DownloadQueueViewModel : ViewModelBase<IDownloadQueue>
     {
-        private ICommand clearDownloadLog;
-        private ICommand clearUploadLog;
-        private SafeObservingCollection<TransferLog> completedDownloads;
-        private SafeObservingCollection<TransferLog> completedUploads;
-        private SafeObservingCollection<DownloadRequest> downloadQueue;
-        private string downloadStats;
+        private ICommand clearDownloadLog = null!;
+        private ICommand clearUploadLog = null!;
+        private SafeObservingCollection<TransferLog> completedDownloads = null!;
+        private SafeObservingCollection<TransferLog> completedUploads = null!;
+        private SafeObservingCollection<DownloadRequest> downloadQueue = null!;
+        private string downloadStats = string.Empty;
 
-        private ICommand movedown;
-        private ICommand movetobottom;
-        private ICommand movetotop;
-        private ICommand moveup;
-        private ICommand removeAll;
-        private ICommand removeSelection;
-        private IList selectedItems;
-        private string uploadStats;
+        private ICommand movedown = null!;
+        private ICommand movetobottom = null!;
+        private ICommand movetotop = null!;
+        private ICommand moveup = null!;
+        private ICommand removeAll = null!;
+        private ICommand removeSelection = null!;
+        private IList selectedItems = null!;
+        private string uploadStats = string.Empty;
 
         public DownloadQueueViewModel(IDownloadQueue view)
             : base(view)
@@ -55,7 +54,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 downloadStats = value;
-                RaisePropertyChanged("DownloadStats");
+                OnPropertyChanged("DownloadStats");
             }
         }
 
@@ -65,7 +64,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 uploadStats = value;
-                RaisePropertyChanged("UploadStats");
+                OnPropertyChanged("UploadStats");
             }
         }
 
@@ -75,7 +74,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 clearDownloadLog = value;
-                RaisePropertyChanged("ClearDownloadLog");
+                OnPropertyChanged("ClearDownloadLog");
             }
         }
 
@@ -85,7 +84,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 clearUploadLog = value;
-                RaisePropertyChanged("ClearUploadLog");
+                OnPropertyChanged("ClearUploadLog");
             }
         }
 
@@ -95,7 +94,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 movetobottom = value;
-                RaisePropertyChanged("Movetobottom");
+                OnPropertyChanged("Movetobottom");
             }
         }
 
@@ -105,7 +104,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 movedown = value;
-                RaisePropertyChanged("Movedown");
+                OnPropertyChanged("Movedown");
             }
         }
 
@@ -115,7 +114,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 moveup = value;
-                RaisePropertyChanged("Moveup");
+                OnPropertyChanged("Moveup");
             }
         }
 
@@ -125,7 +124,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 movetotop = value;
-                RaisePropertyChanged("Movetotop");
+                OnPropertyChanged("Movetotop");
             }
         }
 
@@ -135,7 +134,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 removeSelection = value;
-                RaisePropertyChanged("RemoveSelection");
+                OnPropertyChanged("RemoveSelection");
             }
         }
 
@@ -145,7 +144,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 removeAll = value;
-                RaisePropertyChanged("RemoveAll");
+                OnPropertyChanged("RemoveAll");
             }
         }
 
@@ -154,7 +153,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 downloadQueue = value;
-                RaisePropertyChanged("DownloadQueue");
+                OnPropertyChanged("DownloadQueue");
             }
             get { return downloadQueue; }
         }
@@ -164,7 +163,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 completedDownloads = value;
-                RaisePropertyChanged("CompletedDownloads");
+                OnPropertyChanged("CompletedDownloads");
             }
             get { return completedDownloads; }
         }
@@ -174,7 +173,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 completedUploads = value;
-                RaisePropertyChanged("CompletedUploads");
+                OnPropertyChanged("CompletedUploads");
             }
             get { return completedUploads; }
         }
@@ -184,7 +183,7 @@ namespace FAP.Application.ViewModels
             set
             {
                 selectedItems = value;
-                RaisePropertyChanged("SelectedItems");
+                OnPropertyChanged("SelectedItems");
             }
             get { return selectedItems; }
         }

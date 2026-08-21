@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -17,13 +17,12 @@
 
 #endregion
 
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Net;
-using System.Net.NetworkInformation;
-using System.Net.Sockets;
-using System.Waf.Applications;
-using System.Waf.Applications.Services;
+using CommunityToolkit.Mvvm.Input;
+using FAP.Application.Services;
 using FAP.Application.ViewModels;
 using FAP.Domain.Entities;
 
@@ -39,41 +38,29 @@ namespace FAP.Application.Controllers
         {
             vm = v;
             message = m;
-            vm.Interfaces = new BindingList<NetInterface>();
+            vm.Interfaces = new BindingList<NetInterface>(
+                NetworkInterfaceCatalog.ListIPv4(includeLoopback: false).ToList());
 
-            IPAddress[] localIPs = Dns.GetHostAddresses(Dns.GetHostName());
-
-            foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
+            // Select primary interface — prefer first host address that matches a listed NIC
+            try
             {
-                if (nic.OperationalStatus == OperationalStatus.Up && nic.Supports(NetworkInterfaceComponent.IPv4))
+                foreach (IPAddress t in Dns.GetHostAddresses(Dns.GetHostName()))
                 {
-                    var i = new NetInterface {Description = nic.Description, Name = nic.Name, Speed = nic.Speed};
-                    IPInterfaceProperties ipProps = nic.GetIPProperties();
-
-                    foreach (UnicastIPAddressInformation address in ipProps.UnicastAddresses)
-                    {
-                        if (address.Address.AddressFamily == AddressFamily.InterNetwork &&
-                            localIPs.Contains(address.Address) &&
-                            !IPAddress.IsLoopback(address.Address))
-                        {
-                            i.Address = address.Address;
-                            vm.Interfaces.Add(i);
-                            break;
-                        }
-                    }
+                    vm.SelectedInterface = vm.Interfaces.FirstOrDefault(s => Equals(s.Address, t))!;
+                    if (null != vm.SelectedInterface)
+                        break;
                 }
             }
-
-            //Select primary interface.  Just go with the lowest
-            foreach (IPAddress t in localIPs)
+            catch
             {
-                vm.SelectedInterface = vm.Interfaces.Where(s => Equals(s.Address, t)).FirstOrDefault();
-                if (null != vm.SelectedInterface)
-                    break;
+                // leave SelectedInterface unset
             }
 
-            vm.Quit = new DelegateCommand(Quit);
-            vm.Select = new DelegateCommand(Select);
+            if (vm.SelectedInterface == null && vm.Interfaces.Count > 0)
+                vm.SelectedInterface = vm.Interfaces[0];
+
+            vm.Quit = new RelayCommand(Quit);
+            vm.Select = new RelayCommand(Select);
         }
 
         private void Quit()
@@ -88,17 +75,30 @@ namespace FAP.Application.Controllers
                 vm.Close();
         }
 
-        public string CheckAddress(string a)
+        public string? CheckAddress(string a)
         {
+            // Loopback is always valid for local/test hosts (not listed in NIC scan).
+            if (!string.IsNullOrWhiteSpace(a) &&
+                IPAddress.TryParse(a, out var parsed) &&
+                IPAddress.IsLoopback(parsed))
+            {
+                return a;
+            }
+
             //Check to see if the passed address is still valid, if so just use it
             if (!vm.Interfaces.Any(t => string.Equals(t.Address.ToString(), a)))
             {
+                // If there is exactly one non-loopback interface and there is no dedicated overlord, prefer loopback for local-only use
+                // Fall back to UI selection only when truly ambiguous
                 if (vm.Interfaces.Count == 1)
-                    return vm.Interfaces[0].Address.ToString();
+                {
+                    // Prefer 127.0.0.1 for single-user local setups
+                    return IPAddress.Loopback.ToString();
+                }
                 vm.ShowDialog();
                 if (quit)
                     return null;
-                return vm.SelectedInterface.Address.ToString();
+                return vm.SelectedInterface?.Address?.ToString();
             }
 
             return a;

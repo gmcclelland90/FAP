@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -21,7 +21,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Linq;
-using System.Waf.Applications;
+using CommunityToolkit.Mvvm.Input;
 using FAP.Application.ViewModels;
 using FAP.Domain.Entities;
 using Fap.Foundation;
@@ -47,14 +47,14 @@ namespace FAP.Application.Controllers
         public void Initalise()
         {
             vm.DownloadQueue = new SafeObservingCollection<DownloadRequest>(model.DownloadQueue.List);
-            vm.RemoveAll = new DelegateCommand(RemoveAll);
-            vm.RemoveSelection = new DelegateCommand(RemoveSelection);
-            vm.Moveup = new DelegateCommand(Moveup);
-            vm.Movedown = new DelegateCommand(Movedown);
-            vm.Movetotop = new DelegateCommand(Movetotop);
-            vm.Movetobottom = new DelegateCommand(Movetobottom);
-            vm.ClearDownloadLog = new DelegateCommand(ClearDownloadLog);
-            vm.ClearUploadLog = new DelegateCommand(ClearUploadLog);
+            vm.RemoveAll = new RelayCommand(RemoveAll);
+            vm.RemoveSelection = new RelayCommand(RemoveSelection);
+            vm.Moveup = new RelayCommand<object?>(Moveup);
+            vm.Movedown = new RelayCommand<object?>(Movedown);
+            vm.Movetotop = new RelayCommand<object?>(Movetotop);
+            vm.Movetobottom = new RelayCommand<object?>(Movetobottom);
+            vm.ClearDownloadLog = new RelayCommand(ClearDownloadLog);
+            vm.ClearUploadLog = new RelayCommand(ClearUploadLog);
             vm.CompletedDownloads = model.UICompletedDownloads;
             vm.CompletedUploads = model.UICompletedUploads;
             model.CompletedDownloads.CollectionChanged += CompletedDownloads_CollectionChanged;
@@ -63,7 +63,7 @@ namespace FAP.Application.Controllers
             CompletedDownloads_CollectionChanged(null, null);
         }
 
-        private void CompletedUploads_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        private void CompletedUploads_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs? e)
         {
             List<TransferLog> list = model.CompletedUploads.ToList();
             long totalSize = list.Sum(s => s.Size);
@@ -72,13 +72,13 @@ namespace FAP.Application.Controllers
             long speed = 0;
             if (0 != list.Count)
                 speed = list.Sum(s => (long) s.Speed)/list.Count;
-            vm.UploadStats = string.Format("{0} transfered in {1} files at an average of {2}",
+            vm.UploadStats = string.Format("{0} transferred in {1} files at an average of {2}",
                                            Utility.FormatBytes(totalSize), list.Count,
                                            Utility.ConvertNumberToTextSpeed(speed));
             list.Clear();
         }
 
-        private void CompletedDownloads_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        private void CompletedDownloads_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs? e)
         {
             List<TransferLog> list = model.CompletedDownloads.ToList();
             long totalSize = list.Sum(s => s.Size);
@@ -86,7 +86,7 @@ namespace FAP.Application.Controllers
             if (list.Count != 0)
                 speed = list.Sum(s => (long) s.Speed)/list.Count;
 
-            vm.DownloadStats = string.Format("{0} transfered in {1} files at an average of {2}",
+            vm.DownloadStats = string.Format("{0} transferred in {1} files at an average of {2}",
                                              Utility.FormatBytes(totalSize), list.Count,
                                              Utility.ConvertNumberToTextSpeed(speed));
             list.Clear();
@@ -102,7 +102,7 @@ namespace FAP.Application.Controllers
             model.CompletedDownloads.Clear();
         }
 
-        private List<DownloadRequest> ConvertList(object o)
+        private List<DownloadRequest> ConvertList(object? o)
         {
             var incoming = o as ObservableCollection<object>;
             var list = new List<DownloadRequest>();
@@ -116,7 +116,7 @@ namespace FAP.Application.Controllers
             return list;
         }
 
-        private void Movetobottom(object o)
+        private void Movetobottom(object? o)
         {
             List<DownloadRequest> items = ConvertList(o);
             try
@@ -139,7 +139,7 @@ namespace FAP.Application.Controllers
             }
         }
 
-        private void Movetotop(object o)
+        private void Movetotop(object? o)
         {
             List<DownloadRequest> items = ConvertList(o);
             try
@@ -163,7 +163,7 @@ namespace FAP.Application.Controllers
             }
         }
 
-        private void Moveup(object o)
+        private void Moveup(object? o)
         {
             List<DownloadRequest> items = ConvertList(o);
             try
@@ -187,7 +187,7 @@ namespace FAP.Application.Controllers
             }
         }
 
-        private void Movedown(object o)
+        private void Movedown(object? o)
         {
             List<DownloadRequest> items = ConvertList(o);
             try

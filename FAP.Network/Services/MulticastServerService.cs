@@ -20,7 +20,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using NLog;
+using Microsoft.Extensions.Logging;
 
 namespace FAP.Network.Services
 {
@@ -28,11 +28,11 @@ namespace FAP.Network.Services
     {
         private readonly object sync = new object();
         private Socket broadcastSocket;
-        private Logger logService;
+        private readonly ILogger<MulticastServerService> logService;
 
-        public MulticastServerService()
+        public MulticastServerService(ILogger<MulticastServerService> logger)
         {
-            logService = LogManager.GetLogger("faplog");
+            logService = logger;
         }
 
         private void ConnectBroadcast()

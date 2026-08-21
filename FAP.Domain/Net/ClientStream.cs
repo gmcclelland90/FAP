@@ -1,4 +1,4 @@
-﻿#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
+#region Copyright Kayomani 2011.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
 
 /**
     This program is free software: you can redistribute it and/or modify
@@ -21,7 +21,7 @@ using System;
 using System.Threading;
 using FAP.Domain.Entities;
 using Fap.Foundation;
-using FAP.Network.Entities;
+using FAP.Shared.Entities;
 
 namespace FAP.Domain.Net
 {
@@ -42,9 +42,9 @@ namespace FAP.Domain.Net
             new BackgroundSafeObservable<NetworkRequest>();
 
         private readonly AutoResetEvent workerEvent = new AutoResetEvent(true);
-        private Node destination;
+        private Node destination = null!;
         private bool run = true;
-        private Node serverNode;
+        private Node serverNode = null!;
 
         public Node Node
         {
@@ -56,7 +56,7 @@ namespace FAP.Domain.Net
             destination = _destination;
             serverNode = _serverNode;
             destination.LastUpdate = Environment.TickCount;
-            ThreadPool.QueueUserWorkItem(Process);
+            _ = Task.Run(() => Process(null));
         }
 
         public void Kill()
@@ -86,9 +86,9 @@ namespace FAP.Domain.Net
 
         //On uplink disconnection
 
-        public event Disconnect OnDisconnect;
+        public event Disconnect OnDisconnect = null!;
 
-        private void Process(object o)
+        private void Process(object? o)
         {
             try
             {
@@ -98,8 +98,7 @@ namespace FAP.Domain.Net
                     if (pendingRequests.Count == 0 &&
                         Environment.TickCount - destination.LastUpdate > Model.UPLINK_TIMEOUT)
                     {
-                        if (null != OnDisconnect)
-                            OnDisconnect(this);
+                        OnDisconnect?.Invoke(this);
                         var req = new NetworkRequest {Verb = "DISCONNECT", SourceID = serverNode.ID};
                         TransmitRequest(req);
                         return;
@@ -126,8 +125,7 @@ namespace FAP.Domain.Net
             }
             catch
             {
-                if (null != OnDisconnect)
-                    OnDisconnect(this);
+                OnDisconnect?.Invoke(this);
             }
             //Clean up
             //AutoResetEvent w = workerEvent;

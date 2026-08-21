@@ -21,7 +21,8 @@ using System;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.Serialization;
-using Newtonsoft.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 
 namespace FAP.Domain.Entities
 {
@@ -30,41 +31,56 @@ namespace FAP.Domain.Entities
     {
         private static readonly string BACKUP_EXT = ".bak";
 
-        protected readonly string DATA_FOLDER =
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + @"\FAP\";
+        /// <summary>
+        /// Config/queue/avatar directory. Override with env <c>FAP_DATA_FOLDER</c> (tests must set this
+        /// so Watchdog/Model.Save cannot clobber the user's real %LocalAppData%\FAP).
+        /// </summary>
+        protected static string DATA_FOLDER
+        {
+            get
+            {
+                var overrideDir = Environment.GetEnvironmentVariable("FAP_DATA_FOLDER");
+                if (!string.IsNullOrWhiteSpace(overrideDir))
+                {
+                    var dir = overrideDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                    return dir + Path.DirectorySeparatorChar;
+                }
+                return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FAP")
+                       + Path.DirectorySeparatorChar;
+            }
+        }
 
         #region INotifyPropertyChanged Members
 
-        public event PropertyChangedEventHandler PropertyChanged;
+        public event PropertyChangedEventHandler PropertyChanged = null!;
 
         #endregion
 
         protected void NotifyChange(string path)
         {
-            if (null != PropertyChanged)
-                PropertyChanged(this, new PropertyChangedEventArgs(path));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(path));
         }
 
-        protected void SafeSave(object o, string fileName, Formatting f)
+        protected void SafeSave(object o, string fileName, System.Text.Json.JsonSerializerOptions options)
         {
             if (string.IsNullOrEmpty(fileName))
                 throw new Exception("Unable to save as no filename was specified.");
             if (!Directory.Exists(DATA_FOLDER))
                 Directory.CreateDirectory(DATA_FOLDER);
 
-            string obj = JsonConvert.SerializeObject(o, f);
+            string obj = JsonSerializer.Serialize(o, options);
 
             File.WriteAllText(DATA_FOLDER + fileName, obj);
             File.WriteAllText(DATA_FOLDER + fileName + BACKUP_EXT, obj);
             obj = null;
         }
 
-        protected T SafeLoad<T>(string fileName)
+        protected T? SafeLoad<T>(string fileName, System.Text.Json.JsonSerializerOptions? options = null)
         {
             try
             {
                 if (File.Exists(DATA_FOLDER + fileName))
-                    return JsonConvert.DeserializeObject<T>(File.ReadAllText(DATA_FOLDER + fileName));
+                    return JsonSerializer.Deserialize<T>(File.ReadAllText(DATA_FOLDER + fileName), options ?? FAP.Domain.JsonConfiguration.IndentedOptions);
             }
             catch
             {
@@ -73,7 +89,43 @@ namespace FAP.Domain.Entities
             try
             {
                 if (File.Exists(DATA_FOLDER + fileName + BACKUP_EXT))
-                    return JsonConvert.DeserializeObject<T>(File.ReadAllText(DATA_FOLDER + fileName + BACKUP_EXT));
+                    return JsonSerializer.Deserialize<T>(File.ReadAllText(DATA_FOLDER + fileName + BACKUP_EXT), options ?? FAP.Domain.JsonConfiguration.IndentedOptions);
+            }
+            catch
+            {
+            }
+            throw new Exception("Unable to read " + fileName);
+        }
+
+        protected void SafeSave<T>(T o, string fileName, JsonTypeInfo<T> typeInfo)
+        {
+            if (string.IsNullOrEmpty(fileName))
+                throw new Exception("Unable to save as no filename was specified.");
+            if (!Directory.Exists(DATA_FOLDER))
+                Directory.CreateDirectory(DATA_FOLDER);
+
+            string obj = JsonSerializer.Serialize(o, typeInfo);
+
+            File.WriteAllText(DATA_FOLDER + fileName, obj);
+            File.WriteAllText(DATA_FOLDER + fileName + BACKUP_EXT, obj);
+            obj = null;
+        }
+
+        protected T? SafeLoad<T>(string fileName, JsonTypeInfo<T> typeInfo)
+        {
+            try
+            {
+                if (File.Exists(DATA_FOLDER + fileName))
+                    return JsonSerializer.Deserialize(File.ReadAllText(DATA_FOLDER + fileName), typeInfo);
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                if (File.Exists(DATA_FOLDER + fileName + BACKUP_EXT))
+                    return JsonSerializer.Deserialize(File.ReadAllText(DATA_FOLDER + fileName + BACKUP_EXT), typeInfo);
             }
             catch
             {

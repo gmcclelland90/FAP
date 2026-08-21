@@ -23,12 +23,23 @@ namespace FAP.Domain.Entities
 {
     public class NetInterface
     {
-        public string Name { set; get; }
+        public string Name { set; get; } = string.Empty;
 
         public long Speed { set; get; }
 
-        public string Description { set; get; }
+        public string Description { set; get; } = string.Empty;
 
-        public IPAddress Address { set; get; }
+        public IPAddress Address { set; get; } = null!;
+
+        /// <summary>UI label: description (or name) and address.</summary>
+        public string DisplayLabel
+        {
+            get
+            {
+                var label = string.IsNullOrWhiteSpace(Description) ? Name : Description;
+                var addr = Address?.ToString() ?? string.Empty;
+                return string.IsNullOrEmpty(addr) ? label : $"{label} — {addr}";
+            }
+        }
     }
 }

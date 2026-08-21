@@ -49,7 +49,7 @@ namespace FAP.Domain.Verbs
             return sb.ToString();
         }
 
-        public DetectedNode ParseRequest(string input)
+        public DetectedNode? ParseRequest(string input)
         {
             try
             {

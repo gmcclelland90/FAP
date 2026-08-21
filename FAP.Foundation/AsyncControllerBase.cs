@@ -1,41 +1,26 @@
-﻿#region Copyright Kayomani 2010.  Licensed under the GPLv3 (Or later version), Expand for details. Do not remove this notice.
-/**
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or any 
-    later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * */
-#endregion
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.ComponentModel;
-using System.Waf.Applications;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Fap.Foundation
 {
-    public abstract class AsyncControllerBase: Controller
+    public abstract class AsyncControllerBase
     {
-        private BackgroundWorker worker = new BackgroundWorker();
-        private Queue<AsyncOperation> operations = new Queue<AsyncOperation>();
+        private readonly Queue<AsyncOperation> operations = new Queue<AsyncOperation>();
+        private readonly object lockObject = new object();
+        private readonly SynchronizationContext syncContext;
+        private volatile bool isProcessing;
+        private CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
 
         public delegate void AsyncControllerJobComplete();
-        public event AsyncControllerJobComplete AsyncControllerJobCompleteHandler;
+        public event AsyncControllerJobComplete? AsyncControllerJobCompleteHandler;
 
         public int JobCount
         {
             get
             {
-                lock (worker)
+                lock (lockObject)
                 {
                     return operations.Count;
                 }
@@ -44,58 +29,67 @@ namespace Fap.Foundation
 
         public AsyncControllerBase()
         {
-            worker.WorkerSupportsCancellation = true;
-
-            worker.DoWork += new DoWorkEventHandler(worker_DoWork);
-            worker.RunWorkerCompleted += new RunWorkerCompletedEventHandler(worker_RunWorkerCompleted);
+            syncContext = SynchronizationContext.Current ?? new SynchronizationContext();
         }
 
-        private void worker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        private async Task ProcessQueueAsync()
         {
-            if (null != AsyncControllerJobCompleteHandler)
-                AsyncControllerJobCompleteHandler();
-            bool hasWork = false;
-            lock (worker)
+            while (true)
             {
-                hasWork = operations.Count > 0;
-                if (hasWork && !worker.IsBusy)
-                    worker.RunWorkerAsync();
-            }
-        }
-
-        private void worker_DoWork(object sender, DoWorkEventArgs e)
-        {
-            AsyncOperation op = null;
-            lock (worker)
-            {
-                if (operations.Count > 0)
+                AsyncOperation op;
+                lock (lockObject)
+                {
+                    if (operations.Count == 0)
+                    {
+                        isProcessing = false;
+                        return;
+                    }
                     op = operations.Dequeue();
-            }
-            if (null != op)
-            {
-                if (op.Command.CanExecute(op.Object))
-                    op.Command.Execute(op.Object);
-                e.Result = op;
+                }
+
+                try
+                {
+                    await Task.Run(() => op.Command(op.Object), cancellationTokenSource.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    lock (lockObject)
+                    {
+                        cancellationTokenSource = new CancellationTokenSource();
+                    }
+                }
+
+                syncContext.Post(_ =>
+                {
+                    AsyncControllerJobCompleteHandler?.Invoke();
+                }, null);
+
+                lock (lockObject)
+                {
+                    if (operations.Count == 0)
+                    {
+                        isProcessing = false;
+                        return;
+                    }
+                }
             }
         }
 
-        protected void QueueWork(DelegateCommand command)
+        protected void QueueWork(Action<object?> command)
         {
             QueueWork(command, null);
         }
 
-        protected void QueueWork(DelegateCommand command, Object param)
+        protected void QueueWork(Action<object?> command, object? param)
         {
-            QueueWork(command, param, null);
-        }
-
-        protected void QueueWork(DelegateCommand command, Object param, DelegateCommand completed)
-        {
-            lock (worker)
+            lock (lockObject)
             {
                 operations.Enqueue(new AsyncOperation() { Command = command, Object = param });
-                if (!worker.IsBusy)
-                    worker.RunWorkerAsync();
+                if (!isProcessing)
+                {
+                    isProcessing = true;
+                    _ = ProcessQueueAsync();
+                }
             }
         }
     }
