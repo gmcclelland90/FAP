@@ -1,9 +1,14 @@
 name: Release
 
+# FAP versioning: Major version tracks .NET TFM
+# - v9.x.x = .NET 9 releases (this branch after merge)
+# - v10.x.x-beta = .NET 10 pre-releases (future net10 branch)
+# - v10.x.x = .NET 10 stable releases (after net10 merge)
+
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*'  # Accepts v9.0.0, v9.1.0, v10.0.0-beta, v10.0.0-beta.1, etc.
   workflow_dispatch:
 
 permissions:

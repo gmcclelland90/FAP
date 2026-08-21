@@ -6,14 +6,34 @@ This repo includes a PowerShell script to publish and package the Windows client
 - PowerShell 7+
 - .NET 9 SDK
 
+### Versioning Scheme
+
+**FAP's major version tracks the .NET TFM:**
+
+- **FAP 9.x** = .NET 9 (`migration/net9-upgrade` branch after merge)
+  - First release: `v9.0.0`
+  - Patches: `v9.0.1`, `v9.0.2`, etc.
+  - Minor releases: `v9.1.0`, `v9.2.0`, etc.
+
+- **FAP 10.x** = .NET 10 (future `migration/net10-upgrade` branch)
+  - Pre-releases: `v10.0.0-beta`, `v10.0.0-beta.1`, `v10.0.0-rc1`
+  - First release: `v10.0.0` (after merge and stabilization)
+
+This contract keeps version numbers aligned with the underlying framework version.
+
 ### Creating an Official Release
 
 To create and publish a release with GitHub artifacts:
 
 1. **Tag the release version:**
    ```bash
-   git tag v1.2.3
-   git push origin v1.2.3
+   # For the first .NET 9 release:
+   git tag v9.0.0
+   git push origin v9.0.0
+   
+   # For subsequent patches or features:
+   git tag v9.1.0
+   git push origin v9.1.0
    ```
 
 2. **Automated build:** The GitHub Actions workflow (`.github/workflows/release.yml`) will automatically:
@@ -21,9 +41,9 @@ To create and publish a release with GitHub artifacts:
    - Create a GitHub Release for the tag
    - Attach `FAP-Client-win-x64-Release-*.zip` and `FAP-Server-win-x64-Release-*.zip`
 
-3. **Release artifacts:** Find the release at `https://github.com/[owner]/[repo]/releases/tag/v1.2.3`
+3. **Release artifacts:** Find the release at `https://github.com/[owner]/[repo]/releases/tag/v9.0.0`
 
-**Tag format:** Use `v*` tags (e.g., `v1.0.0`, `v1.2.3-beta`, `v2.0.0-rc1`).
+**Tag format:** Use `v<major>.<minor>.<patch>` where major matches the .NET TFM. Pre-releases use suffix notation (e.g., `v10.0.0-beta.1`).
 
 ### Local Build (Manual)
 
