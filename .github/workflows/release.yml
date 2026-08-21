@@ -1,0 +1,86 @@
+name: Release
+
+# FAP versioning: Major version tracks .NET TFM
+# - v9.x.x = .NET 9 releases (this branch after merge)
+# - v10.x.x-beta = .NET 10 pre-releases (future net10 branch)
+# - v10.x.x = .NET 10 stable releases (after net10 merge)
+
+on:
+  push:
+    tags:
+      - 'v*'  # Accepts v9.0.0, v9.1.0, v10.0.0-beta, v10.0.0-beta.1, etc.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Setup PowerShell 7
+        shell: pwsh
+        run: |
+          Write-Host "PowerShell version: $($PSVersionTable.PSVersion)"
+          Write-Host ".NET SDK version:"
+          dotnet --version
+
+      - name: Build client and server artifacts
+        shell: pwsh
+        run: |
+          pwsh -File .\build.ps1 -Configuration Release -Runtime win-x64 -IncludeServer
+
+      - name: Prepare release artifacts
+        id: artifacts
+        shell: pwsh
+        run: |
+          $clientZip = Get-ChildItem -Path artifacts/release/FAP-Client-*.zip | Select-Object -First 1
+          $serverZip = Get-ChildItem -Path artifacts/release/FAP-Server-*.zip | Select-Object -First 1
+          
+          if (-not $clientZip) {
+            throw "Client zip not found in artifacts/release/"
+          }
+          if (-not $serverZip) {
+            throw "Server zip not found in artifacts/release/"
+          }
+          
+          Write-Host "Client artifact: $($clientZip.FullName)"
+          Write-Host "Server artifact: $($serverZip.FullName)"
+          
+          # Output for GitHub Actions
+          "client_zip=$($clientZip.Name)" >> $env:GITHUB_OUTPUT
+          "server_zip=$($serverZip.Name)" >> $env:GITHUB_OUTPUT
+          "client_path=$($clientZip.FullName)" >> $env:GITHUB_OUTPUT
+          "server_path=$($serverZip.FullName)" >> $env:GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/release/FAP-Client-*.zip
+            artifacts/release/FAP-Server-*.zip
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts (workflow_dispatch only)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: |
+            artifacts/release/FAP-Client-*.zip
+            artifacts/release/FAP-Server-*.zip
